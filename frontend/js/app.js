@@ -1125,6 +1125,19 @@
       regWorkflowState.tgtMeta = meta;
     }
 
+    // Convert to genuine File instance asynchronously
+    fetch(sampleSrc)
+      .then(r => r.blob())
+      .then(blob => {
+        const fileInstance = new File([blob], sampleName, { type: blob.type || 'image/png' });
+        if (isRef && regWorkflowState.refMeta && regWorkflowState.refMeta.name === sampleName) {
+          regWorkflowState.refFile = fileInstance;
+        } else if (!isRef && regWorkflowState.tgtMeta && regWorkflowState.tgtMeta.name === sampleName) {
+          regWorkflowState.tgtFile = fileInstance;
+        }
+      })
+      .catch(() => {});
+
     if (nameEl) {
       nameEl.textContent = meta.name;
       nameEl.title = meta.name;
@@ -1345,9 +1358,28 @@
     if (!isRefValid || !isTgtValid || regWorkflowState.isProcessing) return;
 
     // 1. Prepare genuine multipart/form-data payload with actual File objects and settings
+    let refFile = regWorkflowState.refFile;
+    let tgtFile = regWorkflowState.tgtFile;
+
+    if (!(refFile instanceof Blob) && regWorkflowState.refUrl) {
+      try {
+        const blob = await fetch(regWorkflowState.refUrl).then(r => r.blob());
+        refFile = new File([blob], regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ref.png', { type: blob.type || 'image/png' });
+        regWorkflowState.refFile = refFile;
+      } catch (_) {}
+    }
+
+    if (!(tgtFile instanceof Blob) && regWorkflowState.tgtUrl) {
+      try {
+        const blob = await fetch(regWorkflowState.tgtUrl).then(r => r.blob());
+        tgtFile = new File([blob], regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'tgt.png', { type: blob.type || 'image/png' });
+        regWorkflowState.tgtFile = tgtFile;
+      } catch (_) {}
+    }
+
     const formData = new FormData();
-    if (regWorkflowState.refFile) formData.append('reference_image', regWorkflowState.refFile);
-    if (regWorkflowState.tgtFile) formData.append('target_image', regWorkflowState.tgtFile);
+    if (refFile) formData.append('reference_image', refFile);
+    if (tgtFile) formData.append('target_image', tgtFile);
     const mode = (regWorkflowState.regSettings && regWorkflowState.regSettings.mode) ? regWorkflowState.regSettings.mode : 'automatic';
     formData.append('registration_mode', mode);
 
