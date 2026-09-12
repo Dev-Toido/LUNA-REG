@@ -798,11 +798,19 @@
             
             <!-- REFERENCE IMAGE CARD -->
             <div class="reg-image-card" id="card-ref">
+              <div class="card-corner-bracket top-left"></div>
+              <div class="card-corner-bracket top-right"></div>
+              <div class="card-corner-bracket bottom-left"></div>
+              <div class="card-corner-bracket bottom-right"></div>
+
               <div class="reg-card-header">
                 <div class="card-title-group">
-                  <span class="reg-card-badge">BASE ORBIT PASS</span>
+                  <div class="card-badge-row">
+                    <span class="reg-card-badge">BASE ORBIT PASS</span>
+                    <span class="format-badge" id="ref-format-badge">GEOTIFF 16-BIT</span>
+                  </div>
                   <h3 class="reg-card-label">REFERENCE IMAGE</h3>
-                  <p class="reg-card-desc">Base image used for alignment.</p>
+                  <p class="reg-card-desc">Calibrated base imagery used for spatial alignment anchor.</p>
                 </div>
                 <button class="btn-sample-preset" id="btn-load-sample-ref" title="Load demo Chandrayaan-2 TMC-2 Nadir Pass">LOAD TMC-2 NADIR SAMPLE</button>
               </div>
@@ -819,8 +827,8 @@
                     </svg>
                   </div>
                   <div class="drop-prompt">
-                    <span class="drop-text-primary">Drag & drop lunar image here, or <span class="drop-browse-btn">browse</span></span>
-                    <span class="drop-text-secondary">Supported: PNG, JPG, JPEG, TIFF • Max 150 MB</span>
+                    <span class="drop-text-primary">Drag & drop reference lunar raster here, or <span class="drop-browse-btn">browse</span></span>
+                    <span class="drop-text-secondary">Supported: GeoTIFF (.tif, .tiff), PNG, JPG • Max 150 MB</span>
                   </div>
                 </div>
 
@@ -850,9 +858,26 @@
                       <span class="meta-value" id="ref-file-dims">--</span>
                     </div>
                     <div class="file-meta-row">
-                      <span class="meta-label">Validation:</span>
-                      <span class="meta-value success" id="ref-file-status">VALID FORMAT & SIZE ✓</span>
+                      <span class="meta-label">Ground Footprint:</span>
+                      <span class="meta-value" id="ref-footprint">--</span>
                     </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Mean Radiance:</span>
+                      <span class="meta-value" id="ref-radiance-val">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Validation:</span>
+                      <span class="meta-value success" id="ref-file-status">VALID FORMAT &amp; SIZE ✓</span>
+                    </div>
+                  </div>
+
+                  <!-- Live Radiance Histogram Strip -->
+                  <div class="card-histogram-section">
+                    <div class="histogram-header">
+                      <span class="hist-label">RADIANCE HISTOGRAM (DN)</span>
+                      <span class="hist-spread" id="ref-hist-spread">Range: -- DN</span>
+                    </div>
+                    <canvas id="ref-mini-hist" class="mini-hist-canvas" width="280" height="46"></canvas>
                   </div>
                 </div>
               </div>
@@ -860,11 +885,19 @@
 
             <!-- TARGET IMAGE CARD -->
             <div class="reg-image-card" id="card-tgt">
+              <div class="card-corner-bracket top-left"></div>
+              <div class="card-corner-bracket top-right"></div>
+              <div class="card-corner-bracket bottom-left"></div>
+              <div class="card-corner-bracket bottom-right"></div>
+
               <div class="reg-card-header">
                 <div class="card-title-group">
-                  <span class="reg-card-badge">UNALIGNED PASS</span>
+                  <div class="card-badge-row">
+                    <span class="reg-card-badge">UNALIGNED PASS</span>
+                    <span class="format-badge" id="tgt-format-badge">PNG 8-BIT</span>
+                  </div>
                   <h3 class="reg-card-label">TARGET IMAGE</h3>
-                  <p class="reg-card-desc">Image to be aligned with the reference image.</p>
+                  <p class="reg-card-desc">Unaligned lunar pass to be warped and registered into reference geometry.</p>
                 </div>
                 <button class="btn-sample-preset" id="btn-load-sample-tgt" title="Load demo Chandrayaan-2 TMC-2 Low-Sun Pass">LOAD TMC-2 LOW-SUN SAMPLE</button>
               </div>
@@ -880,8 +913,8 @@
                     </svg>
                   </div>
                   <div class="drop-prompt">
-                    <span class="drop-text-primary">Drag & drop target image here, or <span class="drop-browse-btn">browse</span></span>
-                    <span class="drop-text-secondary">Supported: PNG, JPG, JPEG, TIFF • Max 150 MB</span>
+                    <span class="drop-text-primary">Drag & drop target lunar raster here, or <span class="drop-browse-btn">browse</span></span>
+                    <span class="drop-text-secondary">Supported: GeoTIFF (.tif, .tiff), PNG, JPG • Max 150 MB</span>
                   </div>
                 </div>
 
@@ -911,9 +944,26 @@
                       <span class="meta-value" id="tgt-file-dims">--</span>
                     </div>
                     <div class="file-meta-row">
-                      <span class="meta-label">Validation:</span>
-                      <span class="meta-value success" id="tgt-file-status">VALID FORMAT & SIZE ✓</span>
+                      <span class="meta-label">Ground Footprint:</span>
+                      <span class="meta-value" id="tgt-footprint">--</span>
                     </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Mean Radiance:</span>
+                      <span class="meta-value" id="tgt-radiance-val">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Validation:</span>
+                      <span class="meta-value success" id="tgt-file-status">VALID FORMAT &amp; SIZE ✓</span>
+                    </div>
+                  </div>
+
+                  <!-- Live Radiance Histogram Strip -->
+                  <div class="card-histogram-section">
+                    <div class="histogram-header">
+                      <span class="hist-label">RADIANCE HISTOGRAM (DN)</span>
+                      <span class="hist-spread" id="tgt-hist-spread">Range: -- DN</span>
+                    </div>
+                    <canvas id="tgt-mini-hist" class="mini-hist-canvas" width="280" height="46"></canvas>
                   </div>
                 </div>
               </div>
@@ -921,14 +971,137 @@
 
           </div>
 
+          <!-- PRE-FLIGHT SCIENTIFIC VALIDATION CHECKLIST -->
+          <div class="preflight-validation-box" id="preflight-validation-box">
+            <div class="preflight-header">
+              <div class="preflight-title-group">
+                <span class="preflight-badge">PRE-FLIGHT STAGE</span>
+                <h4 class="preflight-title">SCIENTIFIC COMPATIBILITY VALIDATION</h4>
+              </div>
+              <span class="preflight-overall-badge pending" id="preflight-status-badge">AWAITING DUAL IMAGERY</span>
+            </div>
+            <div class="preflight-checks-grid">
+              <div class="preflight-check-item" id="chk-item-sensor">
+                <div class="check-icon-col">
+                  <div class="check-status-icon idle" id="icon-chk-sensor">○</div>
+                </div>
+                <div class="check-text-col">
+                  <span class="check-name">Optical Sensor &amp; Orbit Geometry</span>
+                  <span class="check-sub" id="desc-chk-sensor">Awaiting sensor header verification</span>
+                </div>
+              </div>
+
+              <div class="preflight-check-item" id="chk-item-bitdepth">
+                <div class="check-icon-col">
+                  <div class="check-status-icon idle" id="icon-chk-bitdepth">○</div>
+                </div>
+                <div class="check-text-col">
+                  <span class="check-name">Bit Depth &amp; Dynamic Range</span>
+                  <span class="check-sub" id="desc-chk-bitdepth">Awaiting raster depth assessment</span>
+                </div>
+              </div>
+
+              <div class="preflight-check-item" id="chk-item-dims">
+                <div class="check-icon-col">
+                  <div class="check-status-icon idle" id="icon-chk-dims">○</div>
+                </div>
+                <div class="check-text-col">
+                  <span class="check-name">Spatial Dimensions &amp; Scale Ratio</span>
+                  <span class="check-sub" id="desc-chk-dims">Awaiting dimension ratio calculation</span>
+                </div>
+              </div>
+
+              <div class="preflight-check-item" id="chk-item-contrast">
+                <div class="check-icon-col">
+                  <div class="check-status-icon idle" id="icon-chk-contrast">○</div>
+                </div>
+                <div class="check-text-col">
+                  <span class="check-name">Terrain Contrast &amp; Gradient SNR</span>
+                  <span class="check-sub" id="desc-chk-contrast">Awaiting crater shadow gradient analysis</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADVANCED SCIENTIFIC REGISTRATION PARAMETERS -->
+          <div class="reg-parameters-panel" id="reg-parameters-panel">
+            <div class="reg-param-header">
+              <div class="param-title-group">
+                <span class="param-badge">ALGORITHM CONFIG</span>
+                <h4 class="param-title">REGISTRATION &amp; TRANSFORMATION PARAMETERS</h4>
+              </div>
+              <span class="param-sub">Tuned for Chandrayaan-2 TMC-2 / OHRC high-relief planetary terrain</span>
+            </div>
+            <div class="param-grid">
+              <div class="param-field">
+                <label for="reg-param-detector" class="param-label">Feature Detector:</label>
+                <select id="reg-param-detector" class="param-select">
+                  <option value="sift" selected>Multi-Scale SIFT (High-Relief Default)</option>
+                  <option value="deep_feature">Deep LoFTR / SuperPoint (Cross-Illum)</option>
+                  <option value="phase_corr">FFT Phase Correlation (Global Shift)</option>
+                </select>
+              </div>
+
+              <div class="param-field">
+                <label for="reg-param-outlier" class="param-label">Outlier Rejection:</label>
+                <select id="reg-param-outlier" class="param-select">
+                  <option value="ransac" selected>RANSAC (0.75 px Inlier Threshold)</option>
+                  <option value="magsac">MAGSAC++ (Adaptive Marginal Inlier)</option>
+                  <option value="lmeds">LMedS (Least Median of Squares)</option>
+                </select>
+              </div>
+
+              <div class="param-field">
+                <label for="reg-param-model" class="param-label">Geometric Model:</label>
+                <select id="reg-param-model" class="param-select">
+                  <option value="homography" selected>Planar Homography (8-DOF Projective)</option>
+                  <option value="affine">Affine Transformation (6-DOF)</option>
+                  <option value="rigid">Euclidean Rigid (3-DOF)</option>
+                </select>
+              </div>
+
+              <div class="param-field checkboxes-row">
+                <label class="param-checkbox-label">
+                  <input type="checkbox" id="reg-param-subpixel" class="param-checkbox" checked>
+                  <span>Sub-pixel Levenberg-Marquardt Refinement</span>
+                </label>
+                <label class="param-checkbox-label">
+                  <input type="checkbox" id="reg-param-clahe" class="param-checkbox" checked>
+                  <span>Adaptive CLAHE Contrast Normalization</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <!-- DUAL-IMAGE PREVIEW WORKSPACE -->
           <div class="preview-workspace-section">
             <div class="preview-workspace-header">
               <div class="preview-title-group">
                 <span class="preview-title">DUAL-IMAGE PREVIEW WORKSPACE</span>
-                <span class="preview-sub">Synchronized spatial inspection prior to keypoint extraction</span>
+                <span class="preview-sub">Synchronized spatial inspection &amp; radiometry prior to keypoint extraction</span>
               </div>
               <div class="preview-controls-bar">
+                <!-- Inspection Telemetry Readout -->
+                <div class="preview-crosshair-telemetry" id="preview-crosshair-telemetry">
+                  <span class="telemetry-label">INSPECTION:</span>
+                  <span class="telemetry-val" id="telemetry-coords">X: -- px | Y: -- px</span>
+                  <span class="telemetry-sep">•</span>
+                  <span class="telemetry-val" id="telemetry-dn">Intensity: -- DN</span>
+                </div>
+
+                <!-- Contrast Enhancement Slider -->
+                <div class="preview-contrast-control">
+                  <label for="slider-preview-contrast" class="contrast-slider-label">CONTRAST:</label>
+                  <input type="range" id="slider-preview-contrast" min="1.0" max="2.5" step="0.1" value="1.0" title="Enhance shadow penetration contrast">
+                  <span class="contrast-val" id="val-preview-contrast">1.0x</span>
+                </div>
+
+                <!-- Grid Overlay Toggle -->
+                <button class="btn-preview-tool" id="btn-preview-toggle-grid" title="Toggle 100m metric inspection grid overlay">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                  <span>GRID</span>
+                </button>
+
                 <button class="btn-preview-tool" id="btn-preview-fit" title="Fit both lunar images to viewport">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
                   <span>FIT TO VIEW</span>
@@ -953,6 +1126,7 @@
               <div class="viewport-panel" id="viewport-ref">
                 <div class="viewport-tag">REFERENCE: <span id="vtag-ref-name">NOT LOADED</span></div>
                 <div class="viewport-canvas-box" id="vbox-ref">
+                  <div class="viewport-grid-overlay" id="vgrid-overlay-ref"></div>
                   <img id="vimg-ref" class="viewport-render-img" src="" alt="Reference Full Preview" style="display:none;">
                   <div class="viewport-empty-notice" id="vempty-ref">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -964,6 +1138,7 @@
               <div class="viewport-panel" id="viewport-tgt">
                 <div class="viewport-tag">TARGET: <span id="vtag-tgt-name">NOT LOADED</span></div>
                 <div class="viewport-canvas-box" id="vbox-tgt">
+                  <div class="viewport-grid-overlay" id="vgrid-overlay-tgt"></div>
                   <img id="vimg-tgt" class="viewport-render-img" src="" alt="Target Full Preview" style="display:none;">
                   <div class="viewport-empty-notice" id="vempty-tgt">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>

@@ -1974,10 +1974,53 @@ canvas#hist-canvas {
   flex-direction: column;
   gap: 12px;
   transition: border-color 0.2s ease;
+  position: relative;
 }
 
 .reg-image-card:hover {
   border-color: var(--border-subtle);
+}
+
+/* Aerospace Technical Reticle Corner Brackets */
+.card-corner-bracket {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  opacity: 0.5;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.reg-image-card:hover .card-corner-bracket {
+  opacity: 0.95;
+}
+
+.card-corner-bracket.top-left {
+  top: 4px;
+  left: 4px;
+  border-top: 1.5px solid var(--accent-gold);
+  border-left: 1.5px solid var(--accent-gold);
+}
+
+.card-corner-bracket.top-right {
+  top: 4px;
+  right: 4px;
+  border-top: 1.5px solid var(--accent-gold);
+  border-right: 1.5px solid var(--accent-gold);
+}
+
+.card-corner-bracket.bottom-left {
+  bottom: 4px;
+  left: 4px;
+  border-bottom: 1.5px solid var(--accent-gold);
+  border-left: 1.5px solid var(--accent-gold);
+}
+
+.card-corner-bracket.bottom-right {
+  bottom: 4px;
+  right: 4px;
+  border-bottom: 1.5px solid var(--accent-gold);
+  border-right: 1.5px solid var(--accent-gold);
 }
 
 .reg-card-header {
@@ -1985,6 +2028,13 @@ canvas#hist-canvas {
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
+}
+
+.card-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
 }
 
 .reg-card-badge {
@@ -1998,7 +2048,19 @@ canvas#hist-canvas {
   border-radius: 2px;
   padding: 2px 6px;
   display: inline-block;
-  margin-bottom: 4px;
+}
+
+.format-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-secondary);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-dark);
+  border-radius: 2px;
+  padding: 2px 6px;
+  display: inline-block;
 }
 
 .reg-card-label {
@@ -2107,14 +2169,20 @@ canvas#hist-canvas {
 .drop-zone-active-file {
   width: 100%;
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: default;
+}
+
+.active-file-header-row {
+  display: flex;
   gap: 14px;
   align-items: center;
-  cursor: default;
 }
 
 .active-file-preview-wrap {
   width: 110px;
-  height: 85px;
+  height: 90px;
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-xs);
   overflow: hidden;
@@ -2183,6 +2251,299 @@ canvas#hist-canvas {
   color: var(--success);
 }
 
+/* Radiance Histogram Strip */
+.card-histogram-section {
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.histogram-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+}
+
+.hist-label {
+  color: var(--accent-gold-light);
+  letter-spacing: 0.8px;
+}
+
+.hist-spread {
+  color: var(--text-muted);
+}
+
+.mini-hist-canvas {
+  width: 100%;
+  height: 44px;
+  background: #050508;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  display: block;
+}
+
+/* Pre-Flight Scientific Validation Box */
+.preflight-validation-box {
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preflight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preflight-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preflight-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.1);
+  border: 1px solid rgba(223, 192, 138, 0.25);
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.8px;
+}
+
+.preflight-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  letter-spacing: 0.9px;
+  font-weight: 600;
+}
+
+.preflight-overall-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border-dark);
+  color: var(--text-muted);
+  background: var(--bg-obsidian);
+}
+
+.preflight-overall-badge.ready {
+  color: var(--success);
+  border-color: rgba(78, 135, 82, 0.5);
+  background: rgba(78, 135, 82, 0.15);
+}
+
+.preflight-overall-badge.pending {
+  color: var(--text-muted);
+}
+
+.preflight-checks-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 992px) {
+  .preflight-checks-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .preflight-checks-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.preflight-check-item {
+  background: rgba(8, 8, 10, 0.7);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 8px 10px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.check-status-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.check-status-icon.idle {
+  color: var(--text-muted);
+  border: 1px solid var(--border-dark);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.check-status-icon.pass {
+  color: var(--success);
+  border: 1px solid rgba(78, 135, 82, 0.6);
+  background: rgba(78, 135, 82, 0.2);
+}
+
+.check-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check-name {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.check-sub {
+  font-size: 8.5px;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+
+/* Advanced Scientific Registration Parameters Panel */
+.reg-parameters-panel {
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reg-param-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.param-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.param-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.1);
+  border: 1px solid rgba(223, 192, 138, 0.25);
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.8px;
+}
+
+.param-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  letter-spacing: 0.9px;
+  font-weight: 600;
+}
+
+.param-sub {
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+@media (max-width: 1100px) {
+  .param-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .param-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.param-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.param-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+}
+
+.param-select {
+  background: #08080a;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 5px 8px;
+  border-radius: var(--radius-xs);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.param-select:focus {
+  border-color: var(--accent-gold);
+}
+
+.checkboxes-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+
+.param-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.param-checkbox {
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
 /* Dual-Image Preview Workspace */
 .preview-workspace-section {
   background: var(--bg-obsidian);
@@ -2226,7 +2587,82 @@ canvas#hist-canvas {
 
 .preview-controls-bar {
   display: flex;
+  align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Preview Crosshair Telemetry */
+.preview-crosshair-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: rgba(8, 8, 12, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 4px 8px;
+}
+
+.telemetry-label {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.telemetry-val {
+  color: var(--text-secondary);
+}
+
+.telemetry-sep {
+  color: var(--text-muted);
+}
+
+/* Contrast Enhancement Control */
+.preview-contrast-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: rgba(8, 8, 12, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+}
+
+.contrast-slider-label {
+  color: var(--text-muted);
+}
+
+#slider-preview-contrast {
+  width: 60px;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
+.contrast-val {
+  color: var(--accent-gold-light);
+  min-width: 24px;
+}
+
+.viewport-grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(223, 192, 138, 0.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(223, 192, 138, 0.09) 1px, transparent 1px);
+  display: none;
+  z-index: 5;
+}
+
+.viewport-grid-overlay.visible {
+  display: block;
 }
 
 .btn-preview-tool {
@@ -2244,9 +2680,10 @@ canvas#hist-canvas {
   transition: all 0.15s;
 }
 
-.btn-preview-tool:hover {
+.btn-preview-tool:hover, .btn-preview-tool.active {
   border-color: var(--accent-gold);
   color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.08);
 }
 
 .preview-dual-viewport {
