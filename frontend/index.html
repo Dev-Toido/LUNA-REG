@@ -741,6 +741,14 @@
               <button class="api-config-btn" id="btn-config-api" title="Configure Backend API URL">CONFIG</button>
             </div>
 
+            <button class="btn-tech" id="btn-reset-reg-workflow" title="Reset both uploaded files and registration state">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              <span>RESET STATE</span>
+            </button>
+
             <button class="btn-tech" id="btn-back-to-explorer" title="Return to Lunar Terrain Explorer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 18 9 12 15 6"></polyline>
@@ -816,6 +824,7 @@
               <!-- Drag & Drop Zone -->
               <div class="drop-zone" id="dropzone-ref">
                 <input type="file" id="file-input-ref" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
+                <div class="drop-zone-error" id="ref-drop-error" style="display: none;"></div>
                 <div class="drop-zone-idle" id="drop-ref-idle">
                   <div class="drop-zone-icon">
                     <svg viewBox="0 0 24 24">
@@ -843,6 +852,7 @@
                           <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                       </button>
+                      <button type="button" class="btn-replace-overlay" id="btn-replace-ref" title="Replace reference file with another file from your computer">REPLACE</button>
                     </div>
 
                     <div class="active-file-meta-list">
@@ -907,6 +917,7 @@
               <!-- Drag & Drop Zone -->
               <div class="drop-zone" id="dropzone-tgt">
                 <input type="file" id="file-input-tgt" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
+                <div class="drop-zone-error" id="tgt-drop-error" style="display: none;"></div>
                 <div class="drop-zone-idle" id="drop-tgt-idle">
                   <div class="drop-zone-icon">
                     <svg viewBox="0 0 24 24">
@@ -933,6 +944,7 @@
                           <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                       </button>
+                      <button type="button" class="btn-replace-overlay" id="btn-replace-tgt" title="Replace target file with another file from your computer">REPLACE</button>
                     </div>
 
                     <div class="active-file-meta-list">

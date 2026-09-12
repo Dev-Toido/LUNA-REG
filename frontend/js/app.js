@@ -657,15 +657,33 @@
     const vImg = document.getElementById(isRef ? 'vimg-ref' : 'vimg-tgt');
     const vEmpty = document.getElementById(isRef ? 'vempty-ref' : 'vempty-tgt');
     const vTag = document.getElementById(isRef ? 'vtag-ref-name' : 'vtag-tgt-name');
+    const errorEl = document.getElementById(isRef ? 'ref-drop-error' : 'tgt-drop-error');
+
+    // Clear any previous inline error
+    if (errorEl) {
+      errorEl.textContent = '';
+      errorEl.style.display = 'none';
+    }
 
     if (!validation.valid) {
-      alert(`Invalid Lunar Image: ${validation.error}`);
+      if (errorEl) {
+        errorEl.textContent = `Validation Error: ${validation.error}`;
+        errorEl.style.display = 'block';
+      } else {
+        alert(`Invalid Lunar Image: ${validation.error}`);
+      }
       return;
     }
 
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
+      // Clear error on successful raster load
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.style.display = 'none';
+      }
+
       const meta = {
         name: file.name,
         sizeStr: formatBytes(file.size),
@@ -726,7 +744,14 @@
     };
 
     img.onerror = () => {
-      alert('Error reading lunar image. Please ensure the file is an uncorrupted raster.');
+      URL.revokeObjectURL(url);
+      const errMsg = 'Error decoding lunar image. Please ensure the file is an uncorrupted raster.';
+      if (errorEl) {
+        errorEl.textContent = `Format Error: ${errMsg}`;
+        errorEl.style.display = 'block';
+      } else {
+        alert(errMsg);
+      }
     };
 
     img.src = url;
@@ -743,6 +768,12 @@
     const vImg = document.getElementById(isRef ? 'vimg-ref' : 'vimg-tgt');
     const vEmpty = document.getElementById(isRef ? 'vempty-ref' : 'vempty-tgt');
     const vTag = document.getElementById(isRef ? 'vtag-ref-name' : 'vtag-tgt-name');
+    const errorEl = document.getElementById(isRef ? 'ref-drop-error' : 'tgt-drop-error');
+
+    if (errorEl) {
+      errorEl.textContent = '';
+      errorEl.style.display = 'none';
+    }
 
     if (isRef) {
       if (regWorkflowState.refUrl && regWorkflowState.refUrl.startsWith('blob:')) {
@@ -779,6 +810,44 @@
     vEmpty.style.display = 'flex';
     vTag.textContent = 'NOT LOADED';
 
+    checkRegistrationReadiness();
+  }
+
+  function resetRegistrationWorkflow() {
+    // Reset both reference and target images
+    removeSelectedFile('ref');
+    removeSelectedFile('tgt');
+
+    // Reset Dual Preview viewport
+    setPreviewZoom(1.0, true);
+
+    // Reset contrast filter
+    const contrastSlider = document.getElementById('slider-preview-contrast');
+    const contrastValEl = document.getElementById('val-preview-contrast');
+    if (contrastSlider) {
+      contrastSlider.value = 1.0;
+      if (contrastValEl) contrastValEl.textContent = '1.0x';
+      const vRef = document.getElementById('vimg-ref');
+      const vTgt = document.getElementById('vimg-tgt');
+      if (vRef) vRef.style.filter = '';
+      if (vTgt) vTgt.style.filter = '';
+    }
+
+    // Reset grid overlay
+    const gridBtn = document.getElementById('btn-preview-toggle-grid');
+    const gridRef = document.getElementById('vgrid-overlay-ref');
+    const gridTgt = document.getElementById('vgrid-overlay-tgt');
+    if (gridRef) gridRef.classList.remove('visible');
+    if (gridTgt) gridTgt.classList.remove('visible');
+    if (gridBtn) gridBtn.classList.remove('active');
+
+    // Hide registration monitor console if visible
+    const monitorBox = document.getElementById('reg-monitor-box');
+    if (monitorBox) monitorBox.style.display = 'none';
+    regWorkflowState.isProcessing = false;
+
+    // Reset Stepper to Step 1
+    updateWorkflowStepper(1);
     checkRegistrationReadiness();
   }
 
@@ -1828,6 +1897,32 @@
 
     const removeTgtBtn = document.getElementById('btn-remove-tgt');
     if (removeTgtBtn) removeTgtBtn.addEventListener('click', (e) => { e.stopPropagation(); removeSelectedFile('tgt'); });
+
+    const replaceRefBtn = document.getElementById('btn-replace-ref');
+    if (replaceRefBtn) {
+      replaceRefBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = document.getElementById('file-input-ref');
+        if (input) input.click();
+      });
+    }
+
+    const replaceTgtBtn = document.getElementById('btn-replace-tgt');
+    if (replaceTgtBtn) {
+      replaceTgtBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = document.getElementById('file-input-tgt');
+        if (input) input.click();
+      });
+    }
+
+    const resetWorkflowBtn = document.getElementById('btn-reset-reg-workflow');
+    if (resetWorkflowBtn) {
+      resetWorkflowBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetRegistrationWorkflow();
+      });
+    }
 
     const sampleRefBtn = document.getElementById('btn-load-sample-ref');
     if (sampleRefBtn) sampleRefBtn.addEventListener('click', () => loadSamplePreset('ref'));
