@@ -377,6 +377,11 @@
     tgtMeta: null,
 
     previewZoom: 1.0,
+    panX: 0,
+    panY: 0,
+    isPanning: false,
+    panStartX: 0,
+    panStartY: 0,
     isProcessing: false,
     currentStep: 1
   };
@@ -434,6 +439,56 @@
     }
 
     return { valid: true, error: null };
+  }
+
+  function parseTiffDimensions(buffer) {
+    if (!buffer || buffer.byteLength < 16) return null;
+    try {
+      const view = new DataView(buffer);
+      const magic = view.getUint16(0);
+      const isLittle = (magic === 0x4949); // 'II' (Little Endian)
+      const isBig = (magic === 0x4D4D);    // 'MM' (Big Endian)
+      if (!isLittle && !isBig) return null;
+      if (view.getUint16(2, isLittle) !== 42) return null;
+
+      const firstIFDOffset = view.getUint32(4, isLittle);
+      if (firstIFDOffset >= buffer.byteLength - 2) return null;
+
+      const numEntries = view.getUint16(firstIFDOffset, isLittle);
+      let width = null;
+      let height = null;
+
+      for (let i = 0; i < numEntries; i++) {
+        const entryOffset = firstIFDOffset + 2 + (i * 12);
+        if (entryOffset + 12 > buffer.byteLength) break;
+        const tag = view.getUint16(entryOffset, isLittle);
+        const type = view.getUint16(entryOffset + 2, isLittle);
+
+        let val = null;
+        if (type === 3) { // SHORT (16-bit)
+          val = view.getUint16(entryOffset + 8, isLittle);
+        } else if (type === 4) { // LONG (32-bit)
+          val = view.getUint32(entryOffset + 8, isLittle);
+        }
+
+        if (tag === 0x0100 && val) width = val;  // ImageWidth
+        if (tag === 0x0101 && val) height = val; // ImageLength
+        if (width && height) break;
+      }
+
+      if (width && height) return { width, height };
+    } catch (e) {
+      console.warn('TIFF header parsing note:', e);
+    }
+    return null;
+  }
+
+  function detectFormatFullName(fileName) {
+    const lower = (fileName || '').toLowerCase();
+    if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'TIFF / GeoTIFF (.tif)';
+    if (lower.endsWith('.png')) return 'PNG Raster (.png)';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'JPEG Raster (.jpg)';
+    return 'Raster Image';
   }
 
   // --- SCIENTIFIC RADIANCE HISTOGRAM & PREFLIGHT VALIDATION UTILITIES ---
@@ -664,11 +719,15 @@
     const nameEl = document.getElementById(isRef ? 'ref-file-name' : 'tgt-file-name');
     const sizeEl = document.getElementById(isRef ? 'ref-file-size' : 'tgt-file-size');
     const dimsEl = document.getElementById(isRef ? 'ref-file-dims' : 'tgt-file-dims');
+    const typeEl = document.getElementById(isRef ? 'ref-file-type' : 'tgt-file-type');
     const footprintEl = document.getElementById(isRef ? 'ref-footprint' : 'tgt-footprint');
     const formatBadge = document.getElementById(isRef ? 'ref-format-badge' : 'tgt-format-badge');
     const statusEl = document.getElementById(isRef ? 'ref-file-status' : 'tgt-file-status');
     const thumbImg = document.getElementById(isRef ? 'ref-thumb-img' : 'tgt-thumb-img');
+    const thumbFallback = document.getElementById(isRef ? 'ref-thumb-fallback' : 'tgt-thumb-fallback');
+    const cardTiffNotice = document.getElementById(isRef ? 'ref-card-tiff-notice' : 'tgt-card-tiff-notice');
     const vImg = document.getElementById(isRef ? 'vimg-ref' : 'vimg-tgt');
+    const vTiff = document.getElementById(isRef ? 'vtiff-ref' : 'vtiff-tgt');
     const vEmpty = document.getElementById(isRef ? 'vempty-ref' : 'vempty-tgt');
     const vTag = document.getElementById(isRef ? 'vtag-ref-name' : 'vtag-tgt-name');
     const errorEl = document.getElementById(isRef ? 'ref-drop-error' : 'tgt-drop-error');
@@ -706,74 +765,150 @@
       return;
     }
 
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      // Clear error on successful raster load
-      clearError();
+    const lowerName = (file.name || '').toLowerCase();
+    const isTiffFile = lowerName.endsWith('.tif') || lowerName.endsWith('.tiff');
 
-      const meta = {
-        name: file.name,
-        sizeStr: formatBytes(file.size),
-        width: img.naturalWidth || 2048,
-        height: img.naturalHeight || 2048,
-        url: url,
-        file: file
-      };
+    const applyMetaAndUi = (meta, isTiffFallback = false) => {
+      clearError();
 
       if (isRef) {
         if (regWorkflowState.refUrl && regWorkflowState.refUrl.startsWith('blob:')) {
           URL.revokeObjectURL(regWorkflowState.refUrl);
         }
         regWorkflowState.refFile = file;
-        regWorkflowState.refUrl = url;
+        regWorkflowState.refUrl = meta.url;
         regWorkflowState.refMeta = meta;
       } else {
         if (regWorkflowState.tgtUrl && regWorkflowState.tgtUrl.startsWith('blob:')) {
           URL.revokeObjectURL(regWorkflowState.tgtUrl);
         }
         regWorkflowState.tgtFile = file;
-        regWorkflowState.tgtUrl = url;
+        regWorkflowState.tgtUrl = meta.url;
         regWorkflowState.tgtMeta = meta;
       }
 
-      // Update Card UI
-      nameEl.textContent = meta.name;
-      nameEl.title = meta.name;
-      sizeEl.textContent = meta.sizeStr;
-      dimsEl.textContent = `${meta.width} × ${meta.height} px`;
+      // Update Card UI using actual metadata
+      if (nameEl) {
+        nameEl.textContent = meta.name;
+        nameEl.title = meta.name;
+      }
+      if (sizeEl) sizeEl.textContent = meta.sizeStr;
+      if (dimsEl) dimsEl.textContent = `${meta.width} × ${meta.height} px`;
+      if (typeEl) typeEl.textContent = detectFormatFullName(meta.name);
+
       const fpW = ((meta.width * 5.0) / 1000).toFixed(2);
       const fpH = ((meta.height * 5.0) / 1000).toFixed(2);
       if (footprintEl) footprintEl.textContent = `${fpW} × ${fpH} km (5.0m GSD)`;
       if (formatBadge) formatBadge.textContent = detectFormatBadge(meta.name);
 
-      statusEl.textContent = 'VALID FORMAT & SIZE ✓';
-      statusEl.className = 'meta-value success';
-      thumbImg.src = url;
+      if (statusEl) {
+        statusEl.textContent = 'READY FOR REGISTRATION ✓';
+        statusEl.className = 'meta-value success';
+      }
+
+      if (isTiffFallback) {
+        if (thumbImg) thumbImg.style.display = 'none';
+        if (thumbFallback) thumbFallback.style.display = 'flex';
+        if (cardTiffNotice) cardTiffNotice.style.display = 'flex';
+
+        if (vImg) vImg.style.display = 'none';
+        if (vTiff) vTiff.style.display = 'flex';
+        if (vEmpty) vEmpty.style.display = 'none';
+        if (vTag) vTag.textContent = `${meta.name} (TIFF Ready)`;
+      } else {
+        if (thumbImg) {
+          thumbImg.src = meta.url;
+          thumbImg.style.display = 'block';
+        }
+        if (thumbFallback) thumbFallback.style.display = 'none';
+        if (cardTiffNotice) cardTiffNotice.style.display = 'none';
+
+        if (vImg) {
+          vImg.src = meta.url;
+          vImg.style.display = 'block';
+        }
+        if (vTiff) vTiff.style.display = 'none';
+        if (vEmpty) vEmpty.style.display = 'none';
+        if (vTag) vTag.textContent = `${meta.name} (${meta.width}×${meta.height})`;
+      }
 
       idleBox.style.display = 'none';
       activeBox.style.display = 'flex';
 
-      // Update Dual-Image Preview Workspace
-      vImg.src = url;
-      vImg.style.display = 'block';
-      vEmpty.style.display = 'none';
-      vTag.textContent = `${meta.name} (${meta.width}×${meta.height})`;
-
-      // Render Live Radiance Histogram
-      renderCardHistogram(
-        img,
-        isRef ? 'ref-mini-hist' : 'tgt-mini-hist',
-        isRef ? 'ref-hist-spread' : 'tgt-hist-spread',
-        isRef ? 'ref-radiance-val' : 'tgt-radiance-val'
-      );
+      // Render Live Radiance Histogram if raster is decodable
+      if (meta.imgElement) {
+        renderCardHistogram(
+          meta.imgElement,
+          isRef ? 'ref-mini-hist' : 'tgt-mini-hist',
+          isRef ? 'ref-hist-spread' : 'tgt-hist-spread',
+          isRef ? 'ref-radiance-val' : 'tgt-radiance-val'
+        );
+      }
 
       checkRegistrationReadiness();
     };
 
+    const handleTiffFallback = () => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dims = parseTiffDimensions(e.target.result);
+        const actualWidth = (dims && dims.width) ? dims.width : 2048;
+        const actualHeight = (dims && dims.height) ? dims.height : 2048;
+
+        const meta = {
+          name: file.name,
+          sizeStr: formatBytes(file.size),
+          width: actualWidth,
+          height: actualHeight,
+          url: null,
+          file: file,
+          isTiff: true,
+          imgElement: null,
+          tiffNotice: 'TIFF preview is not available in this browser. The file is ready for registration.'
+        };
+        applyMetaAndUi(meta, true);
+      };
+      reader.onerror = () => {
+        const meta = {
+          name: file.name,
+          sizeStr: formatBytes(file.size),
+          width: 2048,
+          height: 2048,
+          url: null,
+          file: file,
+          isTiff: true,
+          imgElement: null,
+          tiffNotice: 'TIFF preview is not available in this browser. The file is ready for registration.'
+        };
+        applyMetaAndUi(meta, true);
+      };
+      reader.readAsArrayBuffer(file.slice(0, 65536));
+    };
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const meta = {
+        name: file.name,
+        sizeStr: formatBytes(file.size),
+        width: img.naturalWidth || 2048,
+        height: img.naturalHeight || 2048,
+        url: url,
+        file: file,
+        isTiff: isTiffFile,
+        imgElement: img
+      };
+      applyMetaAndUi(meta, false);
+    };
+
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      showError('Unable to read this image. Please select a valid image file.');
+      if (isTiffFile) {
+        // Gracefully handle TIFF without rejecting the valid file
+        handleTiffFallback();
+      } else {
+        showError('Unable to read this image. Please select a valid image file.');
+      }
     };
 
     img.src = url;
@@ -784,16 +919,21 @@
     const idleBox = document.getElementById(isRef ? 'drop-ref-idle' : 'drop-tgt-idle');
     const activeBox = document.getElementById(isRef ? 'drop-ref-active' : 'drop-tgt-active');
     const thumbImg = document.getElementById(isRef ? 'ref-thumb-img' : 'tgt-thumb-img');
+    const thumbFallback = document.getElementById(isRef ? 'ref-thumb-fallback' : 'tgt-thumb-fallback');
+    const cardTiffNotice = document.getElementById(isRef ? 'ref-card-tiff-notice' : 'tgt-card-tiff-notice');
     const fileInput = document.getElementById(isRef ? 'file-input-ref' : 'file-input-tgt');
+    const typeEl = document.getElementById(isRef ? 'ref-file-type' : 'tgt-file-type');
     const footprintEl = document.getElementById(isRef ? 'ref-footprint' : 'tgt-footprint');
     const formatBadge = document.getElementById(isRef ? 'ref-format-badge' : 'tgt-format-badge');
+    const statusEl = document.getElementById(isRef ? 'ref-file-status' : 'tgt-file-status');
     const vImg = document.getElementById(isRef ? 'vimg-ref' : 'vimg-tgt');
+    const vTiff = document.getElementById(isRef ? 'vtiff-ref' : 'vtiff-tgt');
     const vEmpty = document.getElementById(isRef ? 'vempty-ref' : 'vempty-tgt');
     const vTag = document.getElementById(isRef ? 'vtag-ref-name' : 'vtag-tgt-name');
     const errorEl = document.getElementById(isRef ? 'ref-drop-error' : 'tgt-drop-error');
 
     if (errorEl) {
-      errorEl.textContent = '';
+      errorEl.innerHTML = '';
       errorEl.style.display = 'none';
     }
 
@@ -814,9 +954,16 @@
     }
 
     if (fileInput) fileInput.value = '';
-    thumbImg.src = '';
+    if (thumbImg) {
+      thumbImg.src = '';
+      thumbImg.style.display = 'block';
+    }
+    if (thumbFallback) thumbFallback.style.display = 'none';
+    if (cardTiffNotice) cardTiffNotice.style.display = 'none';
+    if (typeEl) typeEl.textContent = '--';
     if (footprintEl) footprintEl.textContent = '--';
     if (formatBadge) formatBadge.textContent = isRef ? 'GEOTIFF 16-BIT' : 'PNG 8-BIT';
+    if (statusEl) statusEl.textContent = '--';
 
     clearCardHistogram(
       isRef ? 'ref-mini-hist' : 'tgt-mini-hist',
@@ -827,10 +974,13 @@
     idleBox.style.display = 'flex';
     activeBox.style.display = 'none';
 
-    vImg.src = '';
-    vImg.style.display = 'none';
-    vEmpty.style.display = 'flex';
-    vTag.textContent = 'NOT LOADED';
+    if (vImg) {
+      vImg.src = '';
+      vImg.style.display = 'none';
+    }
+    if (vTiff) vTiff.style.display = 'none';
+    if (vEmpty) vEmpty.style.display = 'flex';
+    if (vTag) vTag.textContent = 'NOT LOADED';
 
     checkRegistrationReadiness();
   }
@@ -884,11 +1034,15 @@
     const nameEl = document.getElementById(isRef ? 'ref-file-name' : 'tgt-file-name');
     const sizeEl = document.getElementById(isRef ? 'ref-file-size' : 'tgt-file-size');
     const dimsEl = document.getElementById(isRef ? 'ref-file-dims' : 'tgt-file-dims');
+    const typeEl = document.getElementById(isRef ? 'ref-file-type' : 'tgt-file-type');
     const footprintEl = document.getElementById(isRef ? 'ref-footprint' : 'tgt-footprint');
     const formatBadge = document.getElementById(isRef ? 'ref-format-badge' : 'tgt-format-badge');
     const statusEl = document.getElementById(isRef ? 'ref-file-status' : 'tgt-file-status');
     const thumbImg = document.getElementById(isRef ? 'ref-thumb-img' : 'tgt-thumb-img');
+    const thumbFallback = document.getElementById(isRef ? 'ref-thumb-fallback' : 'tgt-thumb-fallback');
+    const cardTiffNotice = document.getElementById(isRef ? 'ref-card-tiff-notice' : 'tgt-card-tiff-notice');
     const vImg = document.getElementById(isRef ? 'vimg-ref' : 'vimg-tgt');
+    const vTiff = document.getElementById(isRef ? 'vtiff-ref' : 'vtiff-tgt');
     const vEmpty = document.getElementById(isRef ? 'vempty-ref' : 'vempty-tgt');
     const vTag = document.getElementById(isRef ? 'vtag-ref-name' : 'vtag-tgt-name');
 
@@ -911,26 +1065,39 @@
       regWorkflowState.tgtMeta = meta;
     }
 
-    nameEl.textContent = meta.name;
-    nameEl.title = meta.name;
-    sizeEl.textContent = meta.sizeStr;
-    dimsEl.textContent = `${meta.width} × ${meta.height} px`;
+    if (nameEl) {
+      nameEl.textContent = meta.name;
+      nameEl.title = meta.name;
+    }
+    if (sizeEl) sizeEl.textContent = meta.sizeStr;
+    if (dimsEl) dimsEl.textContent = `${meta.width} × ${meta.height} px`;
+    if (typeEl) typeEl.textContent = 'PNG Raster (.png)';
     if (footprintEl) footprintEl.textContent = '10.24 × 10.24 km (5.0m GSD)';
     if (formatBadge) formatBadge.textContent = detectFormatBadge(meta.name);
 
-    statusEl.textContent = 'VALID FORMAT & SIZE ✓';
-    statusEl.className = 'meta-value success';
-    thumbImg.src = sampleSrc;
+    if (statusEl) {
+      statusEl.textContent = 'READY FOR REGISTRATION ✓';
+      statusEl.className = 'meta-value success';
+    }
+
+    if (thumbImg) {
+      thumbImg.src = sampleSrc;
+      thumbImg.style.display = 'block';
+    }
+    if (thumbFallback) thumbFallback.style.display = 'none';
+    if (cardTiffNotice) cardTiffNotice.style.display = 'none';
 
     idleBox.style.display = 'none';
     activeBox.style.display = 'flex';
 
-    vImg.src = sampleSrc;
-    vImg.style.display = 'block';
-    vEmpty.style.display = 'none';
-    vTag.textContent = `${meta.name} (${meta.width}×${meta.height})`;
+    if (vImg) {
+      vImg.src = sampleSrc;
+      vImg.style.display = 'block';
+    }
+    if (vTiff) vTiff.style.display = 'none';
+    if (vEmpty) vEmpty.style.display = 'none';
+    if (vTag) vTag.textContent = `${meta.name} (${meta.width}×${meta.height})`;
 
-    // Render Histogram for sample image
     const sampleImg = new Image();
     sampleImg.onload = () => {
       renderCardHistogram(
@@ -972,17 +1139,88 @@
     }
   }
 
+  function applyViewportTransform() {
+    const z = regWorkflowState.previewZoom;
+    const px = regWorkflowState.panX;
+    const py = regWorkflowState.panY;
+    const transformStr = `translate(${px}px, ${py}px) scale(${z})`;
+
+    const vRef = document.getElementById('vimg-ref');
+    const vTgt = document.getElementById('vimg-tgt');
+
+    [vRef, vTgt].forEach(img => {
+      if (img) {
+        if (regWorkflowState.isPanning) {
+          img.classList.add('panning');
+        } else {
+          img.classList.remove('panning');
+        }
+        img.style.transform = transformStr;
+      }
+    });
+
+    // Update Champagne Gold active states on zoom controls
+    const fitBtn = document.getElementById('btn-preview-fit');
+    const resetBtn = document.getElementById('btn-preview-reset');
+    const isAtDefault = (z === 1.0 && px === 0 && py === 0);
+    if (fitBtn) fitBtn.classList.toggle('active', isAtDefault);
+    if (resetBtn) resetBtn.classList.toggle('active', !isAtDefault);
+
+    // Update interactive cursor
+    ['vbox-ref', 'vbox-tgt'].forEach(boxId => {
+      const box = document.getElementById(boxId);
+      if (box) {
+        if (z > 1.0) {
+          box.style.cursor = regWorkflowState.isPanning ? 'grabbing' : 'grab';
+        } else {
+          box.style.cursor = 'crosshair';
+        }
+      }
+    });
+  }
+
   function setPreviewZoom(factor, reset = false) {
     if (reset) {
       regWorkflowState.previewZoom = 1.0;
+      regWorkflowState.panX = 0;
+      regWorkflowState.panY = 0;
     } else {
-      regWorkflowState.previewZoom = Math.max(0.5, Math.min(4.0, regWorkflowState.previewZoom * factor));
+      regWorkflowState.previewZoom = Math.max(0.5, Math.min(5.0, regWorkflowState.previewZoom * factor));
+      if (regWorkflowState.previewZoom <= 1.0) {
+        regWorkflowState.panX = 0;
+        regWorkflowState.panY = 0;
+      }
     }
-    const z = regWorkflowState.previewZoom;
-    const vRef = document.getElementById('vimg-ref');
-    const vTgt = document.getElementById('vimg-tgt');
-    if (vRef) vRef.style.transform = `scale(${z})`;
-    if (vTgt) vTgt.style.transform = `scale(${z})`;
+    applyViewportTransform();
+  }
+
+  function setupViewportPanning() {
+    ['vbox-ref', 'vbox-tgt'].forEach(boxId => {
+      const box = document.getElementById(boxId);
+      if (!box) return;
+
+      box.addEventListener('mousedown', (e) => {
+        if (regWorkflowState.previewZoom <= 1.0) return;
+        regWorkflowState.isPanning = true;
+        regWorkflowState.panStartX = e.clientX - regWorkflowState.panX;
+        regWorkflowState.panStartY = e.clientY - regWorkflowState.panY;
+        applyViewportTransform();
+      });
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!regWorkflowState.isPanning) return;
+      regWorkflowState.panX = e.clientX - regWorkflowState.panStartX;
+      regWorkflowState.panY = e.clientY - regWorkflowState.panStartY;
+      applyViewportTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (regWorkflowState.isPanning) {
+        regWorkflowState.isPanning = false;
+        applyViewportTransform();
+      }
+    });
   }
 
   // --- REAL BACKEND REGISTRATION ORCHESTRATOR ---
@@ -1963,6 +2201,8 @@
 
     const resetBtn = document.getElementById('btn-preview-reset');
     if (resetBtn) resetBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
+
+    setupViewportPanning();
 
     // Dual Preview Contrast Slider Control
     const contrastSlider = document.getElementById('slider-preview-contrast');

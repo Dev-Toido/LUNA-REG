@@ -846,6 +846,15 @@
                   <div class="active-file-header-row">
                     <div class="active-file-preview-wrap">
                       <img id="ref-thumb-img" class="active-file-thumb" src="" alt="Reference Image Preview">
+                      <div class="active-file-thumb-fallback" id="ref-thumb-fallback" style="display: none;">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        <span>TIFF</span>
+                      </div>
                       <button class="btn-remove-image" id="btn-remove-ref" title="Remove reference image" aria-label="Remove Image">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -869,18 +878,22 @@
                         <span class="meta-value" id="ref-file-dims">--</span>
                       </div>
                       <div class="file-meta-row">
+                        <span class="meta-label">File Type:</span>
+                        <span class="meta-value" id="ref-file-type">--</span>
+                      </div>
+                      <div class="file-meta-row">
                         <span class="meta-label">Ground Footprint:</span>
                         <span class="meta-value" id="ref-footprint">--</span>
                       </div>
                       <div class="file-meta-row">
-                        <span class="meta-label">Mean Radiance:</span>
-                        <span class="meta-value" id="ref-radiance-val">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Validation:</span>
-                        <span class="meta-value success" id="ref-file-status">VALID FORMAT &amp; SIZE ✓</span>
+                        <span class="meta-label">Upload Status:</span>
+                        <span class="meta-value success" id="ref-file-status">READY FOR REGISTRATION ✓</span>
                       </div>
                     </div>
+                  </div>
+
+                  <div class="card-tiff-notice" id="ref-card-tiff-notice" style="display: none;">
+                    TIFF preview is not available in this browser. The file is ready for registration.
                   </div>
 
                   <!-- Live Radiance Histogram Strip -->
@@ -938,6 +951,15 @@
                   <div class="active-file-header-row">
                     <div class="active-file-preview-wrap">
                       <img id="tgt-thumb-img" class="active-file-thumb" src="" alt="Target Image Preview">
+                      <div class="active-file-thumb-fallback" id="tgt-thumb-fallback" style="display: none;">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        <span>TIFF</span>
+                      </div>
                       <button class="btn-remove-image" id="btn-remove-tgt" title="Remove target image" aria-label="Remove Image">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -961,18 +983,22 @@
                         <span class="meta-value" id="tgt-file-dims">--</span>
                       </div>
                       <div class="file-meta-row">
+                        <span class="meta-label">File Type:</span>
+                        <span class="meta-value" id="tgt-file-type">--</span>
+                      </div>
+                      <div class="file-meta-row">
                         <span class="meta-label">Ground Footprint:</span>
                         <span class="meta-value" id="tgt-footprint">--</span>
                       </div>
                       <div class="file-meta-row">
-                        <span class="meta-label">Mean Radiance:</span>
-                        <span class="meta-value" id="tgt-radiance-val">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Validation:</span>
-                        <span class="meta-value success" id="tgt-file-status">VALID FORMAT &amp; SIZE ✓</span>
+                        <span class="meta-label">Upload Status:</span>
+                        <span class="meta-value success" id="tgt-file-status">READY FOR REGISTRATION ✓</span>
                       </div>
                     </div>
+                  </div>
+
+                  <div class="card-tiff-notice" id="tgt-card-tiff-notice" style="display: none;">
+                    TIFF preview is not available in this browser. The file is ready for registration.
                   </div>
 
                   <!-- Live Radiance Histogram Strip -->
@@ -1146,6 +1172,10 @@
                 <div class="viewport-canvas-box" id="vbox-ref">
                   <div class="viewport-grid-overlay" id="vgrid-overlay-ref"></div>
                   <img id="vimg-ref" class="viewport-render-img" src="" alt="Reference Full Preview" style="display:none;">
+                  <div class="viewport-tiff-notice" id="vtiff-ref" style="display:none;">
+                    <div class="vtiff-badge">TIFF 16-BIT / GEOTIFF</div>
+                    <p class="vtiff-text">TIFF preview is not available in this browser. The file is ready for registration.</p>
+                  </div>
                   <div class="viewport-empty-notice" id="vempty-ref">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     <span>Awaiting Reference Lunar Image</span>
@@ -1158,6 +1188,10 @@
                 <div class="viewport-canvas-box" id="vbox-tgt">
                   <div class="viewport-grid-overlay" id="vgrid-overlay-tgt"></div>
                   <img id="vimg-tgt" class="viewport-render-img" src="" alt="Target Full Preview" style="display:none;">
+                  <div class="viewport-tiff-notice" id="vtiff-tgt" style="display:none;">
+                    <div class="vtiff-badge">TIFF 16-BIT / GEOTIFF</div>
+                    <p class="vtiff-text">TIFF preview is not available in this browser. The file is ready for registration.</p>
+                  </div>
                   <div class="viewport-empty-notice" id="vempty-tgt">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     <span>Awaiting Target Lunar Image</span>
