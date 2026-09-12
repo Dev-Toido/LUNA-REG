@@ -1311,8 +1311,6 @@
     document.getElementById('btn-user-profile').addEventListener('click', () => openModal('profile'));
 
     // Registration and Exporters
-    const runRegBtn = document.getElementById('btn-run-registration');
-    if (runRegBtn) runRegBtn.addEventListener('click', runRegistrationPipeline);
 
     const regImageBtn = document.getElementById('btn-register-image');
     if (regImageBtn) regImageBtn.addEventListener('click', runRegistrationPipeline);
@@ -2880,9 +2878,9 @@
 
   function runRegistrationPipeline() {
     const btn1 = document.getElementById('btn-register-image');
-    const btn2 = document.getElementById('btn-run-registration');
+    const btn2 = document.getElementById('btn-execute-registration');
     const prevText1 = btn1 ? btn1.textContent : 'REGISTER IMAGE';
-    const prevText2 = btn2 ? btn2.textContent : 'RUN REGISTRATION PIPELINE';
+    const prevText2 = btn2 ? btn2.textContent : 'RUN REGISTRATION';
 
     if (btn1) {
       btn1.textContent = 'REGISTERING IMAGE...';
