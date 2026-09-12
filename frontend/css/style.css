@@ -4389,6 +4389,514 @@ canvas#results-canvas {
 }
 
 /* ==========================================================================
+   14. DASHBOARD, ANALYSIS TOOLS, DATASET & ABOUT PAGES
+   ========================================================================== */
+.page-dashboard,
+.page-analysis-tools,
+.page-dataset,
+.page-about {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-charcoal);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Dashboard Header & Content */
+.dash-page-header {
+  padding: 14px 20px;
+  background: var(--bg-obsidian);
+  border-bottom: 1px solid var(--border-dark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.dash-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 6px;
+  letter-spacing: 0.8px;
+  margin-bottom: 2px;
+}
+
+.dash-breadcrumb .active {
+  color: var(--accent-gold);
+}
+
+.dash-page-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  color: var(--text-primary);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.dash-page-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 2px 0 0 0;
+}
+
+.dash-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dash-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 4 Mission Telemetry Tiles */
+.dash-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.dash-metric-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+
+.dash-metric-card:hover {
+  border-color: var(--accent-gold);
+}
+
+.dash-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-gold);
+  flex-shrink: 0;
+}
+
+.dash-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-card-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+}
+
+.dash-card-val {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dash-card-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-secondary);
+}
+
+/* Quick Workspaces Grid */
+.dash-section-header {
+  border-bottom: 1px solid var(--border-dark);
+  padding-bottom: 8px;
+}
+
+.dash-section-header h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.dash-workspaces-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.dash-workspace-tile {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dash-workspace-tile:hover {
+  border-color: var(--accent-gold);
+  background: var(--bg-surface-elevated);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.tile-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--accent-gold-light);
+}
+
+.tile-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  color: var(--text-secondary);
+}
+
+.tile-badge.gold {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.12);
+}
+
+.tile-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+.tile-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+  flex: 1;
+}
+
+.tile-action {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-gold);
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* Placeholder Layout & Catalog Cards */
+.placeholder-page-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tools-catalog-grid,
+.dataset-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.tool-catalog-card,
+.dataset-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tool-catalog-card {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.tool-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tool-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-card-status {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--success);
+  letter-spacing: 0.8px;
+}
+
+.tool-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.tool-card-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Empty State Box */
+.placeholder-empty-state {
+  background: var(--bg-panel);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 36px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Dataset Filter Pills & Cards */
+.dataset-filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dataset-filter-btn {
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+
+.dataset-filter-btn.active,
+.dataset-filter-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold-light);
+  background: rgba(223, 192, 138, 0.12);
+}
+
+.dataset-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dataset-badge {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-dark);
+}
+
+.dataset-badge.isro {
+  background: rgba(223, 192, 138, 0.15);
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+.dataset-badge.nasa {
+  background: var(--bg-surface-subtle);
+  color: var(--text-primary);
+}
+
+.dataset-format {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.dataset-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dataset-card-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.dataset-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.dataset-meta-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+}
+
+.dataset-meta-row strong {
+  color: var(--accent-gold-light);
+  font-weight: 500;
+}
+
+/* About Page */
+.about-scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.about-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+}
+
+.about-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.about-card.hero {
+  border-color: var(--accent-gold);
+  background: linear-gradient(180deg, rgba(223, 192, 138, 0.06), var(--bg-panel));
+}
+
+.about-heading {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-gold);
+  margin: 0;
+  letter-spacing: 0.8px;
+}
+
+.about-card p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.about-card-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  color: var(--accent-gold);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.about-spec-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-spec-list li {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  position: relative;
+  padding-left: 14px;
+}
+
+.about-spec-list li::before {
+  content: '▪';
+  position: absolute;
+  left: 0;
+  color: var(--accent-gold);
+}
+
+.badge-version {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.12);
+  border: 1px solid var(--accent-gold);
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+}
+
+@media (max-width: 1024px) {
+  .dash-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dash-workspaces-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tools-catalog-grid,
+  .dataset-catalog-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dash-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .dash-workspaces-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
    13. ACCESSIBILITY & REDUCED MOTION PREFERENCES
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {

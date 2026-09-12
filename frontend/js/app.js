@@ -310,6 +310,7 @@
     checkInitialBackendHealth();
     setupResultsViewer();
     setupHistoryEvents();
+    switchAppView('dashboard');
   }
 
   function setupCanvases() {
@@ -1580,6 +1581,47 @@
     const fallbackDemoBtn = document.getElementById('btn-fallback-calibration');
     if (fallbackDemoBtn) fallbackDemoBtn.addEventListener('click', () => executeRegistrationWorkflow(true));
 
+    // Dashboard & Placeholder Page Quick Action Handlers
+    const bindClick = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', fn);
+    };
+
+    bindClick('btn-dash-quick-reg', () => switchAppView('new-reg'));
+    bindClick('btn-dash-open-map', () => switchAppView('explorer'));
+    bindClick('dash-tile-map', () => switchAppView('explorer'));
+    bindClick('dash-tile-newreg', () => switchAppView('new-reg'));
+    bindClick('dash-tile-results', () => switchAppView('results'));
+    bindClick('dash-tile-history', () => switchAppView('history'));
+    bindClick('dash-tile-analysis', () => switchAppView('analysis'));
+    bindClick('dash-tile-dataset', () => switchAppView('dataset'));
+
+    bindClick('btn-analysis-open-map', () => switchAppView('explorer'));
+    bindClick('btn-analysis-start-reg', () => switchAppView('new-reg'));
+    bindClick('btn-analysis-jump-map', () => switchAppView('explorer'));
+
+    bindClick('btn-dataset-import', () => {
+      alert('Raster Import: Select GeoTIFF or PDS4 orbital image file to import into local catalog.');
+    });
+    bindClick('btn-dataset-sample-ref', () => {
+      loadSamplePreset('ref');
+      switchAppView('new-reg');
+    });
+    bindClick('btn-dataset-sample-tgt', () => {
+      loadSamplePreset('tgt');
+      switchAppView('new-reg');
+    });
+    bindClick('btn-dataset-view-map', () => switchAppView('explorer'));
+    bindClick('btn-dataset-view-dem', () => {
+      switchAppView('explorer');
+      const contoursToggle = document.getElementById('layer-opt-contours');
+      if (contoursToggle) {
+        contoursToggle.checked = true;
+        state.layers.contours = true;
+        draw();
+      }
+    });
+
     // Modal Close
     document.getElementById('modal-close').addEventListener('click', closeModal);
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
@@ -1660,21 +1702,33 @@
 
       if (isInput) return; // Never trigger single-character shortcuts while typing in forms
 
-      // View Navigation Shortcuts: 1 (Explorer), 2 (Registration), 3 (Results), 4 (History)
+      // View Navigation Shortcuts: 1 (Dashboard), 2 (Lunar Map), 3 (New Registration), 4 (Results), 5 (Analysis), 6 (Dataset), 7 (About)
       if (e.key === '1') {
-        switchAppView('explorer');
+        switchAppView('dashboard');
         e.preventDefault();
         return;
       } else if (e.key === '2') {
-        switchAppView('new-reg');
+        switchAppView('explorer');
         e.preventDefault();
         return;
       } else if (e.key === '3') {
-        switchAppView('results');
+        switchAppView('new-reg');
         e.preventDefault();
         return;
       } else if (e.key === '4') {
-        switchAppView('history');
+        switchAppView('results');
+        e.preventDefault();
+        return;
+      } else if (e.key === '5') {
+        switchAppView('analysis');
+        e.preventDefault();
+        return;
+      } else if (e.key === '6') {
+        switchAppView('dataset');
+        e.preventDefault();
+        return;
+      } else if (e.key === '7') {
+        switchAppView('about');
         e.preventDefault();
         return;
       }
@@ -1785,91 +1839,88 @@
 
   // --- APPLICATION VIEW SWITCHER ---
   function switchAppView(view) {
-    const explorerEl = document.getElementById('map-workspace');
-    const newRegEl = document.getElementById('view-new-registration');
-    const resultsEl = document.getElementById('view-registration-results');
-    const historyEl = document.getElementById('view-registration-history');
+    const views = {
+      'dashboard': document.getElementById('view-dashboard'),
+      'explorer': document.getElementById('map-workspace'),
+      'new-reg': document.getElementById('view-new-registration'),
+      'results': document.getElementById('view-registration-results'),
+      'history': document.getElementById('view-registration-history'),
+      'analysis': document.getElementById('view-analysis-tools'),
+      'dataset': document.getElementById('view-dataset'),
+      'about': document.getElementById('view-about')
+    };
     const rightPanel = document.getElementById('right-info-panel');
 
-    if (view === 'new-reg') {
-      if (explorerEl) explorerEl.style.display = 'none';
-      if (resultsEl) resultsEl.style.display = 'none';
-      if (historyEl) historyEl.style.display = 'none';
-      if (newRegEl) newRegEl.style.display = 'flex';
-      if (rightPanel) rightPanel.style.display = 'none';
+    // Normalize
+    let targetView = view;
+    if (targetView === 'overview') targetView = 'dashboard';
+    if (targetView === 'lunar-map') targetView = 'explorer';
+    if (!views[targetView]) targetView = 'dashboard';
 
-      // Update Navigation Highlights
-      document.querySelectorAll('.nav-link-btn').forEach(b => {
-        const isActive = b.getAttribute('data-nav') === 'register';
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-selected', String(isActive));
-      });
-      document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-target') === 'new-reg');
-      });
-    } else if (view === 'results') {
-      if (explorerEl) explorerEl.style.display = 'none';
-      if (newRegEl) newRegEl.style.display = 'none';
-      if (historyEl) historyEl.style.display = 'none';
-      if (resultsEl) resultsEl.style.display = 'flex';
-      if (rightPanel) rightPanel.style.display = 'none';
+    // Hide all views
+    Object.keys(views).forEach(key => {
+      const el = views[key];
+      if (el) el.style.display = 'none';
+    });
 
-      // Update Navigation Highlights
-      document.querySelectorAll('.nav-link-btn').forEach(b => {
-        const isActive = b.getAttribute('data-nav') === 'analyze';
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-selected', String(isActive));
-      });
-      document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-target') === 'results');
-      });
+    // Show target view
+    if (views[targetView]) {
+      views[targetView].style.display = 'flex';
+    }
 
+    // Right info panel visibility (only on map-workspace)
+    if (rightPanel) {
+      rightPanel.style.display = (targetView === 'explorer') ? 'flex' : 'none';
+    }
+
+    // Update Top Navigation Tabs & ARIA attributes
+    document.querySelectorAll('.nav-link-btn').forEach(b => {
+      const navKey = b.getAttribute('data-nav');
+      const isActive = (targetView === navKey) ||
+                       (targetView === 'explorer' && navKey === 'explore') ||
+                       (targetView === 'new-reg' && navKey === 'register') ||
+                       (targetView === 'results' && (navKey === 'results' || navKey === 'analyze')) ||
+                       (targetView === 'analysis' && navKey === 'analysis') ||
+                       (targetView === 'dataset' && navKey === 'dataset') ||
+                       (targetView === 'about' && navKey === 'about');
+      b.classList.toggle('active', isActive);
+      b.setAttribute('aria-selected', String(isActive));
+    });
+
+    // Update Sidebar Navigation highlights
+    document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
+      const sideKey = b.getAttribute('data-target');
+      const isActive = (targetView === sideKey) ||
+                       (targetView === 'dashboard' && (sideKey === 'dashboard' || sideKey === 'overview')) ||
+                       (targetView === 'explorer' && sideKey === 'explorer') ||
+                       (targetView === 'new-reg' && sideKey === 'new-reg') ||
+                       (targetView === 'results' && sideKey === 'results') ||
+                       (targetView === 'history' && sideKey === 'history') ||
+                       (targetView === 'analysis' && sideKey === 'analysis') ||
+                       (targetView === 'dataset' && sideKey === 'dataset') ||
+                       (targetView === 'about' && sideKey === 'about');
+      b.classList.toggle('active', isActive);
+    });
+
+    // View-specific initialization
+    if (targetView === 'explorer') {
+      resizeCanvases();
+      draw();
+    } else if (targetView === 'results') {
       syncResultsImagery();
       resizeResultsCanvas();
       drawResultsCanvas();
-    } else if (view === 'history') {
-      if (explorerEl) explorerEl.style.display = 'none';
-      if (newRegEl) newRegEl.style.display = 'none';
-      if (resultsEl) resultsEl.style.display = 'none';
-      if (historyEl) historyEl.style.display = 'flex';
-      if (rightPanel) rightPanel.style.display = 'none';
-
-      // Navigation highlights
-      document.querySelectorAll('.nav-link-btn').forEach(b => {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-target') === 'history');
-      });
-
+    } else if (targetView === 'history') {
       loadRegistrationHistory();
-    } else {
-      if (newRegEl) newRegEl.style.display = 'none';
-      if (resultsEl) resultsEl.style.display = 'none';
-      if (historyEl) historyEl.style.display = 'none';
-      if (explorerEl) explorerEl.style.display = 'flex';
-      if (rightPanel) rightPanel.style.display = 'flex';
-
-      document.querySelectorAll('.nav-link-btn').forEach(b => {
-        const isActive = b.getAttribute('data-nav') === 'explore';
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-selected', String(isActive));
-      });
-      document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-target') === 'explorer');
-      });
-
-      resizeCanvases();
-      draw();
     }
 
     // Synchronize Mobile Bottom Navigation active pill
     document.querySelectorAll('.mob-nav-btn').forEach(b => {
-      const match = (view === 'new-reg' && b.id === 'mob-btn-new-reg') ||
-                    (view === 'results' && b.id === 'mob-btn-results') ||
-                    (view === 'history' && b.id === 'mob-btn-history') ||
-                    (view !== 'new-reg' && view !== 'results' && view !== 'history' && b.id === 'mob-btn-explorer');
+      const match = (targetView === 'new-reg' && b.id === 'mob-btn-new-reg') ||
+                    (targetView === 'results' && b.id === 'mob-btn-results') ||
+                    (targetView === 'history' && b.id === 'mob-btn-history') ||
+                    (targetView === 'explorer' && b.id === 'mob-btn-explorer') ||
+                    (targetView === 'dashboard' && b.id === 'mob-btn-explorer');
       b.classList.toggle('active', match);
     });
   }
@@ -1878,9 +1929,8 @@
   function handleSidebarAction(target) {
     switch (target) {
       case 'overview':
-        switchAppView('explorer');
-        ensureRightPanelOpen();
-        fitToView();
+      case 'dashboard':
+        switchAppView('dashboard');
         break;
       case 'explorer':
         switchAppView('explorer');
@@ -1899,23 +1949,30 @@
         switchAppView('history');
         break;
       case 'layers':
+        switchAppView('explorer');
         const layerDropdown = document.getElementById('layers-dropdown');
-        if (layerDropdown) layerDropdown.classList.toggle('open');
+        if (layerDropdown) {
+          layerDropdown.classList.add('open');
+          if (typeof updateLayerDropdownAria === 'function') updateLayerDropdownAria(true);
+        }
         break;
       case 'analysis':
-        switchAppView('results');
+        switchAppView('analysis');
         break;
       case 'dataset':
-        openModal('dataset');
+        switchAppView('dataset');
         break;
       case 'about':
-        openModal('about');
+        switchAppView('about');
         break;
     }
   }
 
   function handleTopNavAction(nav) {
     switch (nav) {
+      case 'dashboard':
+        switchAppView('dashboard');
+        break;
       case 'explore':
         switchAppView('explorer');
         state.viewMode = 'single';
@@ -1925,11 +1982,18 @@
       case 'register':
         switchAppView('new-reg');
         break;
+      case 'results':
       case 'analyze':
         switchAppView('results');
         break;
+      case 'analysis':
+        switchAppView('analysis');
+        break;
       case 'dataset':
-        openModal('dataset');
+        switchAppView('dataset');
+        break;
+      case 'about':
+        switchAppView('about');
         break;
     }
   }
