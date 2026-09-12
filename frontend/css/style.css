@@ -2286,18 +2286,20 @@ canvas#hist-canvas {
   top: 8px;
   left: 10px;
   right: 10px;
-  background: rgba(171, 71, 71, 0.18);
-  border: 1px solid var(--error);
-  color: #ff9b9b;
+  background: rgba(36, 10, 10, 0.95);
+  border: 1px solid #ff4d4d;
+  color: #ff9e9e;
   font-family: var(--font-mono);
-  font-size: 9.5px;
-  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 12px;
   border-radius: var(--radius-xs);
-  z-index: 20;
+  z-index: 30;
   display: flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.75);
+  animation: fadeInDown 0.2s ease;
 }
 
 .active-file-meta-list {

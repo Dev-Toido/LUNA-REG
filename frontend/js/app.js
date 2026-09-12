@@ -404,19 +404,33 @@
   }
 
   function validateImageFile(file) {
-    if (!file) return { valid: false, error: 'No file selected' };
-    const validExtensions = ['.png', '.jpg', '.jpeg', '.tif', '.tiff'];
-    const lowerName = file.name.toLowerCase();
-    const hasValidExt = validExtensions.some(ext => lowerName.endsWith(ext));
-    const hasValidMime = file.type.startsWith('image/') || lowerName.endsWith('.tif') || lowerName.endsWith('.tiff');
-
-    if (!hasValidExt && !hasValidMime) {
-      return { valid: false, error: 'Unsupported format. Supported: PNG, JPG, JPEG, TIFF.' };
+    if (!file) {
+      return { valid: false, error: 'Unable to read this image. Please select a valid image file.' };
     }
 
+    // Reject empty files
+    if (file.size === 0) {
+      return { valid: false, error: 'Unable to read this image. Please select a valid image file.' };
+    }
+
+    // Reject files larger than 50 MB
     const maxSize = 50 * 1024 * 1024; // 50 MB
     if (file.size > maxSize) {
-      return { valid: false, error: 'File size exceeds 50 MB limit.' };
+      return { valid: false, error: 'File size exceeds 50 MB.' };
+    }
+
+    // Supported formats: PNG, JPG, JPEG, TIFF
+    const validExtensions = ['.png', '.jpg', '.jpeg', '.tif', '.tiff'];
+    const lowerName = (file.name || '').toLowerCase();
+    const hasValidExt = validExtensions.some(ext => lowerName.endsWith(ext));
+
+    if (!hasValidExt) {
+      return { valid: false, error: 'Unsupported file format. Please upload PNG, JPG, JPEG or TIFF.' };
+    }
+
+    // Reject non-image MIME types if MIME is provided
+    if (file.type && !file.type.startsWith('image/') && !lowerName.endsWith('.tif') && !lowerName.endsWith('.tiff')) {
+      return { valid: false, error: 'Unsupported file format. Please upload PNG, JPG, JPEG or TIFF.' };
     }
 
     return { valid: true, error: null };
@@ -658,20 +672,37 @@
     const vEmpty = document.getElementById(isRef ? 'vempty-ref' : 'vempty-tgt');
     const vTag = document.getElementById(isRef ? 'vtag-ref-name' : 'vtag-tgt-name');
     const errorEl = document.getElementById(isRef ? 'ref-drop-error' : 'tgt-drop-error');
+    const fileInput = document.getElementById(isRef ? 'file-input-ref' : 'file-input-tgt');
+
+    const showError = (msg) => {
+      if (fileInput) fileInput.value = '';
+      if (errorEl) {
+        errorEl.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>${msg}</span>
+        `;
+        errorEl.style.display = 'flex';
+      } else {
+        alert(msg);
+      }
+    };
+
+    const clearError = () => {
+      if (errorEl) {
+        errorEl.innerHTML = '';
+        errorEl.style.display = 'none';
+      }
+    };
 
     // Clear any previous inline error
-    if (errorEl) {
-      errorEl.textContent = '';
-      errorEl.style.display = 'none';
-    }
+    clearError();
 
     if (!validation.valid) {
-      if (errorEl) {
-        errorEl.textContent = `Validation Error: ${validation.error}`;
-        errorEl.style.display = 'block';
-      } else {
-        alert(`Invalid Lunar Image: ${validation.error}`);
-      }
+      showError(validation.error);
       return;
     }
 
@@ -679,10 +710,7 @@
     const img = new Image();
     img.onload = () => {
       // Clear error on successful raster load
-      if (errorEl) {
-        errorEl.textContent = '';
-        errorEl.style.display = 'none';
-      }
+      clearError();
 
       const meta = {
         name: file.name,
@@ -745,13 +773,7 @@
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      const errMsg = 'Error decoding lunar image. Please ensure the file is an uncorrupted raster.';
-      if (errorEl) {
-        errorEl.textContent = `Format Error: ${errMsg}`;
-        errorEl.style.display = 'block';
-      } else {
-        alert(errMsg);
-      }
+      showError('Unable to read this image. Please select a valid image file.');
     };
 
     img.src = url;
