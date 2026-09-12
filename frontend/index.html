@@ -8,16 +8,19 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Accessible Skip Navigation Link for Screen Readers and Keyboard Traversal -->
+  <a href="#map-workspace" class="skip-to-main">Skip to lunar map workspace</a>
+
   <div class="app-container" id="app-container">
     
     <!-- ==========================================================================
          1. TOP NAVIGATION (Clean & Compact)
          ========================================================================== -->
-    <header class="top-nav">
+    <header class="top-nav" role="banner">
       
       <!-- Left: Title & Subtitle -->
       <div class="nav-left">
-        <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Open Navigation Drawer">
+        <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Open Navigation Drawer" aria-expanded="false" aria-controls="left-sidebar">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -26,7 +29,7 @@
         </button>
 
         <div class="brand-container">
-          <div class="brand-orb"></div>
+          <div class="brand-orb" aria-hidden="true"></div>
           <div class="brand-text">
             <span class="brand-title">LUNA-REG — LUNAR TERRAIN EXPLORER</span>
             <span class="brand-subtitle" title="Explore lunar terrain, satellite imagery, and multi-modal registration results.">
@@ -37,11 +40,11 @@
       </div>
 
       <!-- Center Navigation Tabs -->
-      <nav class="nav-center" aria-label="Primary Navigation">
-        <button class="nav-link-btn active" data-nav="explore" id="nav-explore">EXPLORE</button>
-        <button class="nav-link-btn" data-nav="register" id="nav-register">REGISTER</button>
-        <button class="nav-link-btn" data-nav="analyze" id="nav-analyze">ANALYZE</button>
-        <button class="nav-link-btn" data-nav="dataset" id="nav-dataset">DATASET</button>
+      <nav class="nav-center" aria-label="Primary Mission Views" role="tablist">
+        <button class="nav-link-btn active" data-nav="explore" id="nav-explore" role="tab" aria-selected="true" aria-controls="map-workspace">EXPLORE</button>
+        <button class="nav-link-btn" data-nav="register" id="nav-register" role="tab" aria-selected="false" aria-controls="view-new-registration">REGISTER</button>
+        <button class="nav-link-btn" data-nav="analyze" id="nav-analyze" role="tab" aria-selected="false" aria-controls="view-registration-results">ANALYZE</button>
+        <button class="nav-link-btn" data-nav="dataset" id="nav-dataset" role="tab" aria-selected="false">DATASET</button>
       </nav>
 
       <!-- Right Navigation Tools & Branding -->
@@ -431,10 +434,13 @@
         <!-- ====================================================================
              FLOATING MAP TOOLBAR (Compact & Elegant Scientific Toolbar)
              ==================================================================== -->
-        <div class="floating-map-toolbar" id="map-toolbar" aria-label="Map Tools">
+        <!-- ====================================================================
+             FLOATING MAP TOOLBAR (Compact & Elegant Scientific Toolbar)
+             ==================================================================== -->
+        <div class="floating-map-toolbar" id="map-toolbar" role="toolbar" aria-label="Lunar GIS Map Tools">
           
           <!-- 1. SELECT LOCATION -->
-          <button class="map-tool-btn" id="tool-select-location" data-tooltip="SELECT LOCATION" aria-label="Select Location">
+          <button class="map-tool-btn" id="tool-select-location" data-tooltip="SELECT LOCATION (S)" aria-label="Select Location Tool (Key: S)">
             <svg viewBox="0 0 24 24">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
               <circle cx="12" cy="10" r="3"></circle>
@@ -442,7 +448,7 @@
           </button>
 
           <!-- 2. PAN -->
-          <button class="map-tool-btn active" id="tool-pan" data-tooltip="PAN" aria-label="Pan">
+          <button class="map-tool-btn active" id="tool-pan" data-tooltip="PAN MAP (P)" aria-label="Pan Tool (Key: P)">
             <svg viewBox="0 0 24 24">
               <path d="M18 11V6a2 2 0 0 0-4 0v4"></path>
               <path d="M14 10V4a2 2 0 0 0-4 0v6"></path>
@@ -451,10 +457,10 @@
             </svg>
           </button>
 
-          <div class="toolbar-divider"></div>
+          <div class="toolbar-divider" aria-hidden="true"></div>
 
           <!-- 3. ZOOM IN -->
-          <button class="map-tool-btn" id="tool-zoom-in" data-tooltip="ZOOM IN" aria-label="Zoom In">
+          <button class="map-tool-btn" id="tool-zoom-in" data-tooltip="ZOOM IN (+)" aria-label="Zoom In (Key: Plus)">
             <svg viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -464,7 +470,7 @@
           </button>
 
           <!-- 4. ZOOM OUT -->
-          <button class="map-tool-btn" id="tool-zoom-out" data-tooltip="ZOOM OUT" aria-label="Zoom Out">
+          <button class="map-tool-btn" id="tool-zoom-out" data-tooltip="ZOOM OUT (-)" aria-label="Zoom Out (Key: Minus)">
             <svg viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -473,7 +479,7 @@
           </button>
 
           <!-- 5. RESET VIEW -->
-          <button class="map-tool-btn" id="tool-reset-view" data-tooltip="RESET VIEW" aria-label="Reset View">
+          <button class="map-tool-btn" id="tool-reset-view" data-tooltip="RESET VIEW (R)" aria-label="Reset View (Key: R)">
             <svg viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10"></circle>
               <circle cx="12" cy="12" r="3"></circle>
@@ -484,10 +490,10 @@
             </svg>
           </button>
 
-          <div class="toolbar-divider"></div>
+          <div class="toolbar-divider" aria-hidden="true"></div>
 
           <!-- 6. MEASURE -->
-          <button class="map-tool-btn" id="tool-measure" data-tooltip="MEASURE" aria-label="Measure">
+          <button class="map-tool-btn" id="tool-measure" data-tooltip="MEASURE DISTANCE (M)" aria-label="Measure Distance (Key: M)">
             <svg viewBox="0 0 24 24">
               <path d="M2 22l20-20"></path>
               <path d="M6 14l2 2"></path>
@@ -499,14 +505,14 @@
           </button>
 
           <!-- 7. FULLSCREEN -->
-          <button class="map-tool-btn" id="tool-fullscreen" data-tooltip="FULLSCREEN" aria-label="Fullscreen">
+          <button class="map-tool-btn" id="tool-fullscreen" data-tooltip="FULLSCREEN (F)" aria-label="Toggle Fullscreen (Key: F)">
             <svg viewBox="0 0 24 24">
               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
             </svg>
           </button>
 
           <!-- 8. LAYER CONTROL -->
-          <button class="map-tool-btn" id="tool-layer-control" data-tooltip="LAYER CONTROL" aria-label="Layer Control">
+          <button class="map-tool-btn" id="tool-layer-control" data-tooltip="LAYER CONTROL (L)" aria-label="Toggle Layer Control Popover (Key: L)" aria-haspopup="true">
             <svg viewBox="0 0 24 24">
               <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
               <polyline points="2 17 12 22 22 17"></polyline>
@@ -859,14 +865,14 @@
               </div>
 
               <!-- Terminal Telemetry Log Feed -->
-              <div class="monitor-log-stream" id="monitor-logs">
+              <div class="monitor-log-stream" id="monitor-logs" role="log" aria-live="polite" aria-label="Registration Processing Telemetry Feed">
                 <div class="log-entry info">[INIT] SIH26166 Multi-Modal Engine Initialized.</div>
               </div>
 
               <!-- Backend Failure / Server Unavailable Alert Box -->
-              <div class="monitor-error-box" id="monitor-error-box" style="display:none;">
+              <div class="monitor-error-box" id="monitor-error-box" role="alert" aria-live="assertive" aria-atomic="true" style="display:none;">
                 <div class="error-box-header">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="12" y1="8" x2="12" y2="12"></line>
                     <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -1304,11 +1310,11 @@
   </div>
 
   <!-- Modal Dialog -->
-  <div class="modal-overlay" id="modal-overlay">
-    <div class="modal-window">
+  <div class="modal-overlay" id="modal-overlay" role="presentation">
+    <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-header">
         <h3 id="modal-title">EXPORT DATA</h3>
-        <button class="modal-close-btn" id="modal-close" aria-label="Close Modal">&times;</button>
+        <button class="modal-close-btn" id="modal-close" aria-label="Close Modal" title="Close dialog (Escape)">&times;</button>
       </div>
       <div class="modal-body" id="modal-content">
         <!-- Injected via JavaScript -->

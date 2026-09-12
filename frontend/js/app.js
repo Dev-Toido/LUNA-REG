@@ -1086,9 +1086,11 @@
     const rightPanel = document.getElementById('right-info-panel');
     const rightToggle = document.getElementById('right-panel-toggle');
 
-    if (rightToggle) {
+    if (rightToggle && rightPanel) {
       rightToggle.addEventListener('click', () => {
         rightPanel.classList.toggle('collapsed');
+        const isCollapsed = rightPanel.classList.contains('collapsed');
+        rightToggle.setAttribute('aria-expanded', String(!isCollapsed));
         setTimeout(() => {
           resizeCanvases();
           draw();
@@ -1114,8 +1116,12 @@
     // 5. Top Center Navigation Tabs (EXPLORE, REGISTER, ANALYZE, DATASET)
     document.querySelectorAll('.nav-link-btn').forEach(tab => {
       tab.addEventListener('click', () => {
-        document.querySelectorAll('.nav-link-btn').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-link-btn').forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
         tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
         handleTopNavAction(tab.getAttribute('data-nav'));
       });
     });
@@ -1141,15 +1147,25 @@
     // 8. Layer Controls Dropdown Toggle
     const layerDropdownBtn = document.getElementById('btn-toggle-layers-dropdown');
     const layerDropdown = document.getElementById('layers-dropdown');
+    const layerControlBtn = document.getElementById('tool-layer-control');
+
+    const updateLayerDropdownAria = (isOpen) => {
+      if (layerDropdownBtn) layerDropdownBtn.setAttribute('aria-expanded', String(isOpen));
+      if (layerControlBtn) layerControlBtn.setAttribute('aria-expanded', String(isOpen));
+    };
+
     if (layerDropdownBtn && layerDropdown) {
       layerDropdownBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         layerDropdown.classList.toggle('open');
+        const isOpen = layerDropdown.classList.contains('open');
+        updateLayerDropdownAria(isOpen);
       });
 
       document.addEventListener('click', (e) => {
-        if (!layerDropdown.contains(e.target) && e.target !== layerDropdownBtn) {
+        if (!layerDropdown.contains(e.target) && e.target !== layerDropdownBtn && (!layerControlBtn || !layerControlBtn.contains(e.target))) {
           layerDropdown.classList.remove('open');
+          updateLayerDropdownAria(false);
         }
       });
     }
@@ -1273,7 +1289,9 @@
       layerControlBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         layerDropdown.classList.toggle('open');
-        layerControlBtn.classList.toggle('active', layerDropdown.classList.contains('open'));
+        const isOpen = layerDropdown.classList.contains('open');
+        layerControlBtn.classList.toggle('active', isOpen);
+        updateLayerDropdownAria(isOpen);
       });
     }
 
@@ -1567,6 +1585,153 @@
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target.id === 'modal-overlay') closeModal();
     });
+
+    // 9. WCAG Modal Focus Trapping
+    const modalOverlay = document.getElementById('modal-overlay');
+    if (modalOverlay) {
+      modalOverlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          const focusables = Array.from(modalOverlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+          if (focusables.length === 0) return;
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            last.focus();
+            e.preventDefault();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
+      });
+    }
+
+    // 10. Toolbar Arrow Key Navigation (WCAG Toolbar pattern)
+    const mapToolbar = document.getElementById('map-toolbar');
+    if (mapToolbar) {
+      mapToolbar.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          const toolBtns = Array.from(mapToolbar.querySelectorAll('button:not([disabled])'));
+          const curIdx = toolBtns.indexOf(document.activeElement);
+          if (curIdx !== -1) {
+            const isNext = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+            const nextIdx = isNext ? (curIdx + 1) % toolBtns.length : (curIdx - 1 + toolBtns.length) % toolBtns.length;
+            toolBtns[nextIdx].focus();
+            e.preventDefault();
+          }
+        }
+      });
+    }
+
+    // 11. Accessible Global Keyboard Shortcuts & Dismissals
+    window.addEventListener('keydown', (e) => {
+      const tag = e.target.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
+
+      // Escape key dismisses open overlays, dropdowns, and mobile drawers
+      if (e.key === 'Escape') {
+        const overlay = document.getElementById('modal-overlay');
+        if (overlay && overlay.classList.contains('open')) {
+          closeModal();
+          e.preventDefault();
+          return;
+        }
+        if (layerDropdown && layerDropdown.classList.contains('open')) {
+          layerDropdown.classList.remove('open');
+          updateLayerDropdownAria(false);
+          e.preventDefault();
+          return;
+        }
+        if (sidebar && sidebar.classList.contains('mobile-open')) {
+          sidebar.classList.remove('mobile-open');
+          backdrop.classList.remove('open');
+          e.preventDefault();
+          return;
+        }
+        const rightPanelEl = document.getElementById('right-info-panel');
+        if (rightPanelEl && (rightPanelEl.classList.contains('sheet-expanded') || rightPanelEl.classList.contains('tablet-open'))) {
+          rightPanelEl.classList.remove('sheet-expanded', 'tablet-open');
+          backdrop.classList.remove('open');
+          e.preventDefault();
+          return;
+        }
+        return;
+      }
+
+      if (isInput) return; // Never trigger single-character shortcuts while typing in forms
+
+      // View Navigation Shortcuts: 1 (Explorer), 2 (Registration), 3 (Results), 4 (History)
+      if (e.key === '1') {
+        switchAppView('explorer');
+        e.preventDefault();
+        return;
+      } else if (e.key === '2') {
+        switchAppView('new-reg');
+        e.preventDefault();
+        return;
+      } else if (e.key === '3') {
+        switchAppView('results');
+        e.preventDefault();
+        return;
+      } else if (e.key === '4') {
+        switchAppView('history');
+        e.preventDefault();
+        return;
+      }
+
+      const explorerEl = document.getElementById('map-workspace');
+      const resultsEl = document.getElementById('view-registration-results');
+
+      // Explorer GIS Workspace Tool Shortcuts
+      if (explorerEl && explorerEl.style.display !== 'none') {
+        const key = e.key.toLowerCase();
+        if (key === 'p') {
+          setTool('pan');
+          e.preventDefault();
+        } else if (key === 's') {
+          setTool('select');
+          e.preventDefault();
+        } else if (key === 'm') {
+          setTool('measure');
+          e.preventDefault();
+        } else if (key === 'f') {
+          toggleFullscreen();
+          e.preventDefault();
+        } else if (key === 'r' || e.key === '0') {
+          fitToView();
+          e.preventDefault();
+        } else if (e.key === '+' || e.key === '=') {
+          adjustZoom(1.3);
+          e.preventDefault();
+        } else if (e.key === '-' || e.key === '_') {
+          adjustZoom(0.77);
+          e.preventDefault();
+        } else if (key === 'l') {
+          if (layerDropdown) {
+            layerDropdown.classList.toggle('open');
+            updateLayerDropdownAria(layerDropdown.classList.contains('open'));
+            e.preventDefault();
+          }
+        }
+      }
+
+      // Registration Results Workspace Arrow-Key Tab Traversal
+      if (resultsEl && resultsEl.style.display !== 'none') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          const tabOrder = ['overlay', 'split', 'before-after', 'matches'];
+          const curIndex = tabOrder.indexOf(resultsState.activeTab);
+          if (curIndex !== -1) {
+            const nextIndex = (e.key === 'ArrowRight')
+              ? (curIndex + 1) % tabOrder.length
+              : (curIndex - 1 + tabOrder.length) % tabOrder.length;
+            setResultsTab(tabOrder[nextIndex]);
+            const newTabBtn = document.getElementById(`tab-results-${tabOrder[nextIndex]}`);
+            if (newTabBtn) newTabBtn.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    });
   }
 
   // --- MAP WORKSPACE ACTIONS ---
@@ -1635,7 +1800,9 @@
 
       // Update Navigation Highlights
       document.querySelectorAll('.nav-link-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-nav') === 'register');
+        const isActive = b.getAttribute('data-nav') === 'register';
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', String(isActive));
       });
       document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-target') === 'new-reg');
@@ -1649,7 +1816,9 @@
 
       // Update Navigation Highlights
       document.querySelectorAll('.nav-link-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-nav') === 'analyze');
+        const isActive = b.getAttribute('data-nav') === 'analyze';
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', String(isActive));
       });
       document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-target') === 'results');
@@ -1666,7 +1835,10 @@
       if (rightPanel) rightPanel.style.display = 'none';
 
       // Navigation highlights
-      document.querySelectorAll('.nav-link-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.nav-link-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
       document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-target') === 'history');
       });
@@ -1680,7 +1852,9 @@
       if (rightPanel) rightPanel.style.display = 'flex';
 
       document.querySelectorAll('.nav-link-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-nav') === 'explore');
+        const isActive = b.getAttribute('data-nav') === 'explore';
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', String(isActive));
       });
       document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-target') === 'explorer');
@@ -2686,11 +2860,16 @@
   }
 
   // --- MODAL DIALOGS ---
+  let lastFocusedElement = null;
+
   function openModal(type) {
+    lastFocusedElement = document.activeElement;
     const overlay = document.getElementById('modal-overlay');
     const title = document.getElementById('modal-title');
     const content = document.getElementById('modal-content');
+    const closeBtn = document.getElementById('modal-close');
     overlay.classList.add('open');
+    if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
 
     if (type === 'geotiff') {
       title.textContent = 'EXPORT GEOTIFF METADATA / REGISTRATION HEADER';
@@ -2887,7 +3066,11 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
   }
 
   function closeModal() {
-    document.getElementById('modal-overlay').classList.remove('open');
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay) overlay.classList.remove('open');
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+      lastFocusedElement.focus();
+    }
   }
 
   // =========================================================================
