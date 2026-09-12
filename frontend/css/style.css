@@ -2539,6 +2539,232 @@ canvas#hist-canvas {
   line-height: 1.25;
 }
 
+/* Compact Registration Settings Panel */
+.reg-settings-compact-panel {
+  background: var(--bg-charcoal);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reg-settings-compact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 8px;
+}
+
+.settings-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.1);
+  border: 1px solid rgba(223, 192, 138, 0.25);
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.8px;
+}
+
+.settings-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  letter-spacing: 0.9px;
+  font-weight: 600;
+}
+
+.settings-sub {
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.reg-settings-compact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+@media (max-width: 820px) {
+  .reg-settings-compact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-compact-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-field-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.settings-field-value {
+  background: #08080a;
+  border: 1px solid var(--border-subtle);
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.file-chip-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Upload Status Panel */
+.upload-status-panel {
+  background: var(--bg-obsidian);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status-panel-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--accent-gold);
+}
+
+.status-indicators-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .status-indicators-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.status-card-item {
+  background: rgba(16, 16, 20, 0.75);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-item-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.status-item-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  letter-spacing: 0.4px;
+}
+
+.status-item-badge.missing {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-item-badge.ready {
+  color: #8edb96;
+  background: rgba(78, 135, 82, 0.2);
+  border: 1px solid rgba(78, 135, 82, 0.4);
+}
+
+.status-item-badge.invalid {
+  color: #ff9e9e;
+  background: rgba(171, 71, 71, 0.2);
+  border: 1px solid rgba(171, 71, 71, 0.4);
+}
+
+.status-item-badge.overall.waiting {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-dark);
+}
+
+.status-item-badge.overall.ready {
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.16);
+  border: 1px solid rgba(223, 192, 138, 0.4);
+  box-shadow: 0 0 8px rgba(223, 192, 138, 0.25);
+}
+
+.action-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.reg-cta-tip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  transition: color 0.2s ease;
+}
+
+.reg-cta-tip.ready {
+  color: #8edb96;
+}
+
+.reg-cta-tip.notice {
+  color: var(--accent-gold);
+  font-weight: 500;
+}
+
+/* Accessible focus outlines */
+.drop-zone:focus-visible,
+.btn-tech:focus-visible,
+.param-select:focus-visible,
+.btn-preview-tool:focus-visible,
+.btn-browse-files:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+}
+
 /* Advanced Scientific Registration Parameters Panel */
 .reg-parameters-panel {
   background: var(--bg-surface-subtle);

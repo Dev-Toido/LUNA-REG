@@ -822,7 +822,7 @@
               </div>
 
               <!-- Drag & Drop Zone -->
-              <div class="drop-zone" id="dropzone-ref">
+              <div class="drop-zone" id="dropzone-ref" tabindex="0" role="button" aria-label="Reference Image Drop Zone. Drag and drop file or press Enter to browse files.">
                 <input type="file" id="file-input-ref" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
                 <div class="drop-zone-error" id="ref-drop-error" style="display: none;"></div>
                 <div class="drop-zone-idle" id="drop-ref-idle">
@@ -928,7 +928,7 @@
               </div>
 
               <!-- Drag & Drop Zone -->
-              <div class="drop-zone" id="dropzone-tgt">
+              <div class="drop-zone" id="dropzone-tgt" tabindex="0" role="button" aria-label="Target Image Drop Zone. Drag and drop file or press Enter to browse files.">
                 <input type="file" id="file-input-tgt" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
                 <div class="drop-zone-error" id="tgt-drop-error" style="display: none;"></div>
                 <div class="drop-zone-idle" id="drop-tgt-idle">
@@ -1013,6 +1013,61 @@
               </div>
             </div>
 
+          </div>
+
+          <!-- COMPACT REGISTRATION SETTINGS -->
+          <div class="reg-settings-compact-panel" id="reg-settings-compact-panel">
+            <div class="reg-settings-compact-header">
+              <div class="settings-title-group">
+                <span class="settings-badge">SETTINGS</span>
+                <h4 class="settings-title">REGISTRATION SETTINGS</h4>
+              </div>
+              <span class="settings-sub">Frontend pipeline mode configuration</span>
+            </div>
+            <div class="reg-settings-compact-grid">
+              <div class="settings-compact-field">
+                <span class="settings-field-label">Reference Image:</span>
+                <div class="settings-field-value" id="settings-ref-display">
+                  <span class="file-chip-name" id="settings-ref-name">None selected</span>
+                </div>
+              </div>
+
+              <div class="settings-compact-field">
+                <span class="settings-field-label">Target Image:</span>
+                <div class="settings-field-value" id="settings-tgt-display">
+                  <span class="file-chip-name" id="settings-tgt-name">None selected</span>
+                </div>
+              </div>
+
+              <div class="settings-compact-field">
+                <label for="reg-settings-mode" class="settings-field-label">Registration Mode:</label>
+                <select id="reg-settings-mode" class="param-select">
+                  <option value="automatic" selected>Automatic</option>
+                  <option value="manual">Manual</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- UPLOAD STATUS PANEL -->
+          <div class="upload-status-panel" id="upload-status-panel" role="status" aria-live="polite">
+            <div class="status-panel-header">
+              <span class="status-panel-title">UPLOAD STATUS</span>
+            </div>
+            <div class="status-indicators-grid">
+              <div class="status-card-item">
+                <span class="status-item-label">REFERENCE IMAGE</span>
+                <span class="status-item-badge missing" id="status-ref-indicator">Missing</span>
+              </div>
+              <div class="status-card-item">
+                <span class="status-item-label">TARGET IMAGE</span>
+                <span class="status-item-badge missing" id="status-tgt-indicator">Missing</span>
+              </div>
+              <div class="status-card-item overall">
+                <span class="status-item-label">OVERALL STATUS</span>
+                <span class="status-item-badge overall waiting" id="status-overall-indicator">Waiting for images</span>
+              </div>
+            </div>
           </div>
 
           <!-- PRE-FLIGHT SCIENTIFIC VALIDATION CHECKLIST -->
@@ -1204,13 +1259,19 @@
           <!-- PRIMARY ACTION & PIPELINE MONITOR SECTION -->
           <div class="reg-action-panel">
             <div class="reg-action-cta">
-              <button class="btn-tech primary large" id="btn-execute-registration" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-                <span>RUN REGISTRATION</span>
-              </button>
-              <span class="reg-cta-tip" id="reg-cta-tip">Select both valid reference and target lunar images to enable alignment pipeline.</span>
+              <div class="action-buttons-group">
+                <button class="btn-tech primary large" id="btn-execute-registration" disabled aria-label="Run Registration">
+                  <span>RUN REGISTRATION →</span>
+                </button>
+                <button class="btn-tech secondary" id="btn-reset-workflow-cta" aria-label="Reset Workflow">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                  </svg>
+                  <span>RESET</span>
+                </button>
+              </div>
+              <span class="reg-cta-tip" id="reg-cta-tip">Waiting for images. Select or drop both reference and target images.</span>
             </div>
 
             <!-- Live Multi-Stage Processing Monitor (Hidden until execution) -->

@@ -370,11 +370,13 @@
     refImg: null,
     refUrl: null,
     refMeta: null,
+    refError: false,
 
     tgtFile: null,
     tgtImg: null,
     tgtUrl: null,
     tgtMeta: null,
+    tgtError: false,
 
     previewZoom: 1.0,
     panX: 0,
@@ -383,7 +385,12 @@
     panStartX: 0,
     panStartY: 0,
     isProcessing: false,
-    currentStep: 1
+    currentStep: 1,
+
+    regSettings: {
+      mode: 'automatic'
+    },
+    preparedPayload: null
   };
 
   function updateWorkflowStepper(step) {
@@ -761,7 +768,17 @@
     clearError();
 
     if (!validation.valid) {
+      if (isRef) {
+        regWorkflowState.refError = true;
+        regWorkflowState.refFile = null;
+        regWorkflowState.refMeta = null;
+      } else {
+        regWorkflowState.tgtError = true;
+        regWorkflowState.tgtFile = null;
+        regWorkflowState.tgtMeta = null;
+      }
       showError(validation.error);
+      checkRegistrationReadiness();
       return;
     }
 
@@ -772,6 +789,7 @@
       clearError();
 
       if (isRef) {
+        regWorkflowState.refError = false;
         if (regWorkflowState.refUrl && regWorkflowState.refUrl.startsWith('blob:')) {
           URL.revokeObjectURL(regWorkflowState.refUrl);
         }
@@ -779,6 +797,7 @@
         regWorkflowState.refUrl = meta.url;
         regWorkflowState.refMeta = meta;
       } else {
+        regWorkflowState.tgtError = false;
         if (regWorkflowState.tgtUrl && regWorkflowState.tgtUrl.startsWith('blob:')) {
           URL.revokeObjectURL(regWorkflowState.tgtUrl);
         }
@@ -907,7 +926,17 @@
         // Gracefully handle TIFF without rejecting the valid file
         handleTiffFallback();
       } else {
+        if (isRef) {
+          regWorkflowState.refError = true;
+          regWorkflowState.refFile = null;
+          regWorkflowState.refMeta = null;
+        } else {
+          regWorkflowState.tgtError = true;
+          regWorkflowState.tgtFile = null;
+          regWorkflowState.tgtMeta = null;
+        }
         showError('Unable to read this image. Please select a valid image file.');
+        checkRegistrationReadiness();
       }
     };
 
@@ -938,6 +967,7 @@
     }
 
     if (isRef) {
+      regWorkflowState.refError = false;
       if (regWorkflowState.refUrl && regWorkflowState.refUrl.startsWith('blob:')) {
         URL.revokeObjectURL(regWorkflowState.refUrl);
       }
@@ -945,6 +975,7 @@
       regWorkflowState.refUrl = null;
       regWorkflowState.refMeta = null;
     } else {
+      regWorkflowState.tgtError = false;
       if (regWorkflowState.tgtUrl && regWorkflowState.tgtUrl.startsWith('blob:')) {
         URL.revokeObjectURL(regWorkflowState.tgtUrl);
       }
@@ -985,10 +1016,39 @@
     checkRegistrationReadiness();
   }
 
-  function resetRegistrationWorkflow() {
+  function resetRegistrationWorkflow(skipConfirm = false) {
+    const hasFiles = !!(regWorkflowState.refFile || regWorkflowState.tgtFile || regWorkflowState.refError || regWorkflowState.tgtError);
+    if (!skipConfirm && hasFiles) {
+      const confirmed = window.confirm('Are you sure you want to reset the registration workflow? All selected files and settings will be cleared.');
+      if (!confirmed) return;
+    }
+
     // Reset both reference and target images
     removeSelectedFile('ref');
     removeSelectedFile('tgt');
+
+    // Clear validation errors
+    regWorkflowState.refError = false;
+    regWorkflowState.tgtError = false;
+    ['ref-drop-error', 'tgt-drop-error'].forEach(id => {
+      const errEl = document.getElementById(id);
+      if (errEl) {
+        errEl.innerHTML = '';
+        errEl.style.display = 'none';
+      }
+    });
+
+    // Reset settings
+    regWorkflowState.regSettings.mode = 'automatic';
+    const modeSelect = document.getElementById('reg-settings-mode');
+    if (modeSelect) modeSelect.value = 'automatic';
+
+    const refNameDisplay = document.getElementById('settings-ref-name');
+    const tgtNameDisplay = document.getElementById('settings-tgt-name');
+    if (refNameDisplay) refNameDisplay.textContent = 'None selected';
+    if (tgtNameDisplay) tgtNameDisplay.textContent = 'None selected';
+
+    regWorkflowState.preparedPayload = null;
 
     // Reset Dual Preview viewport
     setPreviewZoom(1.0, true);
@@ -1115,27 +1175,82 @@
   function checkRegistrationReadiness() {
     const runBtn = document.getElementById('btn-execute-registration');
     const ctaTip = document.getElementById('reg-cta-tip');
-    const hasRef = !!regWorkflowState.refMeta;
-    const hasTgt = !!regWorkflowState.tgtMeta;
+
+    const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
+    const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
+    const bothReady = isRefValid && isTgtValid;
+
+    // Update Settings displays
+    const refNameDisplay = document.getElementById('settings-ref-name');
+    const tgtNameDisplay = document.getElementById('settings-tgt-name');
+    if (refNameDisplay) {
+      refNameDisplay.textContent = regWorkflowState.refFile ? regWorkflowState.refFile.name : 'None selected';
+    }
+    if (tgtNameDisplay) {
+      tgtNameDisplay.textContent = regWorkflowState.tgtFile ? regWorkflowState.tgtFile.name : 'None selected';
+    }
+
+    // Update Upload Status Panel
+    const statusRef = document.getElementById('status-ref-indicator');
+    const statusTgt = document.getElementById('status-tgt-indicator');
+    const statusOverall = document.getElementById('status-overall-indicator');
+
+    if (statusRef) {
+      if (isRefValid) {
+        statusRef.textContent = 'Ready';
+        statusRef.className = 'status-item-badge ready';
+      } else if (regWorkflowState.refError) {
+        statusRef.textContent = 'Invalid';
+        statusRef.className = 'status-item-badge invalid';
+      } else {
+        statusRef.textContent = 'Missing';
+        statusRef.className = 'status-item-badge missing';
+      }
+    }
+
+    if (statusTgt) {
+      if (isTgtValid) {
+        statusTgt.textContent = 'Ready';
+        statusTgt.className = 'status-item-badge ready';
+      } else if (regWorkflowState.tgtError) {
+        statusTgt.textContent = 'Invalid';
+        statusTgt.className = 'status-item-badge invalid';
+      } else {
+        statusTgt.textContent = 'Missing';
+        statusTgt.className = 'status-item-badge missing';
+      }
+    }
+
+    if (statusOverall) {
+      if (bothReady) {
+        statusOverall.textContent = 'Ready for registration';
+        statusOverall.className = 'status-item-badge overall ready';
+      } else {
+        statusOverall.textContent = 'Waiting for images';
+        statusOverall.className = 'status-item-badge overall waiting';
+      }
+    }
 
     updatePreflightValidation();
 
-    if (hasRef && hasTgt) {
+    if (bothReady) {
       if (runBtn) runBtn.disabled = false;
-      if (ctaTip) ctaTip.textContent = 'Both lunar images validated. Click RUN REGISTRATION to align.';
+      if (ctaTip) {
+        ctaTip.textContent = 'Both images are ready for registration.';
+        ctaTip.className = 'reg-cta-tip ready';
+      }
       updateWorkflowStepper(4); // Stage 4: Validate files completed
-    } else if (hasRef) {
-      if (runBtn) runBtn.disabled = true;
-      if (ctaTip) ctaTip.textContent = 'Reference image loaded. Select or drop TARGET IMAGE to proceed.';
-      updateWorkflowStepper(2); // Stage 2: Select target image
-    } else if (hasTgt) {
-      if (runBtn) runBtn.disabled = true;
-      if (ctaTip) ctaTip.textContent = 'Target image loaded. Select or drop REFERENCE IMAGE to proceed.';
-      updateWorkflowStepper(1); // Stage 1: Select reference image
     } else {
       if (runBtn) runBtn.disabled = true;
-      if (ctaTip) ctaTip.textContent = 'Select both valid reference and target lunar images to enable alignment pipeline.';
-      updateWorkflowStepper(1);
+      if (ctaTip) {
+        ctaTip.textContent = 'Waiting for images. Select or drop both reference and target images.';
+        ctaTip.className = 'reg-cta-tip';
+      }
+      if (isRefValid) {
+        updateWorkflowStepper(2); // Stage 2: Select target image
+      } else {
+        updateWorkflowStepper(1); // Stage 1: Select reference image
+      }
     }
   }
 
@@ -1224,48 +1339,17 @@
   }
 
   // --- REAL BACKEND REGISTRATION ORCHESTRATOR ---
-  async function executeRegistrationWorkflow(isFallbackDemo = false) {
-    if (!regWorkflowState.refMeta || !regWorkflowState.tgtMeta || regWorkflowState.isProcessing) return;
+  async function executeRegistrationWorkflow() {
+    const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
+    const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
+    if (!isRefValid || !isTgtValid || regWorkflowState.isProcessing) return;
 
-    regWorkflowState.isProcessing = true;
-    const runBtn = document.getElementById('btn-execute-registration');
-    if (runBtn) runBtn.disabled = true;
-
-    updateWorkflowStepper(5); // Step 5: Run registration
-
-    const monitorBox = document.getElementById('reg-monitor-box');
-    const monitorBar = document.getElementById('monitor-bar');
-    const monitorPct = document.getElementById('monitor-pct');
-    const monitorTitle = document.getElementById('monitor-status-title');
-    const monitorLogs = document.getElementById('monitor-logs');
-    const successActions = document.getElementById('monitor-success-actions');
-    const errorBox = document.getElementById('monitor-error-box');
-    const jobIdPill = document.getElementById('active-job-id-pill');
-    const jobIdLbl = document.getElementById('lbl-active-job-id');
-
-    if (monitorBox) monitorBox.style.display = 'flex';
-    if (successActions) successActions.style.display = 'none';
-    if (errorBox) errorBox.style.display = 'none';
-    if (jobIdPill) jobIdPill.style.display = 'none';
-    if (monitorLogs) monitorLogs.innerHTML = '';
-
-    const addLog = (msg, cls = '') => {
-      if (!monitorLogs) return;
-      const row = document.createElement('div');
-      row.className = `log-entry ${cls}`;
-      row.textContent = msg;
-      monitorLogs.appendChild(row);
-      monitorLogs.scrollTop = monitorLogs.scrollHeight;
-    };
-
-    const api = window.LUNAR_API || window.apiService;
-    const baseUrl = api ? api.getBaseUrl() : 'http://localhost:8000';
-
-    // If explicit client calibration demo fallback was requested
-    if (isFallbackDemo) {
-      runClientCalibrationDemo(addLog, monitorTitle, monitorBar, monitorPct, successActions, runBtn);
-      return;
-    }
+    // 1. Prepare genuine multipart/form-data payload with actual File objects and settings
+    const formData = new FormData();
+    if (regWorkflowState.refFile) formData.append('reference_image', regWorkflowState.refFile);
+    if (regWorkflowState.tgtFile) formData.append('target_image', regWorkflowState.tgtFile);
+    const mode = (regWorkflowState.regSettings && regWorkflowState.regSettings.mode) ? regWorkflowState.regSettings.mode : 'automatic';
+    formData.append('registration_mode', mode);
 
     const detectorEl = document.getElementById('reg-param-detector');
     const outlierEl = document.getElementById('reg-param-outlier');
@@ -1273,21 +1357,39 @@
     const subpixelEl = document.getElementById('reg-param-subpixel');
     const claheEl = document.getElementById('reg-param-clahe');
 
-    const detectorVal = detectorEl ? detectorEl.value : 'sift';
-    const outlierVal = outlierEl ? outlierEl.value : 'ransac';
-    const modelVal = modelEl ? modelEl.value : 'homography';
-    const subpixelVal = subpixelEl ? subpixelEl.checked : true;
-    const claheVal = claheEl ? claheEl.checked : true;
+    if (detectorEl) formData.append('detector', detectorEl.value);
+    if (outlierEl) formData.append('outlier_filter', outlierEl.value);
+    if (modelEl) formData.append('geometric_model', modelEl.value);
+    if (subpixelEl) formData.append('subpixel_refinement', subpixelEl.checked);
+    if (claheEl) formData.append('clahe_normalization', claheEl.checked);
 
-    addLog(`[API:SUBMIT] Preparing multipart/form-data payload for ${baseUrl}/api/register...`, 'info');
-    addLog(`[PARAM] reference_image: ${regWorkflowState.refMeta.name} (${regWorkflowState.refMeta.sizeStr})`);
-    addLog(`[PARAM] target_image: ${regWorkflowState.tgtMeta.name} (${regWorkflowState.tgtMeta.sizeStr})`);
-    addLog(`[PARAM] Detector: ${detectorVal.toUpperCase()} | Outlier: ${outlierVal.toUpperCase()} | Model: ${modelVal.toUpperCase()}`);
-    addLog(`[PARAM] Sub-pixel LM refinement: ${subpixelVal ? 'ENABLED' : 'DISABLED'} | CLAHE: ${claheVal ? 'ENABLED' : 'DISABLED'}`);
+    // Store payload ready for backend integration
+    regWorkflowState.preparedPayload = formData;
 
-    if (monitorTitle) monitorTitle.textContent = 'CONNECTING TO REGISTRATION BACKEND (POST /api/register)...';
-    if (monitorBar) monitorBar.style.width = '10%';
-    if (monitorPct) monitorPct.textContent = '10%';
+    const ctaTip = document.getElementById('reg-cta-tip');
+    const runBtn = document.getElementById('btn-execute-registration');
+
+    // 2. Check if backend registration service is connected
+    const api = window.LUNAR_API || window.apiService;
+    let isBackendConnected = false;
+
+    if (api && typeof api.checkHealth === 'function') {
+      try {
+        const health = await api.checkHealth(1500);
+        isBackendConnected = !!(health && health.online);
+      } catch (_) {
+        isBackendConnected = false;
+      }
+    }
+
+    if (!isBackendConnected) {
+      // Do not fabricate a successful registration or show fake processing results.
+      if (ctaTip) {
+        ctaTip.textContent = 'Images are ready. Backend registration service is not connected yet.';
+        ctaTip.className = 'reg-cta-tip notice';
+      }
+      return;
+    }
 
     try {
       // 1. Get genuine File/Blob instances
@@ -1347,45 +1449,17 @@
       pollJobStatus(submission.job_id, addLog, monitorTitle, monitorBar, monitorPct, successActions, errorBox, runBtn);
 
     } catch (apiErr) {
-      // CATCH & HANDLE ALL ERRORS WITHOUT FABRICATING DATA
       regWorkflowState.isProcessing = false;
       if (runBtn) {
-        runBtn.textContent = 'RUN REGISTRATION';
         runBtn.disabled = false;
       }
-
-      const failedJobId = 'JOB-ERR-' + Math.floor(1000 + Math.random() * 9000);
-      saveJobToHistory({
-        id: failedJobId,
-        refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ref_image.tif',
-        refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : 'assets/lunar_nadir.jpg',
-        tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'tgt_image.tif',
-        tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : 'assets/lunar_low_sun.jpg',
-        status: 'Failed',
-        date: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-        timestamp: Date.now(),
-        processingTime: '0.00 s',
-        metrics: null
-      });
-
-      updateApiStatusBadge('offline');
-      if (monitorTitle) monitorTitle.textContent = `REGISTRATION FAILED: ${apiErr.type || 'ERROR'}`;
-      if (monitorBar) monitorBar.style.width = '0%';
-      if (monitorPct) monitorPct.textContent = 'FAILED';
-
-      addLog(`[ERROR:${apiErr.type || 'FAILED'}] ${apiErr.message}`, 'error');
-      if (apiErr.status) addLog(`[HTTP:STATUS] ${apiErr.status}`);
-
-      // Display dedicated backend error box
-      if (errorBox) {
-        errorBox.style.display = 'flex';
-        const errTitle = document.getElementById('error-title-text');
-        const errDesc = document.getElementById('error-desc-text');
-        if (errTitle) errTitle.textContent = `BACKEND ${apiErr.type || 'ERROR'} (${apiErr.status ? 'HTTP ' + apiErr.status : 'OFFLINE'})`;
-        if (errDesc) {
-          errDesc.textContent = `${apiErr.message} Ensure registration server is listening on ${baseUrl}, or click 'CONFIG API URL' to change VITE_API_BASE_URL.`;
-        }
+      if (ctaTip) {
+        ctaTip.textContent = 'Images are ready. Backend registration service is not connected yet.';
+        ctaTip.className = 'reg-cta-tip notice';
       }
+      updateApiStatusBadge('offline');
+      const monitorBox = document.getElementById('reg-monitor-box');
+      if (monitorBox) monitorBox.style.display = 'none';
     }
   }
 
@@ -1629,6 +1703,14 @@
     zone.addEventListener('click', (e) => {
       if (e.target.closest('.btn-remove-image') || e.target.closest('.drop-zone-active-file')) return;
       input.click();
+    });
+
+    zone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target.closest('.btn-remove-image') || e.target.closest('.drop-zone-active-file')) return;
+        e.preventDefault();
+        input.click();
+      }
     });
 
     input.addEventListener('change', () => {
@@ -2181,6 +2263,21 @@
       resetWorkflowBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         resetRegistrationWorkflow();
+      });
+    }
+
+    const resetWorkflowCtaBtn = document.getElementById('btn-reset-workflow-cta');
+    if (resetWorkflowCtaBtn) {
+      resetWorkflowCtaBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetRegistrationWorkflow();
+      });
+    }
+
+    const modeSelectEl = document.getElementById('reg-settings-mode');
+    if (modeSelectEl) {
+      modeSelectEl.addEventListener('change', (e) => {
+        regWorkflowState.regSettings.mode = e.target.value;
       });
     }
 
