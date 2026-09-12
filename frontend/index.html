@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUNAR TERRAIN EXPLORER — LUNA-REG Planetary GIS | SIH26166</title>
+  <meta name="description" content="LUNAR TERRAIN EXPLORER: Explore lunar terrain, satellite imagery, and multi-modal registration results with Chandrayaan-2 planetary GIS.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container" id="app-container">
+    
+    <!-- ==========================================================================
+         1. TOP NAVIGATION (Clean & Compact)
+         ========================================================================== -->
+    <header class="top-nav">
+      
+      <!-- Left: Title & Subtitle -->
+      <div class="nav-left">
+        <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Open Navigation Drawer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <div class="brand-container">
+          <div class="brand-orb"></div>
+          <div class="brand-text">
+            <span class="brand-title">LUNA-REG — LUNAR TERRAIN EXPLORER</span>
+            <span class="brand-subtitle" title="Explore lunar terrain, satellite imagery, and multi-modal registration results.">
+              Explore lunar terrain, satellite imagery, and multi-modal registration results.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Navigation Tabs -->
+      <nav class="nav-center" aria-label="Primary Navigation">
+        <button class="nav-link-btn active" data-nav="explore" id="nav-explore">EXPLORE</button>
+        <button class="nav-link-btn" data-nav="register" id="nav-register">REGISTER</button>
+        <button class="nav-link-btn" data-nav="analyze" id="nav-analyze">ANALYZE</button>
+        <button class="nav-link-btn" data-nav="dataset" id="nav-dataset">DATASET</button>
+      </nav>
+
+      <!-- Right Navigation Tools & Branding -->
+      <div class="nav-right">
+        <!-- Compact Search -->
+        <div class="search-container">
+          <input type="text" class="search-input" id="search-crater-input" placeholder="Search crater / ROI..." autocomplete="off">
+          <div class="search-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Notifications Trigger -->
+        <button class="nav-icon-btn" id="btn-notifications" title="System Notifications" aria-label="System Notifications">
+          <div class="notif-badge"></div>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        </button>
+
+        <!-- User Profile -->
+        <div class="user-profile-badge" id="btn-user-profile" title="Operator Session Profile">
+          <div class="user-avatar">D</div>
+          <div class="user-details">
+            <span class="user-name">DR. DEV</span>
+            <span class="user-role">ISRO SAC • PI</span>
+          </div>
+        </div>
+
+        <!-- ISRO / Mission Branding -->
+        <div class="mission-badge">
+          <span class="isro-logo-text">ISRO</span>
+          <span class="mission-sub">CHANDRAYAAN-2<br>SIH26166</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Mobile Navigation Drawer Backdrop -->
+    <div class="mobile-backdrop" id="mobile-backdrop"></div>
+
+    <!-- ==========================================================================
+         MAIN APPLICATION BODY (4-ZONE WORKBENCH)
+         ========================================================================== -->
+    <div class="app-body">
+
+      <!-- ========================================================================
+           2. LEFT SIDEBAR (Collapsible GIS Navigation)
+           ======================================================================== -->
+      <aside class="left-sidebar" id="left-sidebar" aria-label="GIS System Navigation">
+        <div class="sidebar-top">
+          <span class="sidebar-title">GIS WORKSTATION</span>
+          <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Collapse/Expand Sidebar" aria-label="Toggle Sidebar">
+            <svg id="sidebar-toggle-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 8 Navigation Items with Line Icons -->
+        <ul class="sidebar-nav-list">
+          
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn active" data-target="overview" id="side-overview">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </span>
+              <span class="nav-item-text">Overview</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="explorer" id="side-explorer">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <path d="M3.6 9h16.8"></path>
+                  <path d="M3.6 15h16.8"></path>
+                  <path d="M12 3a14 14 0 0 0 0 18"></path>
+                  <path d="M12 3a14 14 0 0 1 0 18"></path>
+                </svg>
+              </span>
+              <span class="nav-item-text">Lunar Explorer</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="new-reg" id="side-new-reg">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <line x1="12" y1="2" x2="12" y2="6"></line>
+                  <line x1="12" y1="18" x2="12" y2="22"></line>
+                  <line x1="2" y1="12" x2="6" y2="12"></line>
+                  <line x1="18" y1="12" x2="22" y2="12"></line>
+                </svg>
+              </span>
+              <span class="nav-item-text">New Registration</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="results" id="side-results">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+              </span>
+              <span class="nav-item-text">Registration Results</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="layers" id="side-layers">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+              </span>
+              <span class="nav-item-text">Image Layers</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="analysis" id="side-analysis">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                </svg>
+              </span>
+              <span class="nav-item-text">Analysis Tools</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="dataset" id="side-dataset">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                </svg>
+              </span>
+              <span class="nav-item-text">Dataset</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="about" id="side-about">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </span>
+              <span class="nav-item-text">About</span>
+            </button>
+          </li>
+
+        </ul>
+
+        <div class="sidebar-footer">
+          <div class="status-indicator">
+            <div class="status-circle"></div>
+            <span>ORBITER ONLINE</span>
+          </div>
+          <span style="color:var(--text-muted); font-size:9px;">TMC-2 GSD 5m</span>
+        </div>
+      </aside>
+
+      <!-- ========================================================================
+           3. MAIN MAP WORKSPACE (VISUAL HERO — LUNAR TERRAIN EXPLORER)
+           ======================================================================== -->
+      <main class="main-map-workspace" id="map-workspace" aria-label="Lunar GIS Canvas Viewport">
+        
+        <!-- Canvas Render Container -->
+        <div class="map-canvas-container" id="map-container">
+          <canvas id="gis-canvas"></canvas>
+
+          <!-- Split-Screen Swipe Divider -->
+          <div class="split-slider-wrap">
+            <div class="split-line" id="split-line">
+              <div class="split-handle">‹ ›</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clearly Labeled Demo / Scientific Calibration Banner -->
+        <div class="demo-data-badge" id="demo-badge">
+          <span class="demo-pill">CALIBRATION DEMO STATE</span>
+          <span>Chandrayaan-2 TMC-2 Sample Mosaic • Synthetic Telemetry for Algorithm Validation</span>
+        </div>
+
+        <!-- Map Top Bar: Map Style & Layer Controls -->
+        <div class="map-top-bar">
+          
+          <!-- Map Style Controls -->
+          <div class="map-control-pill" title="Select Lunar Map Rendering Style">
+            <span>STYLE:</span>
+            <select class="map-style-select" id="map-style-select" aria-label="Lunar Map Style">
+              <option value="grayscale-nadir" selected>Dark Grayscale (Nadir)</option>
+              <option value="low-sun-shadow">Low-Sun Shadow Relief</option>
+              <option value="topographic-hillshade">Topographic Hillshade</option>
+              <option value="inverted-albedo">Inverted Contrast Albedo</option>
+            </select>
+          </div>
+
+          <!-- Quick Layer Controls Popover Trigger -->
+          <button class="map-control-pill" id="btn-toggle-layers-dropdown" style="cursor:pointer;" aria-label="Toggle Map Layers">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            <span>LAYERS</span>
+          </button>
+
+          <!-- Layers Dropdown Menu -->
+          <div class="layers-dropdown" id="layers-dropdown">
+            <div class="layers-dropdown-title">MAP LAYER OVERLAYS</div>
+            <label class="layer-toggle-row">
+              <span>Lunar Grayscale Terrain</span>
+              <input type="checkbox" id="layer-opt-basemap" checked>
+            </label>
+            <label class="layer-toggle-row">
+              <span>Topographic Contours</span>
+              <input type="checkbox" id="layer-opt-contours" checked>
+            </label>
+            <label class="layer-toggle-row">
+              <span>Coordinate Graticule</span>
+              <input type="checkbox" id="layer-opt-graticule" checked>
+            </label>
+            <label class="layer-toggle-row">
+              <span>Feature Annotations</span>
+              <input type="checkbox" id="layer-opt-annotations" checked>
+            </label>
+            <label class="layer-toggle-row">
+              <span>Tie-Point Correspondences</span>
+              <input type="checkbox" id="layer-opt-tiepoints" checked>
+            </label>
+          </div>
+        </div>
+
+        <!-- ====================================================================
+             FLOATING MAP TOOLBAR (Compact & Elegant Scientific Toolbar)
+             ==================================================================== -->
+        <div class="floating-map-toolbar" id="map-toolbar" aria-label="Map Tools">
+          
+          <!-- 1. SELECT LOCATION -->
+          <button class="map-tool-btn" id="tool-select-location" data-tooltip="SELECT LOCATION" aria-label="Select Location">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </button>
+
+          <!-- 2. PAN -->
+          <button class="map-tool-btn active" id="tool-pan" data-tooltip="PAN" aria-label="Pan">
+            <svg viewBox="0 0 24 24">
+              <path d="M18 11V6a2 2 0 0 0-4 0v4"></path>
+              <path d="M14 10V4a2 2 0 0 0-4 0v6"></path>
+              <path d="M10 10.5V6a2 2 0 0 0-4 0v8"></path>
+              <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path>
+            </svg>
+          </button>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- 3. ZOOM IN -->
+          <button class="map-tool-btn" id="tool-zoom-in" data-tooltip="ZOOM IN" aria-label="Zoom In">
+            <svg viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="11" y1="8" x2="11" y2="14"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+          </button>
+
+          <!-- 4. ZOOM OUT -->
+          <button class="map-tool-btn" id="tool-zoom-out" data-tooltip="ZOOM OUT" aria-label="Zoom Out">
+            <svg viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+          </button>
+
+          <!-- 5. RESET VIEW -->
+          <button class="map-tool-btn" id="tool-reset-view" data-tooltip="RESET VIEW" aria-label="Reset View">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="3"></circle>
+              <line x1="12" y1="2" x2="12" y2="5"></line>
+              <line x1="12" y1="19" x2="12" y2="22"></line>
+              <line x1="2" y1="12" x2="5" y2="12"></line>
+              <line x1="19" y1="12" x2="22" y2="12"></line>
+            </svg>
+          </button>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- 6. MEASURE -->
+          <button class="map-tool-btn" id="tool-measure" data-tooltip="MEASURE" aria-label="Measure">
+            <svg viewBox="0 0 24 24">
+              <path d="M2 22l20-20"></path>
+              <path d="M6 14l2 2"></path>
+              <path d="M10 10l2 2"></path>
+              <path d="M14 6l2 2"></path>
+              <circle cx="4" cy="20" r="2"></circle>
+              <circle cx="20" cy="4" r="2"></circle>
+            </svg>
+          </button>
+
+          <!-- 7. FULLSCREEN -->
+          <button class="map-tool-btn" id="tool-fullscreen" data-tooltip="FULLSCREEN" aria-label="Fullscreen">
+            <svg viewBox="0 0 24 24">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>
+          </button>
+
+          <!-- 8. LAYER CONTROL -->
+          <button class="map-tool-btn" id="tool-layer-control" data-tooltip="LAYER CONTROL" aria-label="Layer Control">
+            <svg viewBox="0 0 24 24">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </button>
+
+        </div>
+
+        <!-- Comparative Labels -->
+        <div class="map-view-label-left" id="map-label-left">REFERENCE: TMC-2 NADIR PASS (SUN ELEV: 48.2°)</div>
+        <div class="map-view-label-right" id="map-label-right">TARGET: LOW-SUN SHADOW PASS (SUN ELEV: 16.4°)</div>
+
+        <!-- Map Bottom HUD: Coordinate Grid Ticker, Dynamic Scale Bar, North Indicator -->
+        <div class="map-bottom-hud">
+          
+          <!-- Selenographic Coordinates Grid Readout -->
+          <div class="hud-telemetry-cluster">
+            <div class="hud-item">
+              <span>TARGET REGION:</span>
+              <span id="hud-roi-name">TYCHO CRATER & TERRACES</span>
+            </div>
+            <div class="hud-item">
+              <span>LAT:</span>
+              <span id="hud-lat">43°18'36" S</span>
+            </div>
+            <div class="hud-item">
+              <span>LON:</span>
+              <span id="hud-lon">11°21'36" W</span>
+            </div>
+            <div class="hud-item">
+              <span>ELEV:</span>
+              <span id="hud-elev">-2,450 m</span>
+            </div>
+            <div class="hud-item">
+              <span>DATUM:</span>
+              <span>D_MOON_2000</span>
+            </div>
+          </div>
+
+          <!-- Scale Bar & North Indicator -->
+          <div class="scale-and-north">
+            <div class="scale-box">
+              <div class="scale-line"></div>
+              <div class="scale-ticks">
+                <span>0</span>
+                <span id="scale-val-km">5.0 km</span>
+              </div>
+            </div>
+
+            <!-- North / Orientation Indicator -->
+            <div class="north-arrow-badge" id="btn-reset-north" title="True North Indicator (Click to Reset Orientation)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12,2 17,21 12,17 7,21" fill="currentColor"></polygon>
+              </svg>
+              <span>N</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Mouse Reticle -->
+        <div class="mouse-crosshair-label" id="mouse-reticle"></div>
+      </main>
+
+      <!-- ========================================================================
+           6. NEW IMAGE REGISTRATION WORKFLOW (Dedicated GIS Registration Page)
+           ======================================================================== -->
+      <section class="page-new-registration" id="view-new-registration" aria-label="New Image Registration Workspace" style="display: none;">
+        
+        <!-- Registration Page Header -->
+        <div class="reg-page-header">
+          <div class="reg-page-title-group">
+            <div class="reg-page-breadcrumb">
+              <span>LUNA-REG GIS</span>
+              <span>/</span>
+              <span>MISSION WORKBENCH</span>
+              <span>/</span>
+              <span class="active">NEW REGISTRATION</span>
+            </div>
+            <h1 class="reg-page-title">NEW IMAGE REGISTRATION</h1>
+            <p class="reg-page-subtitle">Align two lunar satellite images using multi-modal image registration.</p>
+          </div>
+          <div class="reg-header-actions">
+            <!-- Backend API Configuration Pill -->
+            <div class="api-endpoint-badge" id="api-endpoint-badge" title="Registration Backend URL (VITE_API_BASE_URL)">
+              <span class="api-status-dot" id="api-status-dot"></span>
+              <span class="api-label">BACKEND:</span>
+              <span class="api-url" id="api-endpoint-url">http://localhost:8000</span>
+              <button class="api-config-btn" id="btn-config-api" title="Configure Backend API URL">CONFIG</button>
+            </div>
+
+            <button class="btn-tech" id="btn-back-to-explorer" title="Return to Lunar Terrain Explorer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              <span>BACK TO EXPLORER</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 7-Stage Workflow Progress Stepper -->
+        <div class="reg-workflow-stepper" id="workflow-stepper">
+          <div class="stepper-step active" id="step-1" data-step="1">
+            <span class="step-num">01</span>
+            <span class="step-label">Select Reference Image</span>
+          </div>
+          <div class="stepper-connector"></div>
+          <div class="stepper-step" id="step-2" data-step="2">
+            <span class="step-num">02</span>
+            <span class="step-label">Select Target Image</span>
+          </div>
+          <div class="stepper-connector"></div>
+          <div class="stepper-step" id="step-3" data-step="3">
+            <span class="step-num">03</span>
+            <span class="step-label">Preview Both Images</span>
+          </div>
+          <div class="stepper-connector"></div>
+          <div class="stepper-step" id="step-4" data-step="4">
+            <span class="step-num">04</span>
+            <span class="step-label">Validate Files</span>
+          </div>
+          <div class="stepper-connector"></div>
+          <div class="stepper-step" id="step-5" data-step="5">
+            <span class="step-num">05</span>
+            <span class="step-label">Run Registration</span>
+          </div>
+          <div class="stepper-connector"></div>
+          <div class="stepper-step" id="step-6" data-step="6">
+            <span class="step-num">06</span>
+            <span class="step-label">Monitor Processing</span>
+          </div>
+          <div class="stepper-connector"></div>
+          <div class="stepper-step" id="step-7" data-step="7">
+            <span class="step-num">07</span>
+            <span class="step-label">Explore Registered Result</span>
+          </div>
+        </div>
+
+        <!-- Registration Content Scroll Area -->
+        <div class="reg-content-scroll">
+          
+          <!-- Image Upload Cards Grid -->
+          <div class="reg-cards-grid">
+            
+            <!-- REFERENCE IMAGE CARD -->
+            <div class="reg-image-card" id="card-ref">
+              <div class="reg-card-header">
+                <div class="card-title-group">
+                  <span class="reg-card-badge">BASE ORBIT PASS</span>
+                  <h3 class="reg-card-label">REFERENCE IMAGE</h3>
+                  <p class="reg-card-desc">Base image used for alignment.</p>
+                </div>
+                <button class="btn-sample-preset" id="btn-load-sample-ref" title="Load demo Chandrayaan-2 TMC-2 Nadir Pass">LOAD TMC-2 NADIR SAMPLE</button>
+              </div>
+
+              <!-- Drag & Drop Zone -->
+              <div class="drop-zone" id="dropzone-ref">
+                <input type="file" id="file-input-ref" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
+                <div class="drop-zone-idle" id="drop-ref-idle">
+                  <div class="drop-zone-icon">
+                    <svg viewBox="0 0 24 24">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                  </div>
+                  <div class="drop-prompt">
+                    <span class="drop-text-primary">Drag & drop lunar image here, or <span class="drop-browse-btn">browse</span></span>
+                    <span class="drop-text-secondary">Supported: PNG, JPG, JPEG, TIFF • Max 150 MB</span>
+                  </div>
+                </div>
+
+                <!-- Active Upload File State Box -->
+                <div class="drop-zone-active-file" id="drop-ref-active" style="display: none;">
+                  <div class="active-file-preview-wrap">
+                    <img id="ref-thumb-img" class="active-file-thumb" src="" alt="Reference Image Preview">
+                    <button class="btn-remove-image" id="btn-remove-ref" title="Remove reference image" aria-label="Remove Image">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div class="active-file-meta-list">
+                    <div class="file-meta-row">
+                      <span class="meta-label">File Name:</span>
+                      <span class="meta-value" id="ref-file-name">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">File Size:</span>
+                      <span class="meta-value" id="ref-file-size">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Dimensions:</span>
+                      <span class="meta-value" id="ref-file-dims">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Validation:</span>
+                      <span class="meta-value success" id="ref-file-status">VALID FORMAT & SIZE ✓</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TARGET IMAGE CARD -->
+            <div class="reg-image-card" id="card-tgt">
+              <div class="reg-card-header">
+                <div class="card-title-group">
+                  <span class="reg-card-badge">UNALIGNED PASS</span>
+                  <h3 class="reg-card-label">TARGET IMAGE</h3>
+                  <p class="reg-card-desc">Image to be aligned with the reference image.</p>
+                </div>
+                <button class="btn-sample-preset" id="btn-load-sample-tgt" title="Load demo Chandrayaan-2 TMC-2 Low-Sun Pass">LOAD TMC-2 LOW-SUN SAMPLE</button>
+              </div>
+
+              <!-- Drag & Drop Zone -->
+              <div class="drop-zone" id="dropzone-tgt">
+                <input type="file" id="file-input-tgt" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
+                <div class="drop-zone-idle" id="drop-tgt-idle">
+                  <div class="drop-zone-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path>
+                      <circle cx="12" cy="12" r="7"></circle>
+                    </svg>
+                  </div>
+                  <div class="drop-prompt">
+                    <span class="drop-text-primary">Drag & drop target image here, or <span class="drop-browse-btn">browse</span></span>
+                    <span class="drop-text-secondary">Supported: PNG, JPG, JPEG, TIFF • Max 150 MB</span>
+                  </div>
+                </div>
+
+                <!-- Active Upload File State Box -->
+                <div class="drop-zone-active-file" id="drop-tgt-active" style="display: none;">
+                  <div class="active-file-preview-wrap">
+                    <img id="tgt-thumb-img" class="active-file-thumb" src="" alt="Target Image Preview">
+                    <button class="btn-remove-image" id="btn-remove-tgt" title="Remove target image" aria-label="Remove Image">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div class="active-file-meta-list">
+                    <div class="file-meta-row">
+                      <span class="meta-label">File Name:</span>
+                      <span class="meta-value" id="tgt-file-name">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">File Size:</span>
+                      <span class="meta-value" id="tgt-file-size">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Dimensions:</span>
+                      <span class="meta-value" id="tgt-file-dims">--</span>
+                    </div>
+                    <div class="file-meta-row">
+                      <span class="meta-label">Validation:</span>
+                      <span class="meta-value success" id="tgt-file-status">VALID FORMAT & SIZE ✓</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- DUAL-IMAGE PREVIEW WORKSPACE -->
+          <div class="preview-workspace-section">
+            <div class="preview-workspace-header">
+              <div class="preview-title-group">
+                <span class="preview-title">DUAL-IMAGE PREVIEW WORKSPACE</span>
+                <span class="preview-sub">Synchronized spatial inspection prior to keypoint extraction</span>
+              </div>
+              <div class="preview-controls-bar">
+                <button class="btn-preview-tool" id="btn-preview-fit" title="Fit both lunar images to viewport">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>FIT TO VIEW</span>
+                </button>
+                <button class="btn-preview-tool" id="btn-preview-zoomin" title="Zoom in inspection">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                  <span>ZOOM IN</span>
+                </button>
+                <button class="btn-preview-tool" id="btn-preview-zoomout" title="Zoom out inspection">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                  <span>ZOOM OUT</span>
+                </button>
+                <button class="btn-preview-tool" id="btn-preview-reset" title="Reset zoom and panning">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  <span>RESET</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Dual Viewport Grid -->
+            <div class="preview-dual-viewport" id="dual-viewport-wrap">
+              <div class="viewport-panel" id="viewport-ref">
+                <div class="viewport-tag">REFERENCE: <span id="vtag-ref-name">NOT LOADED</span></div>
+                <div class="viewport-canvas-box" id="vbox-ref">
+                  <img id="vimg-ref" class="viewport-render-img" src="" alt="Reference Full Preview" style="display:none;">
+                  <div class="viewport-empty-notice" id="vempty-ref">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Awaiting Reference Lunar Image</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="viewport-panel" id="viewport-tgt">
+                <div class="viewport-tag">TARGET: <span id="vtag-tgt-name">NOT LOADED</span></div>
+                <div class="viewport-canvas-box" id="vbox-tgt">
+                  <img id="vimg-tgt" class="viewport-render-img" src="" alt="Target Full Preview" style="display:none;">
+                  <div class="viewport-empty-notice" id="vempty-tgt">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Awaiting Target Lunar Image</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRIMARY ACTION & PIPELINE MONITOR SECTION -->
+          <div class="reg-action-panel">
+            <div class="reg-action-cta">
+              <button class="btn-tech primary large" id="btn-execute-registration" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <span>RUN REGISTRATION</span>
+              </button>
+              <span class="reg-cta-tip" id="reg-cta-tip">Select both valid reference and target lunar images to enable alignment pipeline.</span>
+            </div>
+
+            <!-- Live Multi-Stage Processing Monitor (Hidden until execution) -->
+            <div class="reg-processing-monitor" id="reg-monitor-box" style="display:none;">
+              <div class="monitor-header">
+                <div class="monitor-title">
+                  <div class="pulse-indicator" id="monitor-pulse"></div>
+                  <span id="monitor-status-title">PROCESSING MULTI-MODAL IMAGE REGISTRATION</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span class="active-job-id-pill" id="active-job-id-pill" style="display:none;">JOB ID: <strong id="lbl-active-job-id">--</strong></span>
+                  <span class="monitor-pct" id="monitor-pct">0%</span>
+                </div>
+              </div>
+
+              <div class="monitor-progress-track">
+                <div class="monitor-progress-bar" id="monitor-bar"></div>
+              </div>
+
+              <!-- Terminal Telemetry Log Feed -->
+              <div class="monitor-log-stream" id="monitor-logs">
+                <div class="log-entry info">[INIT] SIH26166 Multi-Modal Engine Initialized.</div>
+              </div>
+
+              <!-- Backend Failure / Server Unavailable Alert Box -->
+              <div class="monitor-error-box" id="monitor-error-box" style="display:none;">
+                <div class="error-box-header">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <span id="error-title-text">BACKEND SERVER UNAVAILABLE</span>
+                </div>
+                <p class="error-desc-text" id="error-desc-text">Cannot establish connection to backend at http://localhost:8000. Connection refused.</p>
+                <div class="error-action-btns">
+                  <button class="btn-tech" id="btn-retry-registration">RETRY SUBMISSION</button>
+                  <button class="btn-tech" id="btn-configure-api-retry">CONFIG API URL</button>
+                  <button class="btn-tech" id="btn-fallback-calibration">RUN CALIBRATION DEMO MODE</button>
+                </div>
+              </div>
+
+              <!-- Final Convergence Banner with Direct Jump to Explorer -->
+              <div class="monitor-success-actions" id="monitor-success-actions" style="display:none;">
+                <div class="convergence-summary">
+                  <span class="conv-tag">CONVERGENCE ACHIEVED</span>
+                  <span class="conv-val" id="conv-metrics-text">Reprojection RMSE: 0.318 px • 1,311 Inliers (91.8%)</span>
+                </div>
+                <button class="btn-tech primary" id="btn-jump-explorer">
+                  <span>EXPLORE REGISTERED RESULT</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ========================================================================
+           5. RIGHT INFORMATION PANEL (Collapsible Lunar Terrain Data)
+           ======================================================================== -->
+      <aside class="right-info-panel" id="right-info-panel" aria-label="Lunar Terrain Data">
+        <div class="panel-header">
+          <h3>LUNAR TERRAIN DATA</h3>
+          <button class="panel-toggle-btn" id="right-panel-toggle" title="Collapse/Expand Info Panel" aria-label="Toggle Info Panel">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <div class="panel-scroll-content">
+          
+          <!-- SECTION: SELECTED IMAGE -->
+          <div class="info-section">
+            <div class="info-section-header">SELECTED IMAGE</div>
+            <div class="selected-image-box">
+              <div class="selected-image-wrapper">
+                <img id="selected-image-thumbnail" class="selected-image-thumb" src="assets/lunar_nadir.jpg" alt="Selected Lunar Terrain Image">
+                <div class="selected-image-overlay">
+                  <span id="selected-image-tag">CHANDRAYAAN-2 TMC-2</span>
+                  <span id="selected-image-orbit">ORBIT #4829</span>
+                </div>
+              </div>
+              <div class="selected-image-meta">
+                <span id="selected-image-name" style="color:var(--text-primary); font-weight:600;">Tycho Crater High-Relief Pass</span>
+                <span id="selected-image-illumination" style="color:var(--accent-gold); font-size:9px;">Sun Elevation: 48.2° (Nadir)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION: METADATA -->
+          <div class="info-section">
+            <div class="info-section-header">IMAGE & LOCATION METADATA</div>
+            <div class="kv-table">
+              <div class="kv-row">
+                <span class="kv-key">Latitude</span>
+                <span class="kv-val" id="meta-latitude">43.310° S</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">Longitude</span>
+                <span class="kv-val" id="meta-longitude">11.360° W</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">Region</span>
+                <span class="kv-val" id="meta-region">Tycho Crater & Terraces</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">Image Source</span>
+                <span class="kv-val" id="meta-source">Chandrayaan-2 TMC-2</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">Image Resolution</span>
+                <span class="kv-val" id="meta-resolution">5.0 m/pixel</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">Acquisition Date</span>
+                <span class="kv-val" id="meta-date">2020-01-15</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">Image Type</span>
+                <span class="kv-val" id="meta-type">Panchromatic Optical Raster</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">Registration Status</span>
+                <span class="kv-val success" id="meta-reg-status">ALIGNED (RMSE 0.318 px)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION: ACTION BUTTONS -->
+          <div class="info-section">
+            <div class="btn-action-group">
+              <button class="btn-tech primary" id="btn-register-image">REGISTER IMAGE</button>
+              <button class="btn-tech" id="btn-view-details">VIEW DETAILS</button>
+            </div>
+          </div>
+
+          <!-- SECTION: REGISTRATION ACCURACY & HISTOGRAM -->
+          <div class="info-section">
+            <div class="info-section-header">ACCURACY METRICS (CALIBRATED)</div>
+            <div class="metrics-row">
+              <div class="metric-tile">
+                <span class="metric-tile-title">REPROJECTION RMSE</span>
+                <span class="metric-tile-val" id="metric-rmse">0.318 px</span>
+                <span class="metric-tile-sub">Sub-pixel precision</span>
+              </div>
+              <div class="metric-tile">
+                <span class="metric-tile-title">INLIER RATIO</span>
+                <span class="metric-tile-val" id="metric-inlier-ratio">91.8%</span>
+                <span class="metric-tile-sub">1,311 / 1,428 inliers</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION: RESIDUAL ERROR HISTOGRAM -->
+          <div class="info-section">
+            <div class="info-section-header">RESIDUAL ERROR HISTOGRAM</div>
+            <div class="histogram-box">
+              <div class="histogram-header">
+                <span>RESIDUAL SPREAD (0.0 — 1.5 PX)</span>
+                <span style="color:var(--accent-gold);">σ = 0.084</span>
+              </div>
+              <canvas id="hist-canvas"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- Modal Dialog -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 id="modal-title">EXPORT DATA</h3>
+        <button class="modal-close-btn" id="modal-close" aria-label="Close Modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-content">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular API Service Layer -->
+  <script src="src/services/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
