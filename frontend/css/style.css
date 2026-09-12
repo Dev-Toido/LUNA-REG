@@ -5744,4 +5744,622 @@ canvas#results-canvas {
   }
 }
 
+/* ==========================================================================
+   14. REGISTRATION SUBMITTING OVERLAY & DEDICATED PROCESSING PAGE
+   ========================================================================== */
+
+/* Submitting Loading Overlay State */
+.reg-submitting-overlay {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(16, 16, 20, 0.92);
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-xs);
+  padding: 14px 20px;
+  box-shadow: 0 0 16px rgba(223, 192, 138, 0.2);
+  margin-top: 8px;
+}
+
+.submitting-spinner-orb {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid rgba(223, 192, 138, 0.2);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.submitting-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.submitting-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-gold);
+  letter-spacing: 0.8px;
+}
+
+.submitting-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* Registration Job Created Banner */
+.reg-created-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(78, 135, 82, 0.15);
+  border: 1px solid rgba(78, 135, 82, 0.5);
+  border-radius: var(--radius-xs);
+  padding: 10px 16px;
+  margin-top: 8px;
+}
+
+.created-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.created-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #8edb96;
+  letter-spacing: 0.8px;
+}
+
+.created-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-primary);
+}
+
+/* Dedicated Processing Page Layout */
+.page-processing {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 46px);
+  background: var(--bg-obsidian);
+  position: relative;
+  overflow: hidden;
+}
+
+.proc-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: var(--bg-charcoal);
+  border-bottom: 1px solid var(--border-dark);
+  flex-shrink: 0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.proc-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.proc-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.5px;
+}
+
+.proc-breadcrumb span.active {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.proc-breadcrumb .breadcrumb-link:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.proc-page-title {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.proc-page-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.proc-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.proc-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Mission Telemetry Bar */
+.proc-telemetry-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  background: var(--bg-charcoal);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px 18px;
+}
+
+@media (max-width: 1100px) {
+  .proc-telemetry-bar {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .proc-telemetry-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.proc-telemetry-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.proc-telemetry-lbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+}
+
+.proc-telemetry-val {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.proc-telemetry-val.mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.proc-telemetry-val.gold {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.proc-telemetry-val-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.proc-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: color 0.15s;
+}
+
+.proc-copy-btn:hover {
+  color: var(--accent-gold);
+}
+
+.proc-status-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  width: fit-content;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.proc-status-badge.processing {
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.15);
+  border: 1px solid rgba(223, 192, 138, 0.4);
+}
+
+.proc-status-badge.queued {
+  color: #a8b2c4;
+  background: rgba(168, 178, 196, 0.12);
+  border: 1px solid rgba(168, 178, 196, 0.3);
+}
+
+.proc-status-badge.completed {
+  color: #8edb96;
+  background: rgba(78, 135, 82, 0.2);
+  border: 1px solid rgba(78, 135, 82, 0.4);
+}
+
+.proc-status-badge.failed {
+  color: #ff9e9e;
+  background: rgba(171, 71, 71, 0.2);
+  border: 1px solid rgba(171, 71, 71, 0.4);
+}
+
+/* Overall Progress Container */
+.proc-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(16, 16, 20, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 10px 14px;
+}
+
+.proc-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.proc-progress-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+}
+
+.proc-progress-pct {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.proc-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.proc-progress-fill {
+  height: 100%;
+  background: var(--accent-gold);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(223, 192, 138, 0.4);
+}
+
+/* Dedicated Failure Card */
+.proc-failure-card {
+  background: rgba(171, 71, 71, 0.1);
+  border: 1px solid rgba(171, 71, 71, 0.5);
+  border-radius: var(--radius-xs);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 0 16px rgba(171, 71, 71, 0.15);
+}
+
+.failure-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.failure-icon-orb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(171, 71, 71, 0.2);
+  border: 1px solid rgba(171, 71, 71, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ff9e9e;
+  flex-shrink: 0;
+}
+
+.failure-title-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.failure-heading {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: #ff9e9e;
+}
+
+.failure-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.failure-msg-text {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.failure-actions-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+/* Scientific Pipeline Grid */
+.proc-pipeline-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.proc-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.proc-section-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.1);
+  border: 1px solid rgba(223, 192, 138, 0.25);
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.8px;
+}
+
+.proc-section-heading {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  letter-spacing: 0.9px;
+  font-weight: 600;
+}
+
+.proc-pipeline-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .proc-pipeline-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .proc-pipeline-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pipeline-stage-card {
+  background: var(--bg-charcoal);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  position: relative;
+}
+
+.stage-step-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.stage-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.stage-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stage-indicator-pill {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.stage-desc {
+  margin: 0;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+/* Stage status colors matching scientific design system */
+.pipeline-stage-card.pending {
+  border-color: var(--border-subtle);
+}
+.stage-indicator-pill.pending {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pipeline-stage-card.processing {
+  border-color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.05);
+  box-shadow: 0 0 10px rgba(223, 192, 138, 0.15);
+}
+.pipeline-stage-card.processing .stage-step-num {
+  color: var(--accent-gold);
+  opacity: 1;
+}
+.stage-indicator-pill.processing {
+  color: var(--accent-gold);
+  background: rgba(223, 192, 138, 0.15);
+  border: 1px solid rgba(223, 192, 138, 0.4);
+}
+
+.pipeline-stage-card.completed {
+  border-color: rgba(78, 135, 82, 0.5);
+  background: rgba(78, 135, 82, 0.05);
+}
+.pipeline-stage-card.completed .stage-step-num {
+  color: #8edb96;
+  opacity: 1;
+}
+.stage-indicator-pill.completed {
+  color: #8edb96;
+  background: rgba(78, 135, 82, 0.2);
+  border: 1px solid rgba(78, 135, 82, 0.4);
+}
+
+.pipeline-stage-card.failed {
+  border-color: rgba(171, 71, 71, 0.6);
+  background: rgba(171, 71, 71, 0.08);
+}
+.pipeline-stage-card.failed .stage-step-num {
+  color: #ff9e9e;
+  opacity: 1;
+}
+.stage-indicator-pill.failed {
+  color: #ff9e9e;
+  background: rgba(171, 71, 71, 0.2);
+  border: 1px solid rgba(171, 71, 71, 0.4);
+}
+
+/* Mission Telemetry Logs Panel */
+.proc-telemetry-logs-panel {
+  background: var(--bg-charcoal);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.proc-logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 6px;
+}
+
+.proc-logs-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent-gold);
+  letter-spacing: 0.8px;
+  font-weight: 600;
+}
+
+.proc-logs-status {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--text-muted);
+}
+
+.proc-logs-stream {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  max-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.proc-log-line {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.proc-log-line.info {
+  color: var(--text-muted);
+}
+
+.proc-log-line.success {
+  color: #8edb96;
+}
+
+.proc-log-line.error {
+  color: #ff9e9e;
+}
+
+.proc-log-line.gold {
+  color: var(--accent-gold);
+}
+
+
 

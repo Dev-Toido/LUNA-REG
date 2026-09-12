@@ -1325,12 +1325,247 @@
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </button>
               </div>
+              <!-- SUBMITTING LOADING OVERLAY STATE -->
+              <div class="reg-submitting-overlay" id="reg-submitting-overlay" style="display: none;" aria-live="polite">
+                <div class="submitting-spinner-orb"></div>
+                <div class="submitting-text-group">
+                  <span class="submitting-title">SUBMITTING REGISTRATION</span>
+                  <span class="submitting-sub">Sending lunar imagery to the registration service...</span>
+                </div>
+              </div>
+
+              <!-- REGISTRATION JOB CREATED CONFIRMATION BANNER -->
+              <div class="reg-created-banner" id="reg-created-banner" style="display: none;" role="status">
+                <div class="pulse-indicator online"></div>
+                <div class="created-banner-text">
+                  <span class="created-title">REGISTRATION JOB CREATED</span>
+                  <span class="created-sub" id="reg-created-job-text">Job ID: LR-XXXXXX • Status: Processing</span>
+                </div>
+              </div>
             </div>
 
           </div>
 
         </div>
 
+      </section>
+
+      <!-- ========================================================================
+           7. PROCESSING STATUS PAGE (Mission Control Registration Pipeline)
+           ======================================================================== -->
+      <section class="page-processing" id="view-processing" aria-label="Registration Processing Workspace" style="display: none;">
+        
+        <!-- Processing Header -->
+        <div class="proc-page-header">
+          <div class="proc-title-group">
+            <div class="proc-breadcrumb">
+              <span class="breadcrumb-link" id="proc-bc-dashboard" style="cursor: pointer;" title="Return to Dashboard">Dashboard</span>
+              <span>/</span>
+              <span class="breadcrumb-link" id="proc-bc-newreg" style="cursor: pointer;" title="Return to New Registration">New Registration</span>
+              <span>/</span>
+              <span class="active">Processing</span>
+            </div>
+            <h1 class="proc-page-title">REGISTRATION IN PROGRESS</h1>
+            <p class="proc-page-subtitle">Analyzing multi-modal lunar imagery...</p>
+          </div>
+          
+          <div class="proc-header-actions">
+            <button class="btn-tech secondary" id="btn-proc-cancel" title="Cancel registration job">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span>CANCEL POLLING</span>
+            </button>
+            <button class="btn-tech" id="btn-proc-newreg-return" title="Return to New Registration">
+              <span>NEW REGISTRATION</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="proc-content-scroll">
+          
+          <!-- Mission Telemetry Bar -->
+          <div class="proc-telemetry-bar">
+            <div class="proc-telemetry-item">
+              <span class="proc-telemetry-lbl">JOB ID</span>
+              <div class="proc-telemetry-val-group">
+                <span class="proc-telemetry-val mono gold" id="proc-job-id">--</span>
+                <button class="proc-copy-btn" id="btn-proc-copy-id" title="Copy Job ID">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="proc-telemetry-item">
+              <span class="proc-telemetry-lbl">STATUS</span>
+              <span class="proc-status-badge processing" id="proc-status-badge">PROCESSING</span>
+            </div>
+
+            <div class="proc-telemetry-item">
+              <span class="proc-telemetry-lbl">CURRENT STAGE</span>
+              <span class="proc-telemetry-val" id="proc-current-stage">Processing registration...</span>
+            </div>
+
+            <div class="proc-telemetry-item">
+              <span class="proc-telemetry-lbl">START TIME</span>
+              <span class="proc-telemetry-val mono" id="proc-start-time">--</span>
+            </div>
+
+            <div class="proc-telemetry-item">
+              <span class="proc-telemetry-lbl">ELAPSED TIME</span>
+              <span class="proc-telemetry-val mono gold" id="proc-elapsed-time">00:00 s</span>
+            </div>
+          </div>
+
+          <!-- Overall Progress Bar -->
+          <div class="proc-progress-container" id="proc-progress-container">
+            <div class="proc-progress-header">
+              <span class="proc-progress-title">ORBITAL PIPELINE EXECUTION</span>
+              <span class="proc-progress-pct" id="proc-progress-pct">--</span>
+            </div>
+            <div class="proc-progress-track">
+              <div class="proc-progress-fill" id="proc-progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Dedicated Failure Card (Hidden by default, shown on failure) -->
+          <div class="proc-failure-card" id="proc-failure-card" style="display: none;" role="alert">
+            <div class="failure-card-header">
+              <div class="failure-icon-orb">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </div>
+              <div class="failure-title-col">
+                <h3 class="failure-heading">REGISTRATION FAILED</h3>
+                <span class="failure-sub" id="proc-failure-job-label">JOB TERMINATED</span>
+              </div>
+            </div>
+            <p class="failure-msg-text" id="proc-failure-msg">The registration service reported an error during execution. Please verify your imagery and try again.</p>
+            <div class="failure-actions-row">
+              <button class="btn-tech primary" id="btn-proc-retry">RETRY REGISTRATION</button>
+              <button class="btn-tech" id="btn-proc-new-reg">RETURN TO NEW REGISTRATION</button>
+            </div>
+          </div>
+
+          <!-- Scientific Pipeline Cards (8 Stages) -->
+          <div class="proc-pipeline-section" id="proc-pipeline-section">
+            <div class="proc-section-title-row">
+              <span class="proc-section-badge">PIPELINE</span>
+              <h3 class="proc-section-heading">SCIENTIFIC REGISTRATION PIPELINE</h3>
+            </div>
+
+            <div class="proc-pipeline-grid" id="proc-pipeline-grid">
+              <!-- Stage 1 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-1" data-stage="validation">
+                <div class="stage-step-num">01</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Image Validation</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-1">Pending</span>
+                  </div>
+                  <p class="stage-desc">Verifying format, bit depth, file sizes, and raster dimensions.</p>
+                </div>
+              </div>
+
+              <!-- Stage 2 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-2" data-stage="preprocessing">
+                <div class="stage-step-num">02</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Preprocessing</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-2">Pending</span>
+                  </div>
+                  <p class="stage-desc">Radiometric calibration, CLAHE normalization, and gradient scaling.</p>
+                </div>
+              </div>
+
+              <!-- Stage 3 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-3" data-stage="feature_extraction">
+                <div class="stage-step-num">03</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Feature Extraction</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-3">Pending</span>
+                  </div>
+                  <p class="stage-desc">Multi-scale affine-covariant keypoint and crater boundary detection.</p>
+                </div>
+              </div>
+
+              <!-- Stage 4 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-4" data-stage="feature_matching">
+                <div class="stage-step-num">04</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Feature Matching</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-4">Pending</span>
+                  </div>
+                  <p class="stage-desc">Cross-illumination feature descriptor correspondence matching.</p>
+                </div>
+              </div>
+
+              <!-- Stage 5 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-5" data-stage="geometric_verification">
+                <div class="stage-step-num">05</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Geometric Verification</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-5">Pending</span>
+                  </div>
+                  <p class="stage-desc">Spatial consensus verification and outlier rejection via RANSAC.</p>
+                </div>
+              </div>
+
+              <!-- Stage 6 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-6" data-stage="multimodal_validation">
+                <div class="stage-step-num">06</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Multi-Modal Validation</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-6">Pending</span>
+                  </div>
+                  <p class="stage-desc">Photometric consistency analysis and residual variance evaluation.</p>
+                </div>
+              </div>
+
+              <!-- Stage 7 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-7" data-stage="registration">
+                <div class="stage-step-num">07</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Registration</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-7">Pending</span>
+                  </div>
+                  <p class="stage-desc">Transformation parameter optimization and projective matrix estimation.</p>
+                </div>
+              </div>
+
+              <!-- Stage 8 -->
+              <div class="pipeline-stage-card pending" id="pipeline-stage-8" data-stage="result_generation">
+                <div class="stage-step-num">08</div>
+                <div class="stage-card-body">
+                  <div class="stage-title-row">
+                    <span class="stage-title">Result Generation</span>
+                    <span class="stage-indicator-pill pending" id="stage-badge-8">Pending</span>
+                  </div>
+                  <p class="stage-desc">Sub-pixel Levenberg-Marquardt refinement and warped raster output.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mission Telemetry Log Feed -->
+          <div class="proc-telemetry-logs-panel">
+            <div class="proc-logs-header">
+              <span class="proc-logs-title">MISSION TELEMETRY AUDIT FEED</span>
+              <span class="proc-logs-status" id="proc-logs-conn-status">POLLING BACKEND (3s)</span>
+            </div>
+            <div class="proc-logs-stream" id="proc-logs-list" role="log" aria-live="polite">
+              <div class="proc-log-line info">[INIT] Registration job state listener active.</div>
+            </div>
+          </div>
+
+        </div>
       </section>
 
       <!-- ========================================================================
@@ -1352,6 +1587,14 @@
             <p class="results-page-subtitle" id="res-meta-header">Multi-modal lunar satellite correspondence analysis &amp; geometric validation.</p>
           </div>
           <div class="results-header-actions">
+            <button class="btn-tech primary" id="btn-download-registered-img" disabled title="Download Registered Image">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>DOWNLOAD REGISTERED IMAGE</span>
+            </button>
+            <button class="btn-tech" id="btn-download-report" disabled title="Download Scientific Alignment Report">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>DOWNLOAD REPORT</span>
+            </button>
             <button class="btn-tech" id="btn-results-new-reg" title="Configure and run a new image registration">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               <span>NEW REGISTRATION</span>

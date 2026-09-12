@@ -310,7 +310,13 @@
     checkInitialBackendHealth();
     setupResultsViewer();
     setupHistoryEvents();
-    switchAppView('dashboard');
+
+    window.addEventListener('hashchange', handleRouteHash);
+    if (window.location.hash && window.location.hash.length > 1) {
+      handleRouteHash();
+    } else {
+      switchAppView('dashboard');
+    }
   }
 
   function setupCanvases() {
@@ -385,6 +391,14 @@
     panStartX: 0,
     panStartY: 0,
     isProcessing: false,
+    isSubmitting: false,
+    activeJobId: null,
+    pollingIntervalId: null,
+    elapsedTimerId: null,
+    jobStartTime: null,
+    isPollingInFlight: false,
+    pollErrorStreak: 0,
+    latestResult: null,
     currentStep: 1,
 
     regSettings: {
@@ -1351,13 +1365,133 @@
     });
   }
 
+  // --- SCIENTIFIC PIPELINE STAGES DEFINITION ---
+  const PIPELINE_STAGES = [
+    { num: 1, key: 'validation', aliases: ['validation', 'image_validation', 'validate'] },
+    { num: 2, key: 'preprocessing', aliases: ['preprocessing', 'preprocess', 'radiometric', 'clahe'] },
+    { num: 3, key: 'feature_extraction', aliases: ['feature_extraction', 'extraction', 'keypoints', 'detect'] },
+    { num: 4, key: 'feature_matching', aliases: ['feature_matching', 'matching', 'correspondence', 'match'] },
+    { num: 5, key: 'geometric_verification', aliases: ['geometric_verification', 'geometric', 'ransac', 'spatial'] },
+    { num: 6, key: 'multimodal_validation', aliases: ['multimodal_validation', 'multi_modal_validation', 'photometric', 'multi-modal'] },
+    { num: 7, key: 'registration', aliases: ['registration', 'homography', 'transformation', 'warp'] },
+    { num: 8, key: 'result_generation', aliases: ['result_generation', 'refinement', 'subpixel', 'output'] }
+  ];
+
+  function resetPipelineStages() {
+    for (let i = 1; i <= 8; i++) {
+      const card = document.getElementById(`pipeline-stage-${i}`);
+      const badge = document.getElementById(`stage-badge-${i}`);
+      if (card) card.className = 'pipeline-stage-card pending';
+      if (badge) {
+        badge.className = 'stage-indicator-pill pending';
+        badge.textContent = 'Pending';
+      }
+    }
+  }
+
+  function updatePipelineStages(currentStageKey, isCompleted = false, isFailed = false) {
+    if (isCompleted) {
+      for (let i = 1; i <= 8; i++) {
+        const card = document.getElementById(`pipeline-stage-${i}`);
+        const badge = document.getElementById(`stage-badge-${i}`);
+        if (card) card.className = 'pipeline-stage-card completed';
+        if (badge) {
+          badge.className = 'stage-indicator-pill completed';
+          badge.textContent = 'Completed';
+        }
+      }
+      return;
+    }
+
+    const key = (currentStageKey || '').toLowerCase();
+    let currentIdx = PIPELINE_STAGES.findIndex(s => s.aliases.some(a => key.includes(a)));
+    if (currentIdx < 0) currentIdx = 0; // Default to stage 1
+    const stageNum = currentIdx + 1;
+
+    for (let i = 1; i <= 8; i++) {
+      const card = document.getElementById(`pipeline-stage-${i}`);
+      const badge = document.getElementById(`stage-badge-${i}`);
+      if (!card || !badge) continue;
+
+      if (i < stageNum) {
+        card.className = 'pipeline-stage-card completed';
+        badge.className = 'stage-indicator-pill completed';
+        badge.textContent = 'Completed';
+      } else if (i === stageNum) {
+        if (isFailed) {
+          card.className = 'pipeline-stage-card failed';
+          badge.className = 'stage-indicator-pill failed';
+          badge.textContent = 'Failed';
+        } else {
+          card.className = 'pipeline-stage-card processing';
+          badge.className = 'stage-indicator-pill processing';
+          badge.textContent = 'Processing';
+        }
+      } else {
+        card.className = 'pipeline-stage-card pending';
+        badge.className = 'stage-indicator-pill pending';
+        badge.textContent = 'Pending';
+      }
+    }
+  }
+
+  function addTelemetryLog(message, type = 'info') {
+    const timeStr = new Date().toTimeString().split(' ')[0];
+    const stream = document.getElementById('proc-logs-list');
+    if (stream) {
+      const line = document.createElement('div');
+      line.className = `proc-log-line ${type}`;
+      line.textContent = `[${timeStr}] ${message}`;
+      stream.appendChild(line);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // Also support legacy in-page monitor log if present
+    const legacyStream = document.getElementById('monitor-logs');
+    if (legacyStream) {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${timeStr}] ${message}`;
+      legacyStream.appendChild(entry);
+      legacyStream.scrollTop = legacyStream.scrollHeight;
+    }
+  }
+
+  function showProcessingFailure(jobId, errorMessage) {
+    const failCard = document.getElementById('proc-failure-card');
+    const failMsg = document.getElementById('proc-failure-msg');
+    if (failCard) failCard.style.display = 'block';
+    if (failMsg) failMsg.textContent = errorMessage || 'Registration failed to converge geometry.';
+
+    addTelemetryLog(`[FAILED] ${errorMessage}`, 'error');
+
+    if (jobId) {
+      saveJobToHistory({
+        id: jobId,
+        status: 'Failed',
+        processingTime: document.getElementById('proc-elapsed-time')?.textContent || '--'
+      });
+    }
+  }
+
   // --- REAL BACKEND REGISTRATION ORCHESTRATOR ---
   async function executeRegistrationWorkflow() {
+    if (regWorkflowState.isSubmitting || regWorkflowState.isProcessing) return;
+
     const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
     const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
-    if (!isRefValid || !isTgtValid || regWorkflowState.isProcessing) return;
+    const ctaTip = document.getElementById('reg-cta-tip');
+    const runBtn = document.getElementById('btn-execute-registration');
 
-    // 1. Prepare genuine multipart/form-data payload with actual File objects and settings
+    if (!isRefValid || !isTgtValid) {
+      if (ctaTip) {
+        ctaTip.textContent = 'Please select and validate both Reference and Target lunar images before running registration.';
+        ctaTip.className = 'reg-cta-tip error';
+      }
+      return;
+    }
+
+    // 1. Prepare genuine files / blobs
     let refFile = regWorkflowState.refFile;
     let tgtFile = regWorkflowState.tgtFile;
 
@@ -1377,89 +1511,62 @@
       } catch (_) {}
     }
 
-    const formData = new FormData();
-    if (refFile) formData.append('reference_image', refFile);
-    if (tgtFile) formData.append('target_image', tgtFile);
+    // 2. Read settings
     const mode = (regWorkflowState.regSettings && regWorkflowState.regSettings.mode) ? regWorkflowState.regSettings.mode : 'automatic';
-    formData.append('registration_mode', mode);
-
     const detectorEl = document.getElementById('reg-param-detector');
     const outlierEl = document.getElementById('reg-param-outlier');
     const modelEl = document.getElementById('reg-param-model');
     const subpixelEl = document.getElementById('reg-param-subpixel');
     const claheEl = document.getElementById('reg-param-clahe');
 
-    if (detectorEl) formData.append('detector', detectorEl.value);
-    if (outlierEl) formData.append('outlier_filter', outlierEl.value);
-    if (modelEl) formData.append('geometric_model', modelEl.value);
-    if (subpixelEl) formData.append('subpixel_refinement', subpixelEl.checked);
-    if (claheEl) formData.append('clahe_normalization', claheEl.checked);
+    const settings = {
+      mode: mode,
+      detector: detectorEl ? detectorEl.value : 'FAST+SIFT',
+      outlier_filter: outlierEl ? outlierEl.value : 'RANSAC',
+      geometric_model: modelEl ? modelEl.value : 'Homography',
+      subpixel_refinement: subpixelEl ? subpixelEl.checked : true,
+      clahe_normalization: claheEl ? claheEl.checked : true
+    };
 
-    // Store payload ready for backend integration
-    regWorkflowState.preparedPayload = formData;
+    // 3. Display submission loading state
+    regWorkflowState.isSubmitting = true;
+    const overlay = document.getElementById('reg-submitting-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    if (runBtn) {
+      runBtn.disabled = true;
+      runBtn.textContent = 'TRANSMITTING TO BACKEND...';
+    }
+    if (ctaTip) {
+      ctaTip.textContent = 'Transmitting images and parameters to backend registration service...';
+      ctaTip.className = 'reg-cta-tip notice';
+    }
 
-    const ctaTip = document.getElementById('reg-cta-tip');
-    const runBtn = document.getElementById('btn-execute-registration');
-
-    // 2. Check if backend registration service is connected
     const api = window.LUNAR_API || window.apiService;
-    let isBackendConnected = false;
-
-    if (api && typeof api.checkHealth === 'function') {
-      try {
-        const health = await api.checkHealth(1500);
-        isBackendConnected = !!(health && health.online);
-      } catch (_) {
-        isBackendConnected = false;
-      }
-    }
-
-    if (!isBackendConnected) {
-      // Do not fabricate a successful registration or show fake processing results.
-      if (ctaTip) {
-        ctaTip.textContent = 'Images are ready. Backend registration service is not connected yet.';
-        ctaTip.className = 'reg-cta-tip notice';
-      }
-      return;
-    }
 
     try {
-      // 1. Get genuine File/Blob instances
-      let refBlob = regWorkflowState.refFile;
-      let tgtBlob = regWorkflowState.tgtFile;
+      // 4. Submit to backend API POST /api/register
+      const submission = await api.registerImages(refFile, tgtFile, settings);
 
-      if (!refBlob && regWorkflowState.refUrl) {
-        refBlob = await fetch(regWorkflowState.refUrl).then(r => r.blob());
-      }
-      if (!tgtBlob && regWorkflowState.tgtUrl) {
-        tgtBlob = await fetch(regWorkflowState.tgtUrl).then(r => r.blob());
+      if (!submission || !submission.job_id) {
+        throw new Error('Backend did not return a valid Job ID.');
       }
 
-      // 2. Submit to POST /api/register via separate API service layer
-      addLog(`[HTTP:POST] Transmitting payload to ${baseUrl}/api/register...`);
-      const submission = await api.submitRegistration(refBlob, tgtBlob, {
-        roi_name: state.activeROI,
-        detector: detectorVal,
-        outlier_filter: outlierVal,
-        geometric_model: modelVal,
-        subpixel_refinement: subpixelVal,
-        clahe_normalization: claheVal,
-        timeoutMs: 30000
-      });
+      const jobId = submission.job_id;
 
-      // 3. Store Job ID and display backend-driven status
-      regWorkflowState.currentJobId = submission.job_id;
-      if (jobIdPill && jobIdLbl) {
-        jobIdPill.style.display = 'inline-block';
-        jobIdLbl.textContent = submission.job_id;
-      }
+      // 5. Hide submitting overlay and show Job Created Banner
+      if (overlay) overlay.style.display = 'none';
+      const banner = document.getElementById('reg-created-banner');
+      const bannerJobId = document.getElementById('reg-created-job-id');
+      if (banner) banner.style.display = 'flex';
+      if (bannerJobId) bannerJobId.textContent = jobId;
 
+      // 6. Save job to history as Processing
       saveJobToHistory({
-        id: submission.job_id,
-        refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ref_tmc2_nadir.tif',
-        refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : 'assets/lunar_nadir.jpg',
-        tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'tgt_tmc2_low_sun.tif',
-        tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : 'assets/lunar_low_sun.jpg',
+        id: jobId,
+        refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : (refFile.name || 'reference.tif'),
+        refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : null,
+        tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : (tgtFile.name || 'target.tif'),
+        tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : null,
         status: 'Processing',
         date: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
         timestamp: Date.now(),
@@ -1468,244 +1575,334 @@
       });
 
       updateApiStatusBadge('online');
-      updateWorkflowStepper(6); // Step 6: Monitor processing
 
-      addLog(`[HTTP:200] Job accepted by backend. Stored Job ID: ${submission.job_id}`, 'success');
-      addLog(`[STATUS] Initial backend status: ${submission.status}`);
+      // 7. Transition to dedicated processing page
+      setTimeout(() => {
+        if (banner) banner.style.display = 'none';
+        if (runBtn) {
+          runBtn.disabled = false;
+          runBtn.textContent = 'RUN REGISTRATION →';
+        }
+        regWorkflowState.isSubmitting = false;
+        openProcessingPage(jobId);
+      }, 900);
 
-      if (monitorTitle) monitorTitle.textContent = `JOB ${submission.job_id}: PROCESSING`;
-      if (monitorBar) monitorBar.style.width = '25%';
-      if (monitorPct) monitorPct.textContent = '25%';
-
-      // 4. Poll GET /api/register/{job_id}/status
-      pollJobStatus(submission.job_id, addLog, monitorTitle, monitorBar, monitorPct, successActions, errorBox, runBtn);
-
-    } catch (apiErr) {
-      regWorkflowState.isProcessing = false;
+    } catch (err) {
+      if (overlay) overlay.style.display = 'none';
       if (runBtn) {
         runBtn.disabled = false;
+        runBtn.textContent = 'RUN REGISTRATION →';
       }
-      if (ctaTip) {
-        ctaTip.textContent = 'Images are ready. Backend registration service is not connected yet.';
-        ctaTip.className = 'reg-cta-tip notice';
-      }
+      regWorkflowState.isSubmitting = false;
       updateApiStatusBadge('offline');
-      const monitorBox = document.getElementById('reg-monitor-box');
-      if (monitorBox) monitorBox.style.display = 'none';
+
+      if (ctaTip) {
+        ctaTip.textContent = err.message || 'Registration could not be started. Backend server is unreachable.';
+        ctaTip.className = 'reg-cta-tip error';
+      }
+      console.error('[LUNA-REG] Registration submission error:', err);
     }
   }
 
-  function pollJobStatus(jobId, addLog, monitorTitle, monitorBar, monitorPct, successActions, errorBox, runBtn) {
-    const api = window.LUNAR_API || window.apiService;
-    let attempts = 0;
-    const maxAttempts = 60; // Up to ~90 seconds
+  // --- DEDICATED PROCESSING PAGE ORCHESTRATOR ---
+  function openProcessingPage(jobId, updateHash = true) {
+    if (!jobId) return;
+    regWorkflowState.activeJobId = jobId;
+    regWorkflowState.jobStartTime = Date.now();
 
-    const poll = async () => {
-      attempts++;
-      if (attempts > maxAttempts) {
-        regWorkflowState.isProcessing = false;
-        if (runBtn) { runBtn.textContent = 'RUN REGISTRATION'; runBtn.disabled = false; }
-        addLog('[ERROR:TIMEOUT] Polling exceeded maximum attempts (90s). Server did not converge in time.', 'error');
-        if (errorBox) {
-          errorBox.style.display = 'flex';
-          const errTitle = document.getElementById('error-title-text');
-          const errDesc = document.getElementById('error-desc-text');
-          if (errTitle) errTitle.textContent = 'REGISTRATION POLLING TIMEOUT';
-          if (errDesc) errDesc.textContent = `The backend took too long to complete job ${jobId}. The job may still be processing on the server.`;
-        }
-        return;
-      }
+    switchAppView('processing', updateHash);
+
+    // Initialize DOM
+    const idEl = document.getElementById('proc-job-id');
+    const statusBadge = document.getElementById('proc-status-badge');
+    const currentStageEl = document.getElementById('proc-current-stage');
+    const startTimeEl = document.getElementById('proc-start-time');
+    const elapsedTimeEl = document.getElementById('proc-elapsed-time');
+    const progressPct = document.getElementById('proc-progress-pct');
+    const progressFill = document.getElementById('proc-progress-fill');
+    const failureCard = document.getElementById('proc-failure-card');
+    const connStatus = document.getElementById('proc-logs-conn-status');
+
+    if (idEl) idEl.textContent = jobId;
+    if (statusBadge) {
+      statusBadge.className = 'proc-status-badge processing';
+      statusBadge.textContent = 'PROCESSING';
+    }
+    if (currentStageEl) currentStageEl.textContent = 'Initializing telemetry...';
+    if (startTimeEl) startTimeEl.textContent = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+    if (elapsedTimeEl) elapsedTimeEl.textContent = '00:00';
+    if (progressPct) progressPct.textContent = '0%';
+    if (progressFill) progressFill.style.width = '0%';
+    if (failureCard) failureCard.style.display = 'none';
+    if (connStatus) connStatus.textContent = 'POLLING BACKEND (3s)';
+
+    resetPipelineStages();
+
+    const stream = document.getElementById('proc-logs-list');
+    if (stream) {
+      stream.innerHTML = `<div class="proc-log-line info">[INIT] Listening to telemetry for job ${escapeHtml(jobId)}...</div>`;
+    }
+
+    // Elapsed time ticker
+    if (regWorkflowState.elapsedTimerId) clearInterval(regWorkflowState.elapsedTimerId);
+    regWorkflowState.elapsedTimerId = setInterval(() => {
+      if (!regWorkflowState.jobStartTime) return;
+      const elapsedSec = Math.floor((Date.now() - regWorkflowState.jobStartTime) / 1000);
+      const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+      const ss = String(elapsedSec % 60).padStart(2, '0');
+      const el = document.getElementById('proc-elapsed-time');
+      if (el) el.textContent = `${mm}:${ss}`;
+    }, 1000);
+
+    startProcessingStatusPolling(jobId);
+  }
+
+  function startProcessingStatusPolling(jobId) {
+    stopProcessingStatusPolling();
+    regWorkflowState.pollErrorStreak = 0;
+
+    const api = window.LUNAR_API || window.apiService;
+
+    const pollAction = async () => {
+      if (regWorkflowState.isPollingInFlight) return;
+      regWorkflowState.isPollingInFlight = true;
 
       try {
-        addLog(`[POLL:${attempts}] Querying GET /api/register/${jobId}/status...`);
-        const statusData = await api.getJobStatus(jobId);
+        const data = await api.getRegistrationStatus(jobId);
+        regWorkflowState.pollErrorStreak = 0;
 
-        if (statusData.status === 'processing') {
-          const progress = statusData.progress || Math.min(95, 25 + attempts * 5);
-          if (monitorBar) monitorBar.style.width = `${progress}%`;
-          if (monitorPct) monitorPct.textContent = `${progress}%`;
-          if (statusData.current_stage && monitorTitle) {
-            monitorTitle.textContent = `[STAGE] ${statusData.current_stage.toUpperCase()}`;
-          }
-          if (statusData.logs && Array.isArray(statusData.logs)) {
-            statusData.logs.forEach(l => addLog(`[SERVER] ${l}`));
-          }
-          setTimeout(poll, 1500);
-        } else if (statusData.status === 'completed') {
-          regWorkflowState.isProcessing = false;
-          if (runBtn) { runBtn.textContent = 'RUN REGISTRATION AGAIN'; runBtn.disabled = false; }
+        const connEl = document.getElementById('proc-logs-conn-status');
+        if (connEl) connEl.textContent = 'POLLING BACKEND (3s)';
 
-          if (monitorBar) monitorBar.style.width = '100%';
-          if (monitorPct) monitorPct.textContent = '100%';
-          if (monitorTitle) monitorTitle.textContent = 'REGISTRATION CONVERGENCE ACHIEVED ✓';
+        const rawStatus = (data.status || 'processing').toLowerCase();
+        const stage = data.current_stage || data.stage || 'validation';
+        const stageEl = document.getElementById('proc-current-stage');
+        if (stageEl) stageEl.textContent = stage.replace(/_/g, ' ').toUpperCase();
 
-          updateWorkflowStepper(7); // Step 7: Explore registered result
-
-          const res = statusData.result || {};
-          const rmseVal = res.rmse !== undefined ? `${res.rmse} px` : '0.318 px';
-          const inliersVal = res.inliers_count ? `${res.inliers_count} Inliers` : '1,311 Inliers';
-          const ratioVal = res.inlier_ratio ? `(${((res.inlier_ratio) * 100).toFixed(1)}%)` : '(91.8%)';
-
-          const convText = document.getElementById('conv-metrics-text');
-          if (convText) {
-            convText.textContent = `Reprojection RMSE: ${rmseVal} • ${inliersVal} ${ratioVal}`;
-          }
-
-          // Populate Section 9 Results Metrics & Feature Matches
-          resultsState.metrics = {
-            numMatches: res.num_matches !== undefined ? String(res.num_matches) : (res.matches_count ? String(res.matches_count) : 'Not available'),
-            inlierMatches: (res.inliers_count && res.inlier_ratio) ? `${res.inliers_count} (${(res.inlier_ratio * 100).toFixed(1)}%)` : (res.inliers_count ? String(res.inliers_count) : 'Not available'),
-            regError: res.registration_error !== undefined ? `${res.registration_error} px` : 'Not available',
-            rmse: res.rmse !== undefined ? `${res.rmse} px` : 'Not available',
-            confidence: res.confidence !== undefined ? String(res.confidence) : 'Not available',
-            procTime: res.processing_time !== undefined ? `${res.processing_time} s` : 'Not available',
-            transformType: res.transformation_type || (res.homography_matrix ? 'Homography + Affine (8-DOF)' : 'Not available')
-          };
-          updateResultsMetrics(resultsState.metrics);
-
-          // Update backend-provided feature matches or keep null
-          if (res.feature_matches && Array.isArray(res.feature_matches) && res.feature_matches.length > 0) {
-            resultsState.featureMatches = res.feature_matches;
-          } else {
-            resultsState.featureMatches = null;
-          }
-
-          syncResultsImagery();
-
-          saveJobToHistory({
-            id: jobId,
-            refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ref_tmc2_nadir.tif',
-            refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : 'assets/lunar_nadir.jpg',
-            tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'tgt_tmc2_low_sun.tif',
-            tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : 'assets/lunar_low_sun.jpg',
-            status: 'Completed',
-            date: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-            timestamp: Date.now(),
-            processingTime: res.processing_time !== undefined ? `${res.processing_time} s` : `${((attempts * 1.5)).toFixed(2)} s`,
-            metrics: resultsState.metrics,
-            featureMatches: resultsState.featureMatches
-          });
-
-          addLog(`[SERVER:COMPLETED] Convergence achieved. RMSE = ${rmseVal}`, 'success');
-          if (successActions) successActions.style.display = 'flex';
-        } else if (statusData.status === 'failed') {
-          regWorkflowState.isProcessing = false;
-          if (runBtn) { runBtn.textContent = 'RUN REGISTRATION'; runBtn.disabled = false; }
-          const failMsg = statusData.error || 'Registration failed to converge geometry.';
-          addLog(`[SERVER:FAILED] ${failMsg}`, 'error');
-
-          saveJobToHistory({
-            id: jobId,
-            refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ref_tmc2_nadir.tif',
-            refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : 'assets/lunar_nadir.jpg',
-            tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'tgt_tmc2_low_sun.tif',
-            tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : 'assets/lunar_low_sun.jpg',
-            status: 'Failed',
-            date: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-            timestamp: Date.now(),
-            processingTime: `${((attempts * 1.5)).toFixed(2)} s`,
-            metrics: null
-          });
-
-          if (errorBox) {
-            errorBox.style.display = 'flex';
-            const errTitle = document.getElementById('error-title-text');
-            const errDesc = document.getElementById('error-desc-text');
-            if (errTitle) errTitle.textContent = 'REGISTRATION CONVERGENCE FAILED';
-            if (errDesc) errDesc.textContent = failMsg;
-          }
+        // Compute progress without fabricating
+        let progress = 0;
+        if (typeof data.progress === 'number') {
+          progress = Math.min(100, Math.max(0, Math.round(data.progress)));
         } else {
-          setTimeout(poll, 1500);
+          const matched = PIPELINE_STAGES.findIndex(s => s.aliases.some(a => stage.toLowerCase().includes(a)));
+          const stageNum = matched >= 0 ? (matched + 1) : 1;
+          progress = Math.round((stageNum / 8) * 100);
         }
+
+        const barFill = document.getElementById('proc-progress-fill');
+        const barPct = document.getElementById('proc-progress-pct');
+        if (barFill) barFill.style.width = `${progress}%`;
+        if (barPct) barPct.textContent = `${progress}%`;
+
+        // Stream backend logs if provided
+        if (data.logs && Array.isArray(data.logs)) {
+          data.logs.forEach(l => addTelemetryLog(l, 'info'));
+        }
+
+        if (rawStatus === 'completed') {
+          stopProcessingStatusPolling();
+          const badge = document.getElementById('proc-status-badge');
+          if (badge) {
+            badge.className = 'proc-status-badge completed';
+            badge.textContent = 'COMPLETED';
+          }
+          if (barFill) barFill.style.width = '100%';
+          if (barPct) barPct.textContent = '100%';
+          updatePipelineStages('result_generation', true, false);
+          addTelemetryLog('[STATUS:COMPLETED] Scientific registration convergence achieved.', 'success');
+
+          setTimeout(() => {
+            loadJobResultsIntoViewer(jobId);
+          }, 1200);
+
+        } else if (rawStatus === 'failed') {
+          stopProcessingStatusPolling();
+          const badge = document.getElementById('proc-status-badge');
+          if (badge) {
+            badge.className = 'proc-status-badge failed';
+            badge.textContent = 'FAILED';
+          }
+          updatePipelineStages(stage, false, true);
+          showProcessingFailure(jobId, data.error || data.message || 'Registration failed to converge geometry.');
+
+        } else if (rawStatus === 'cancelled') {
+          stopProcessingStatusPolling();
+          const badge = document.getElementById('proc-status-badge');
+          if (badge) {
+            badge.className = 'proc-status-badge failed';
+            badge.textContent = 'CANCELLED';
+          }
+          showProcessingFailure(jobId, 'Registration job was cancelled.');
+
+        } else {
+          // Status: processing or queued
+          const badge = document.getElementById('proc-status-badge');
+          if (badge) {
+            badge.className = 'proc-status-badge processing';
+            badge.textContent = 'PROCESSING';
+          }
+          updatePipelineStages(stage, false, false);
+        }
+
       } catch (err) {
-        regWorkflowState.isProcessing = false;
-        if (runBtn) { runBtn.textContent = 'RUN REGISTRATION'; runBtn.disabled = false; }
-        addLog(`[POLL:ERROR] ${err.message}`, 'error');
-        if (errorBox) {
-          errorBox.style.display = 'flex';
-          const errTitle = document.getElementById('error-title-text');
-          const errDesc = document.getElementById('error-desc-text');
-          if (errTitle) errTitle.textContent = 'NETWORK FAILURE DURING STATUS POLLING';
-          if (errDesc) errDesc.textContent = err.message;
+        regWorkflowState.pollErrorStreak++;
+        const connEl = document.getElementById('proc-logs-conn-status');
+        if (connEl) connEl.textContent = `CONNECTION RETRY (${regWorkflowState.pollErrorStreak})...`;
+        addTelemetryLog(`[WARN] Polling query retry (${regWorkflowState.pollErrorStreak}/10): ${err.message}`, 'warn');
+
+        if (regWorkflowState.pollErrorStreak >= 10) {
+          stopProcessingStatusPolling();
+          showProcessingFailure(jobId, `Lost communication with backend server at ${api.getBaseUrl()}. Please ensure the backend is running and try again.`);
         }
+      } finally {
+        regWorkflowState.isPollingInFlight = false;
       }
     };
 
-    setTimeout(poll, 1200);
+    pollAction();
+    regWorkflowState.pollingIntervalId = setInterval(pollAction, 3000);
   }
 
-  function runClientCalibrationDemo(addLog, monitorTitle, monitorBar, monitorPct, successActions, runBtn) {
-    updateWorkflowStepper(6); // Step 6: Monitor processing
-    if (monitorTitle) monitorTitle.textContent = 'CLIENT CALIBRATION DEMO MODE (ALGORITHM SIMULATION)';
-    addLog('[DEMO] Operating in Client Calibration Demo Mode (No backend server connected).', 'info');
+  function stopProcessingStatusPolling() {
+    if (regWorkflowState.pollingIntervalId) {
+      clearInterval(regWorkflowState.pollingIntervalId);
+      regWorkflowState.pollingIntervalId = null;
+    }
+    if (regWorkflowState.elapsedTimerId) {
+      clearInterval(regWorkflowState.elapsedTimerId);
+      regWorkflowState.elapsedTimerId = null;
+    }
+    regWorkflowState.isPollingInFlight = false;
+  }
 
-    setTimeout(() => {
-      if (monitorBar) monitorBar.style.width = '25%';
-      if (monitorPct) monitorPct.textContent = '25%';
-      addLog('[STAGE 1/5] Phase Congruency & illumination gradient normalization (GSD 5.0m)...');
-    }, 400);
+  // --- RESULTS WORKSPACE LOADER ---
+  async function loadJobResultsIntoViewer(jobId, updateHash = true) {
+    if (!jobId) return;
 
-    setTimeout(() => {
-      if (monitorBar) monitorBar.style.width = '50%';
-      if (monitorPct) monitorPct.textContent = '50%';
-      addLog('[STAGE 2/5] Detecting multi-scale FAST & Affine-covariant keypoints across crater rims (1,428 detected)...');
-    }, 850);
+    switchAppView('results', updateHash);
 
-    setTimeout(() => {
-      if (monitorBar) monitorBar.style.width = '75%';
-      if (monitorPct) monitorPct.textContent = '75%';
-      addLog('[STAGE 3/5] Cross-illumination feature descriptor matching under ΔSun = 31.8°...');
-    }, 1300);
+    const metaHeader = document.getElementById('res-meta-header');
+    if (metaHeader) {
+      metaHeader.textContent = `JOB ${jobId} • Multi-modal lunar satellite correspondence analysis`;
+    }
 
-    setTimeout(() => {
-      if (monitorBar) monitorBar.style.width = '90%';
-      if (monitorPct) monitorPct.textContent = '90%';
-      addLog('[STAGE 4/5] RANSAC homography estimation: 1,311 inliers / 1,428 matches (91.8% ratio)...', 'info');
-    }, 1750);
+    const api = window.LUNAR_API || window.apiService;
 
-    setTimeout(() => {
-      if (monitorBar) monitorBar.style.width = '100%';
-      if (monitorPct) monitorPct.textContent = '100%';
-      if (monitorTitle) monitorTitle.textContent = 'CALIBRATION DEMO CONVERGED ✓';
-      addLog('[STAGE 5/5] Sub-pixel Levenberg-Marquardt refinement: Reprojection RMSE = 0.318 px.', 'success');
+    try {
+      const result = await api.getRegistrationResult(jobId);
+      resultsState.latestResult = result;
 
-      updateWorkflowStepper(7); // Step 7: Explore registered result
+      // Extract metrics strictly without fabrication
+      const numMatches = (result.num_matches !== undefined && result.num_matches !== null) ? String(result.num_matches) : ((result.matches_count !== undefined && result.matches_count !== null) ? String(result.matches_count) : 'Not available');
 
-      // Populate Section 9 Results Metrics for Calibration Demo
+      let inlierMatches = 'Not available';
+      if (result.inliers_count !== undefined && result.inliers_count !== null) {
+        if (result.inlier_ratio !== undefined && result.inlier_ratio !== null) {
+          inlierMatches = `${result.inliers_count} (${(result.inlier_ratio * 100).toFixed(1)}%)`;
+        } else {
+          inlierMatches = String(result.inliers_count);
+        }
+      }
+
+      const regError = (result.registration_error !== undefined && result.registration_error !== null) ? `${result.registration_error} px` : 'Not available';
+      const rmse = (result.rmse !== undefined && result.rmse !== null) ? `${result.rmse} px` : 'Not available';
+      const confidence = (result.confidence !== undefined && result.confidence !== null) ? String(result.confidence) : 'Not available';
+      const procTime = (result.processing_time !== undefined && result.processing_time !== null) ? `${result.processing_time} s` : 'Not available';
+      const transformType = result.transformation_type || (result.homography_matrix ? 'Homography + Affine (8-DOF)' : 'Not available');
+
       resultsState.metrics = {
-        numMatches: '1,428',
-        inlierMatches: '1,311 (91.8%)',
-        regError: '0.28 px',
-        rmse: '0.318 px',
-        confidence: '0.964',
-        procTime: '2.14 s',
-        transformType: 'Homography + Affine (8-DOF)'
+        numMatches,
+        inlierMatches,
+        regError,
+        rmse,
+        confidence,
+        procTime,
+        transformType
       };
       updateResultsMetrics(resultsState.metrics);
-      syncResultsImagery();
 
-      const demoJobId = 'JOB-DEMO-' + Math.floor(100000 + Math.random() * 900000);
+      // Imagery assets
+      const refUrl = result.reference_image_url || result.reference_image;
+      if (refUrl) {
+        resultsState.refImage = new Image();
+        resultsState.refImage.onload = () => drawResultsCanvas();
+        resultsState.refImage.src = api.resolveAssetUrl(refUrl);
+      }
+
+      const regTgtUrl = result.registered_image_url || result.registered_image || result.target_aligned_url;
+      if (regTgtUrl) {
+        resultsState.tgtRegisteredImage = new Image();
+        resultsState.tgtRegisteredImage.onload = () => drawResultsCanvas();
+        resultsState.tgtRegisteredImage.src = api.resolveAssetUrl(regTgtUrl);
+      }
+
+      const origTgtUrl = result.target_original_url || result.target_image;
+      if (origTgtUrl) {
+        resultsState.tgtOriginalImage = new Image();
+        resultsState.tgtOriginalImage.onload = () => drawResultsCanvas();
+        resultsState.tgtOriginalImage.src = api.resolveAssetUrl(origTgtUrl);
+      } else if (resultsState.tgtRegisteredImage) {
+        resultsState.tgtOriginalImage = resultsState.tgtRegisteredImage;
+      }
+
+      // Feature matches
+      if (result.feature_matches && Array.isArray(result.feature_matches) && result.feature_matches.length > 0) {
+        resultsState.featureMatches = result.feature_matches;
+      } else {
+        resultsState.featureMatches = null;
+      }
+
+      // Wire download buttons
+      const dlImgBtn = document.getElementById('btn-download-registered-img');
+      const dlImgUrl = result.registered_image_url || result.download_url;
+      if (dlImgBtn) {
+        if (dlImgUrl) {
+          dlImgBtn.disabled = false;
+          dlImgBtn.title = 'Download Registered Image';
+          dlImgBtn.onclick = () => api.downloadRegistrationResult(dlImgUrl, `luna_reg_${jobId}_aligned.tif`);
+        } else {
+          dlImgBtn.disabled = true;
+          dlImgBtn.title = 'Download URL not provided by backend';
+          dlImgBtn.onclick = null;
+        }
+      }
+
+      const dlReportBtn = document.getElementById('btn-download-report');
+      const dlReportUrl = result.report_url || result.alignment_report_url || result.pdf_report_url;
+      if (dlReportBtn) {
+        if (dlReportUrl) {
+          dlReportBtn.disabled = false;
+          dlReportBtn.title = 'Download Alignment Report';
+          dlReportBtn.onclick = () => api.downloadRegistrationResult(dlReportUrl, `luna_reg_${jobId}_report.pdf`);
+        } else {
+          dlReportBtn.disabled = true;
+          dlReportBtn.title = 'Report download not provided by backend';
+          dlReportBtn.onclick = null;
+        }
+      }
+
+      // Update History entry
       saveJobToHistory({
-        id: demoJobId,
-        refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ch2_tmc2_tycho_nadir.tif',
-        refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : 'assets/lunar_nadir.jpg',
-        tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'ch2_tmc2_tycho_low_sun.tif',
-        tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : 'assets/lunar_low_sun.jpg',
+        id: jobId,
+        refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : (result.reference_image_name || 'reference.tif'),
+        refThumb: resultsState.refImage ? resultsState.refImage.src : null,
+        tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : (result.target_image_name || 'target.tif'),
+        tgtThumb: resultsState.tgtRegisteredImage ? resultsState.tgtRegisteredImage.src : null,
         status: 'Completed',
         date: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
         timestamp: Date.now(),
-        processingTime: '2.14 s',
+        processingTime: procTime !== 'Not available' ? procTime : '--',
         metrics: resultsState.metrics,
         featureMatches: resultsState.featureMatches
       });
 
-      if (successActions) successActions.style.display = 'flex';
-      regWorkflowState.isProcessing = false;
-      if (runBtn) {
-        runBtn.textContent = 'RUN REGISTRATION AGAIN';
-        runBtn.disabled = false;
-      }
-    }, 2200);
+      drawResultsCanvas();
+
+    } catch (err) {
+      console.warn('[LUNA-REG] Failed to fetch result for job ' + jobId, err);
+      syncResultsImagery();
+      drawResultsCanvas();
+    }
   }
 
   function updateApiStatusBadge(status) {
@@ -2385,6 +2582,41 @@
     const execRegBtn = document.getElementById('btn-execute-registration');
     if (execRegBtn) execRegBtn.addEventListener('click', executeRegistrationWorkflow);
 
+    // Processing Page Action Buttons
+    const procCopyBtn = document.getElementById('btn-proc-copy-id');
+    if (procCopyBtn) {
+      procCopyBtn.addEventListener('click', () => {
+        const jobId = regWorkflowState.activeJobId || document.getElementById('proc-job-id')?.textContent;
+        if (jobId && navigator.clipboard) {
+          navigator.clipboard.writeText(jobId).then(() => {
+            const originalContent = procCopyBtn.innerHTML;
+            procCopyBtn.innerHTML = '<span>COPIED!</span>';
+            setTimeout(() => { procCopyBtn.innerHTML = originalContent; }, 1500);
+          }).catch(() => {});
+        }
+      });
+    }
+
+    const procCancelBtn = document.getElementById('btn-proc-cancel');
+    if (procCancelBtn) {
+      procCancelBtn.addEventListener('click', () => {
+        if (confirm('Cancel this registration job?')) {
+          stopProcessingStatusPolling();
+          showProcessingFailure(regWorkflowState.activeJobId, 'Registration cancelled by operator.');
+        }
+      });
+    }
+
+    ['btn-proc-newreg-return', 'btn-proc-new-reg', 'btn-proc-retry'].forEach(btnId => {
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          stopProcessingStatusPolling();
+          switchAppView('new-reg');
+        });
+      }
+    });
+
     const backExplorerBtn = document.getElementById('btn-back-to-explorer');
     if (backExplorerBtn) backExplorerBtn.addEventListener('click', () => switchAppView('explorer'));
 
@@ -2675,11 +2907,12 @@
   });
 
   // --- APPLICATION VIEW SWITCHER ---
-  function switchAppView(view) {
+  function switchAppView(view, updateHash = true) {
     const views = {
       'dashboard': document.getElementById('view-dashboard'),
       'explorer': document.getElementById('map-workspace'),
       'new-reg': document.getElementById('view-new-registration'),
+      'processing': document.getElementById('view-processing'),
       'results': document.getElementById('view-registration-results'),
       'history': document.getElementById('view-registration-history'),
       'analysis': document.getElementById('view-analysis-tools'),
@@ -2692,7 +2925,13 @@
     let targetView = view;
     if (targetView === 'overview') targetView = 'dashboard';
     if (targetView === 'lunar-map') targetView = 'explorer';
+    if (targetView === 'register') targetView = 'new-reg';
     if (!views[targetView]) targetView = 'dashboard';
+
+    // Stop status polling if transitioning away from dedicated processing view
+    if (targetView !== 'processing') {
+      stopProcessingStatusPolling();
+    }
 
     // Hide all views
     Object.keys(views).forEach(key => {
@@ -2715,7 +2954,7 @@
       const navKey = b.getAttribute('data-nav');
       const isActive = (targetView === navKey) ||
                        (targetView === 'explorer' && navKey === 'explore') ||
-                       (targetView === 'new-reg' && navKey === 'register') ||
+                       ((targetView === 'new-reg' || targetView === 'processing') && navKey === 'register') ||
                        (targetView === 'results' && (navKey === 'results' || navKey === 'analyze')) ||
                        (targetView === 'analysis' && navKey === 'analysis') ||
                        (targetView === 'dataset' && navKey === 'dataset') ||
@@ -2730,7 +2969,7 @@
       const isActive = (targetView === sideKey) ||
                        (targetView === 'dashboard' && (sideKey === 'dashboard' || sideKey === 'overview')) ||
                        (targetView === 'explorer' && sideKey === 'explorer') ||
-                       (targetView === 'new-reg' && sideKey === 'new-reg') ||
+                       ((targetView === 'new-reg' || targetView === 'processing') && sideKey === 'new-reg') ||
                        (targetView === 'results' && sideKey === 'results') ||
                        (targetView === 'history' && sideKey === 'history') ||
                        (targetView === 'analysis' && sideKey === 'analysis') ||
@@ -2738,6 +2977,31 @@
                        (targetView === 'about' && sideKey === 'about');
       b.classList.toggle('active', isActive);
     });
+
+    // Hash synchronization
+    if (updateHash) {
+      let targetHash = '#/dashboard';
+      if (targetView === 'processing') {
+        targetHash = regWorkflowState.activeJobId ? `#/processing/${regWorkflowState.activeJobId}` : '#/processing';
+      } else if (targetView === 'results') {
+        targetHash = regWorkflowState.activeJobId ? `#/results/${regWorkflowState.activeJobId}` : '#/results';
+      } else if (targetView === 'new-reg') {
+        targetHash = '#/new-registration';
+      } else if (targetView === 'history') {
+        targetHash = '#/history';
+      } else if (targetView === 'explorer') {
+        targetHash = '#/explorer';
+      } else if (targetView === 'analysis') {
+        targetHash = '#/analysis';
+      } else if (targetView === 'dataset') {
+        targetHash = '#/dataset';
+      } else if (targetView === 'about') {
+        targetHash = '#/about';
+      }
+      if (window.location.hash !== targetHash) {
+        history.replaceState(null, '', targetHash);
+      }
+    }
 
     // View-specific initialization
     if (targetView === 'explorer') {
@@ -2753,13 +3017,62 @@
 
     // Synchronize Mobile Bottom Navigation active pill
     document.querySelectorAll('.mob-nav-btn').forEach(b => {
-      const match = (targetView === 'new-reg' && b.id === 'mob-btn-new-reg') ||
+      const match = ((targetView === 'new-reg' || targetView === 'processing') && b.id === 'mob-btn-new-reg') ||
                     (targetView === 'results' && b.id === 'mob-btn-results') ||
                     (targetView === 'history' && b.id === 'mob-btn-history') ||
                     (targetView === 'explorer' && b.id === 'mob-btn-explorer') ||
                     (targetView === 'dashboard' && b.id === 'mob-btn-explorer');
       b.classList.toggle('active', match);
     });
+  }
+
+  function handleRouteHash() {
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#/processing/')) {
+      const jobId = hash.replace('#/processing/', '').trim();
+      if (jobId) {
+        openProcessingPage(jobId, false);
+        return;
+      }
+    } else if (hash === '#/processing') {
+      if (regWorkflowState.activeJobId) {
+        openProcessingPage(regWorkflowState.activeJobId, false);
+      } else {
+        switchAppView('new-reg', false);
+      }
+      return;
+    } else if (hash.startsWith('#/results/')) {
+      const jobId = hash.replace('#/results/', '').trim();
+      if (jobId) {
+        loadJobResultsIntoViewer(jobId, false);
+        return;
+      }
+    } else if (hash === '#/results') {
+      switchAppView('results', false);
+      return;
+    } else if (hash === '#/new-registration' || hash === '#/new-reg' || hash === '#/register') {
+      switchAppView('new-reg', false);
+      return;
+    } else if (hash === '#/history') {
+      switchAppView('history', false);
+      return;
+    } else if (hash === '#/explorer' || hash === '#/lunar-map') {
+      switchAppView('explorer', false);
+      return;
+    } else if (hash === '#/dashboard' || hash === '#/overview' || hash === '') {
+      switchAppView('dashboard', false);
+      return;
+    } else if (hash === '#/analysis') {
+      switchAppView('analysis', false);
+      return;
+    } else if (hash === '#/dataset') {
+      switchAppView('dataset', false);
+      return;
+    } else if (hash === '#/about') {
+      switchAppView('about', false);
+      return;
+    }
+    switchAppView('dashboard', false);
   }
 
   // --- NAVIGATION ACTION HANDLERS ---
@@ -4795,35 +5108,30 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
 
   function openJobResults(job) {
     if (!job) return;
+    regWorkflowState.activeJobId = job.id;
 
-    // 1. Restore metrics
-    if (job.metrics) {
-      resultsState.metrics = Object.assign({}, job.metrics);
-      updateResultsMetrics(resultsState.metrics);
-    }
-
-    // 2. Restore imagery
-    if (job.refThumb) {
-      resultsState.refImage = new Image();
-      resultsState.refImage.onload = () => drawResultsCanvas();
-      resultsState.refImage.src = job.refThumb;
-    }
-    if (job.tgtThumb) {
-      resultsState.tgtRegisteredImage = new Image();
-      resultsState.tgtRegisteredImage.onload = () => drawResultsCanvas();
-      resultsState.tgtRegisteredImage.src = job.tgtThumb;
-      resultsState.tgtOriginalImage = resultsState.tgtRegisteredImage;
-    }
-
-    // 3. Restore matches if supplied
-    resultsState.featureMatches = job.featureMatches || null;
-
-    // 4. Update right labels
-    const resRight = document.getElementById('res-meta-header');
-    if (resRight) resRight.textContent = `${job.id} • ${job.refName || 'REF'} ↔ ${job.tgtName || 'TGT'}`;
-
-    // 5. Navigate directly to results view
-    switchAppView('results');
+    // Prefer loading full results via backend API or fallback to cached job data
+    loadJobResultsIntoViewer(job.id).catch(() => {
+      if (job.metrics) {
+        resultsState.metrics = Object.assign({}, job.metrics);
+        updateResultsMetrics(resultsState.metrics);
+      }
+      if (job.refThumb) {
+        resultsState.refImage = new Image();
+        resultsState.refImage.onload = () => drawResultsCanvas();
+        resultsState.refImage.src = job.refThumb;
+      }
+      if (job.tgtThumb) {
+        resultsState.tgtRegisteredImage = new Image();
+        resultsState.tgtRegisteredImage.onload = () => drawResultsCanvas();
+        resultsState.tgtRegisteredImage.src = job.tgtThumb;
+        resultsState.tgtOriginalImage = resultsState.tgtRegisteredImage;
+      }
+      resultsState.featureMatches = job.featureMatches || null;
+      const resRight = document.getElementById('res-meta-header');
+      if (resRight) resRight.textContent = `${job.id} • ${job.refName || 'REF'} ↔ ${job.tgtName || 'TGT'}`;
+      switchAppView('results');
+    });
   }
 
   function setupHistoryEvents() {
