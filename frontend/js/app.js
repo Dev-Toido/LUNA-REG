@@ -1884,6 +1884,9 @@
     const backExplorerBtn = document.getElementById('btn-back-to-explorer');
     if (backExplorerBtn) backExplorerBtn.addEventListener('click', () => switchAppView('explorer'));
 
+    const regBcDashboard = document.getElementById('reg-bc-dashboard');
+    if (regBcDashboard) regBcDashboard.addEventListener('click', () => switchAppView('dashboard'));
+
     const jumpExplorerBtn = document.getElementById('btn-jump-explorer');
     if (jumpExplorerBtn) {
       jumpExplorerBtn.addEventListener('click', () => {

@@ -1857,6 +1857,11 @@ canvas#hist-canvas {
   margin-bottom: 2px;
 }
 
+.reg-page-breadcrumb .breadcrumb-link:hover {
+  color: var(--accent-gold);
+  text-decoration: underline;
+}
+
 .reg-page-breadcrumb .active {
   color: var(--accent-gold);
 }
