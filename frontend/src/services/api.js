@@ -255,6 +255,41 @@ class RegistrationApiService {
 
     return data;
   }
+
+  /**
+   * Fetch registration history from backend
+   * GET /api/register/history or GET /api/jobs
+   * 
+   * @param {number} [timeoutMs]
+   * @returns {Promise<Array<Object>|null>} List of jobs or null if endpoint unavailable
+   */
+  async getRegistrationHistory(timeoutMs = 5000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    const endpoints = ['/api/register/history', '/api/jobs', '/api/register/jobs'];
+    for (const ep of endpoints) {
+      try {
+        const response = await fetch(`${this.baseUrl}${ep}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal
+        });
+        if (response.ok) {
+          clearTimeout(timer);
+          const data = await response.json();
+          if (Array.isArray(data)) return data;
+          if (data && Array.isArray(data.jobs)) return data.jobs;
+          if (data && Array.isArray(data.history)) return data.history;
+        }
+      } catch (err) {
+        // Continue to next endpoint or timeout
+      }
+    }
+
+    clearTimeout(timer);
+    return null; // Endpoint unavailable on this backend server
+  }
 }
 
 // Instantiate default singleton

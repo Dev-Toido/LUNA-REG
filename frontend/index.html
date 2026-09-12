@@ -163,6 +163,18 @@
           </li>
 
           <li class="sidebar-nav-item">
+            <button class="sidebar-nav-btn" data-target="history" id="side-history">
+              <span class="nav-item-icon">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </span>
+              <span class="nav-item-text">Registration History</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
             <button class="sidebar-nav-btn" data-target="layers" id="side-layers">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
@@ -1057,6 +1069,83 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- ========================================================================
+           11. REGISTRATION HISTORY PAGE (Historical Alignment Jobs & Records)
+           ======================================================================== -->
+      <section class="page-registration-history" id="view-registration-history" aria-label="Registration History Page" style="display: none;">
+        
+        <!-- History Page Header -->
+        <div class="history-page-header">
+          <div class="history-header-left">
+            <div class="history-page-breadcrumb">
+              <span>LUNA-REG GIS</span>
+              <span>/</span>
+              <span>MISSION WORKBENCH</span>
+              <span>/</span>
+              <span class="active">REGISTRATION HISTORY</span>
+            </div>
+            <div class="history-title-row">
+              <h1 class="history-page-title">REGISTRATION HISTORY</h1>
+              <span class="history-count-badge" id="history-total-count">0 JOBS</span>
+            </div>
+            <p class="history-page-subtitle">Chronological ledger of multi-modal lunar registration jobs and processing records.</p>
+          </div>
+
+          <div class="history-header-actions">
+            <button class="btn-tech" id="btn-history-refresh" title="Refresh history from backend">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>REFRESH</span>
+            </button>
+            <button class="btn-tech primary" id="btn-history-new-reg" title="Start a new registration job">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span>START NEW REGISTRATION</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- History Main Content Area -->
+        <div class="history-content-area">
+          
+          <!-- Table Container (Shown when registrations exist) -->
+          <div class="history-table-container" id="history-table-wrap">
+            <table class="history-table" id="history-table">
+              <thead>
+                <tr>
+                  <th style="width: 140px;">JOB ID</th>
+                  <th>REFERENCE IMAGE</th>
+                  <th>TARGET IMAGE</th>
+                  <th style="width: 120px;">STATUS</th>
+                  <th style="width: 160px;">DATE</th>
+                  <th style="width: 140px;">PROCESSING TIME</th>
+                  <th style="width: 130px; text-align: right;">ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State Container (Shown when no registrations exist) -->
+          <div class="history-empty-state" id="history-empty-state" style="display: none;">
+            <div class="empty-icon-wrap">
+              <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <h2 class="empty-state-title">No registrations yet.</h2>
+            <p class="empty-state-desc">No planetary image registration jobs have been executed in this session or received from the backend.</p>
+            <button class="btn-tech primary" id="btn-empty-start-reg">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span>START NEW REGISTRATION</span>
+            </button>
+          </div>
+
+        </div>
       </section>
 
       <!-- ========================================================================
