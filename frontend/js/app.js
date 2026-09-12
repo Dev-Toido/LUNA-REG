@@ -414,9 +414,9 @@
       return { valid: false, error: 'Unsupported format. Supported: PNG, JPG, JPEG, TIFF.' };
     }
 
-    const maxSize = 150 * 1024 * 1024; // 150 MB
+    const maxSize = 50 * 1024 * 1024; // 50 MB
     if (file.size > maxSize) {
-      return { valid: false, error: 'File size exceeds 150 MB limit.' };
+      return { valid: false, error: 'File size exceeds 50 MB limit.' };
     }
 
     return { valid: true, error: null };
@@ -1804,6 +1804,24 @@
     // =========================================================================
     setupDragAndDrop('dropzone-ref', 'file-input-ref', 'ref');
     setupDragAndDrop('dropzone-tgt', 'file-input-tgt', 'tgt');
+
+    const browseRefBtn = document.getElementById('btn-browse-ref');
+    if (browseRefBtn) {
+      browseRefBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = document.getElementById('file-input-ref');
+        if (input) input.click();
+      });
+    }
+
+    const browseTgtBtn = document.getElementById('btn-browse-tgt');
+    if (browseTgtBtn) {
+      browseTgtBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = document.getElementById('file-input-tgt');
+        if (input) input.click();
+      });
+    }
 
     const removeRefBtn = document.getElementById('btn-remove-ref');
     if (removeRefBtn) removeRefBtn.addEventListener('click', (e) => { e.stopPropagation(); removeSelectedFile('ref'); });

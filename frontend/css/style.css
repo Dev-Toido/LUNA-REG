@@ -2150,24 +2150,54 @@ canvas#hist-canvas {
 .drop-prompt {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 4px;
 }
 
 .drop-text-primary {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-primary);
-}
-
-.drop-browse-btn {
-  color: var(--accent-gold);
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 .drop-text-secondary {
   font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.btn-browse-files {
+  background: var(--bg-obsidian);
+  border: 1px solid var(--accent-gold);
+  color: var(--accent-gold);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  padding: 6px 16px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  pointer-events: auto;
+  margin: 3px 0;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-browse-files:hover {
+  background: rgba(223, 192, 138, 0.15);
+  color: var(--accent-gold-light);
+  box-shadow: 0 0 10px rgba(223, 192, 138, 0.3);
+  transform: translateY(-1px);
+}
+
+.drop-text-limits {
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-muted);
+  letter-spacing: 0.4px;
+  margin-top: 2px;
 }
 
 /* Active Upload File Box */

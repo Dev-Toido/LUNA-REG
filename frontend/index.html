@@ -808,7 +808,7 @@
                     <span class="format-badge" id="ref-format-badge">GEOTIFF 16-BIT</span>
                   </div>
                   <h3 class="reg-card-label">REFERENCE IMAGE</h3>
-                  <p class="reg-card-desc">Calibrated base imagery used for spatial alignment anchor.</p>
+                  <p class="reg-card-desc">Base image for alignment</p>
                 </div>
                 <button class="btn-sample-preset" id="btn-load-sample-ref" title="Load demo Chandrayaan-2 TMC-2 Nadir Pass">LOAD TMC-2 NADIR SAMPLE</button>
               </div>
@@ -825,8 +825,10 @@
                     </svg>
                   </div>
                   <div class="drop-prompt">
-                    <span class="drop-text-primary">Drag & drop reference lunar raster here, or <span class="drop-browse-btn">browse</span></span>
-                    <span class="drop-text-secondary">Supported: GeoTIFF (.tif, .tiff), PNG, JPG • Max 150 MB</span>
+                    <span class="drop-text-primary">Drag &amp; drop your reference image here</span>
+                    <span class="drop-text-secondary">or</span>
+                    <button type="button" class="btn-browse-files" id="btn-browse-ref">BROWSE FILES</button>
+                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
                   </div>
                 </div>
 
@@ -897,7 +899,7 @@
                     <span class="format-badge" id="tgt-format-badge">PNG 8-BIT</span>
                   </div>
                   <h3 class="reg-card-label">TARGET IMAGE</h3>
-                  <p class="reg-card-desc">Unaligned lunar pass to be warped and registered into reference geometry.</p>
+                  <p class="reg-card-desc">Image to be aligned with the reference image.</p>
                 </div>
                 <button class="btn-sample-preset" id="btn-load-sample-tgt" title="Load demo Chandrayaan-2 TMC-2 Low-Sun Pass">LOAD TMC-2 LOW-SUN SAMPLE</button>
               </div>
@@ -913,8 +915,10 @@
                     </svg>
                   </div>
                   <div class="drop-prompt">
-                    <span class="drop-text-primary">Drag & drop target lunar raster here, or <span class="drop-browse-btn">browse</span></span>
-                    <span class="drop-text-secondary">Supported: GeoTIFF (.tif, .tiff), PNG, JPG • Max 150 MB</span>
+                    <span class="drop-text-primary">Drag &amp; drop your target image here</span>
+                    <span class="drop-text-secondary">or</span>
+                    <button type="button" class="btn-browse-files" id="btn-browse-tgt">BROWSE FILES</button>
+                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
                   </div>
                 </div>
 
