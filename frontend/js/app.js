@@ -1371,12 +1371,132 @@
       draw();
     }, { passive: false });
 
-    // Split Line Dragging
+    // Touch Events for Mobile / Tablet (Single-Finger Pan & Two-Finger Pinch Zoom)
+    let touchStartDist = 0;
+    let initialTouchZoom = 1.0;
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
+        state.isDragging = true;
+        state.dragStartX = t.clientX - state.panX;
+        state.dragStartY = t.clientY - state.panY;
+      } else if (e.touches.length === 2) {
+        state.isDragging = false;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        touchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        initialTouchZoom = state.zoom;
+      }
+    }, { passive: false });
+
+    container.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && state.isDragging) {
+        e.preventDefault();
+        const t = e.touches[0];
+        state.panX = t.clientX - state.dragStartX;
+        state.panY = t.clientY - state.dragStartY;
+        const rect = canvas.getBoundingClientRect();
+        updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
+        draw();
+      } else if (e.touches.length === 2 && touchStartDist > 0) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const curDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        state.zoom = Math.max(0.6, Math.min(8.0, initialTouchZoom * (curDist / touchStartDist)));
+        updateScaleBar();
+        draw();
+      }
+    }, { passive: false });
+
+    container.addEventListener('touchend', (e) => {
+      if (e.touches.length === 0) {
+        state.isDragging = false;
+        touchStartDist = 0;
+      } else if (e.touches.length === 1) {
+        const t = e.touches[0];
+        state.isDragging = true;
+        state.dragStartX = t.clientX - state.panX;
+        state.dragStartY = t.clientY - state.panY;
+        touchStartDist = 0;
+      }
+    });
+
+    // Split Line Mouse & Touch Dragging
     const splitLine = document.getElementById('split-line');
     let isDraggingSplit = false;
-    splitLine.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-      isDraggingSplit = true;
+    if (splitLine) {
+      splitLine.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        isDraggingSplit = true;
+      });
+
+      splitLine.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        isDraggingSplit = true;
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (isDraggingSplit && e.touches.length > 0) {
+          const t = e.touches[0];
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = t.clientX - rect.left;
+          const splitX = Math.max(0.05, Math.min(0.95, mouseX / canvas.width));
+          state.splitPosition = splitX;
+          updateSplitUI();
+          draw();
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => {
+        if (isDraggingSplit) isDraggingSplit = false;
+      });
+    }
+
+    // Tablet Floating Panel Toggle
+    const tabletToggleBtn = document.getElementById('btn-tablet-toggle-panel');
+    const rightPanelEl = document.getElementById('right-info-panel');
+    if (tabletToggleBtn && rightPanelEl) {
+      tabletToggleBtn.addEventListener('click', () => {
+        rightPanelEl.classList.toggle('tablet-open');
+        backdrop.classList.toggle('open', rightPanelEl.classList.contains('tablet-open'));
+      });
+    }
+
+    // Mobile Bottom-Sheet Expand / Collapse Toggle
+    const sheetHandle = document.getElementById('sheet-drag-handle');
+    const rightPanelHeader = document.getElementById('right-panel-header');
+    const toggleBottomSheet = () => {
+      if (!rightPanelEl) return;
+      rightPanelEl.classList.toggle('sheet-expanded');
+    };
+
+    if (sheetHandle) sheetHandle.addEventListener('click', toggleBottomSheet);
+    if (rightPanelHeader) {
+      rightPanelHeader.addEventListener('click', (e) => {
+        if (window.innerWidth < 768 && !e.target.closest('#right-panel-toggle')) {
+          toggleBottomSheet();
+        }
+      });
+    }
+
+    // Mobile Bottom Navigation Bar Buttons
+    document.querySelectorAll('.mob-nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetView = btn.getAttribute('data-view');
+        if (targetView === 'data-sheet') {
+          if (rightPanelEl) {
+            switchAppView('explorer');
+            rightPanelEl.classList.toggle('sheet-expanded');
+          }
+        } else {
+          if (rightPanelEl) rightPanelEl.classList.remove('sheet-expanded');
+          switchAppView(targetView);
+        }
+      });
     });
 
     // =========================================================================
@@ -1569,6 +1689,15 @@
       resizeCanvases();
       draw();
     }
+
+    // Synchronize Mobile Bottom Navigation active pill
+    document.querySelectorAll('.mob-nav-btn').forEach(b => {
+      const match = (view === 'new-reg' && b.id === 'mob-btn-new-reg') ||
+                    (view === 'results' && b.id === 'mob-btn-results') ||
+                    (view === 'history' && b.id === 'mob-btn-history') ||
+                    (view !== 'new-reg' && view !== 'results' && view !== 'history' && b.id === 'mob-btn-explorer');
+      b.classList.toggle('active', match);
+    });
   }
 
   // --- NAVIGATION ACTION HANDLERS ---
@@ -1655,11 +1784,23 @@
     }
   }
 
+  // --- MAP VIEWPORT & ASPECT RATIO GUARDS ---
+  function getMapViewportRect() {
+    const cw = canvas.width || 800;
+    const ch = canvas.height || 600;
+    // Isometric 1:1 aspect ratio guarantee: scale across max dimension to cover viewport
+    const scale = Math.max(cw, ch);
+    const ox = (cw - scale) / 2;
+    const oy = (ch - scale) / 2;
+    return { ox, oy, scale, cw, ch };
+  }
+
   // --- COORDINATE PROJECTION & HUD UPDATES ---
   function updateCoordinates(mouseX, mouseY) {
     const activeRoi = ROIs[state.activeROI];
-    const normX = (mouseX - state.panX) / (canvas.width * state.zoom);
-    const normY = (mouseY - state.panY) / (canvas.height * state.zoom);
+    const rect = getMapViewportRect();
+    const normX = (mouseX - state.panX - rect.ox * state.zoom) / (rect.scale * state.zoom);
+    const normY = (mouseY - state.panY - rect.oy * state.zoom) / (rect.scale * state.zoom);
 
     const latSpan = (activeRoi.diameterKm / 1737.4) * (180 / Math.PI);
     const lonSpan = latSpan / Math.cos(activeRoi.lat * Math.PI / 180);
@@ -1704,6 +1845,12 @@
     document.getElementById('hud-lon').textContent = `${lonDeg}°${lonMin}'${lonSec}" ${lonDir}`;
     document.getElementById('hud-elev').textContent = `${elevation > 0 ? '+' : ''}${Math.round(elevation).toLocaleString()} m`;
 
+    // Mobile Bottom Sheet Quick Telemetry Badge
+    const mobBadge = document.getElementById('sheet-mobile-latlon');
+    if (mobBadge) {
+      mobBadge.textContent = `${absLat.toFixed(2)}°${latDir} ${absLon.toFixed(2)}°${lonDir}`;
+    }
+
     const reticle = document.getElementById('mouse-reticle');
     if (mouseX >= 0 && mouseX <= canvas.width && mouseY >= 0 && mouseY <= canvas.height) {
       reticle.style.display = 'block';
@@ -1719,6 +1866,7 @@
     if (!state.layers.matchPoints) return;
 
     let foundIndex = -1;
+    const rect = getMapViewportRect();
     const renderScale = state.zoom;
 
     for (let i = 0; i < matchPoints.length; i++) {
@@ -1726,8 +1874,8 @@
       if (state.layers.inliersOnly && !pt.isInlier) continue;
       if (pt.errorPx > state.rmseThreshold) continue;
 
-      const px = state.panX + pt.refX * canvas.width * renderScale;
-      const py = state.panY + pt.refY * canvas.height * renderScale;
+      const px = state.panX + (rect.ox + pt.refX * rect.scale) * renderScale;
+      const py = state.panY + (rect.oy + pt.refY * rect.scale) * renderScale;
 
       if (Math.hypot(px - mouseX, py - mouseY) < 9) {
         foundIndex = i;
@@ -1758,7 +1906,7 @@
     // Apply Style Filters to Canvas Context
     applyMapStyleFilter();
 
-    // 1. Base Imagery Layers
+    // 1. Base Imagery Layers (Strict 1:1 Aspect Ratio Guaranteed)
     if (state.layers.basemap) {
       drawImageryLayers();
     }
@@ -1845,7 +1993,7 @@
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + dx * cLen, cy);
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx, cy + dy * cLen);
+      ctx.lineTo(cx + dy * cLen);
       ctx.stroke();
     });
 
@@ -1870,8 +2018,10 @@
 
   function drawImageryLayers() {
     const roi = ROIs[state.activeROI];
-    const w = canvas.width;
-    const h = canvas.height;
+    const rect = getMapViewportRect();
+    const ox = rect.ox;
+    const oy = rect.oy;
+    const s = rect.scale;
 
     let baseImg = (roi.baseImg === 'south_pole') ? state.southPoleImage : state.referenceImage;
     let refImg = (regWorkflowState.refMeta && resultsState.refImage) ? resultsState.refImage : baseImg;
@@ -1883,17 +2033,17 @@
       ctx.save();
       ctx.beginPath();
       const splitCanvasX = (state.splitPosition * canvas.width - state.panX) / state.zoom;
-      ctx.rect(0, 0, splitCanvasX, h);
+      ctx.rect(ox, oy, Math.max(0, splitCanvasX - ox), s);
       ctx.clip();
-      ctx.drawImage(refImg || baseImg, 0, 0, w, h);
+      ctx.drawImage(refImg || baseImg, ox, oy, s, s);
       ctx.restore();
 
       // Right Pass (Target / Registered)
       ctx.save();
       ctx.beginPath();
-      ctx.rect(splitCanvasX, 0, w - splitCanvasX, h);
+      ctx.rect(splitCanvasX, oy, Math.max(0, (ox + s) - splitCanvasX), s);
       ctx.clip();
-      ctx.drawImage(regImg || tgtImg, 0, 0, w, h);
+      ctx.drawImage(regImg || tgtImg, ox, oy, s, s);
       ctx.restore();
     } else {
       // SECTION 10: MULTI-LAYER MAP STACK WITH INDIVIDUAL OPACITIES
@@ -1902,7 +2052,7 @@
       if (state.mapLayers.basemap.visible && baseImg) {
         ctx.save();
         ctx.globalAlpha = state.mapLayers.basemap.opacity;
-        ctx.drawImage(baseImg, 0, 0, w, h);
+        ctx.drawImage(baseImg, ox, oy, s, s);
         ctx.restore();
       }
 
@@ -1910,7 +2060,7 @@
       if (state.mapLayers.reference.visible && refImg) {
         ctx.save();
         ctx.globalAlpha = state.mapLayers.reference.opacity;
-        ctx.drawImage(refImg, 0, 0, w, h);
+        ctx.drawImage(refImg, ox, oy, s, s);
         ctx.restore();
       }
 
@@ -1919,10 +2069,10 @@
         ctx.save();
         ctx.globalAlpha = state.mapLayers.target.opacity;
         // Subtle unaligned offset to compare with base/reference
-        ctx.translate(w / 2, h / 2);
+        ctx.translate(ox + s / 2, oy + s / 2);
         ctx.rotate(-0.02);
-        ctx.translate(-w / 2 + 12, -h / 2 - 8);
-        ctx.drawImage(tgtImg, 0, 0, w, h);
+        ctx.translate(-ox - s / 2 + 12, -oy - s / 2 - 8);
+        ctx.drawImage(tgtImg, ox, oy, s, s);
         ctx.restore();
       }
 
@@ -1930,12 +2080,12 @@
       if (state.mapLayers.registered.visible && regImg) {
         ctx.save();
         ctx.globalAlpha = state.mapLayers.registered.opacity;
-        ctx.drawImage(regImg, 0, 0, w, h);
+        ctx.drawImage(regImg, ox, oy, s, s);
         ctx.restore();
 
         // Check if geospatial metadata is available
         if (state.mapLayers.registered.hasGeoref) {
-          drawGeoreferencedFootprint(0, 0, w, h, roi);
+          drawGeoreferencedFootprint(ox, oy, s, s, roi);
           const georefBadge = document.getElementById('layer-georef-badge');
           if (georefBadge) {
             georefBadge.textContent = 'GEOREF ACTIVE';
@@ -1960,9 +2110,10 @@
   function drawTopographicContours() {
     ctx.save();
     ctx.lineWidth = 1 / state.zoom;
-    const cx = canvas.width * 0.612;
-    const cy = canvas.height * 0.490;
-    const maxRadius = canvas.width * 0.42;
+    const rect = getMapViewportRect();
+    const cx = rect.ox + rect.scale * 0.612;
+    const cy = rect.oy + rect.scale * 0.490;
+    const maxRadius = rect.scale * 0.42;
 
     const contourCount = 12;
     for (let c = 1; c <= contourCount; c++) {
@@ -2006,48 +2157,46 @@
     ctx.font = `${Math.max(9, 10 / state.zoom)}px "JetBrains Mono"`;
     ctx.fillStyle = 'rgba(154, 154, 166, 0.6)';
 
-    const w = canvas.width;
-    const h = canvas.height;
+    const rect = getMapViewportRect();
     const gridCols = 8;
     const gridRows = 6;
 
     for (let i = 0; i <= gridCols; i++) {
-      const x = (i / gridCols) * w;
+      const x = rect.ox + (i / gridCols) * rect.scale;
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
+      ctx.moveTo(x, rect.oy);
+      ctx.lineTo(x, rect.oy + rect.scale);
       ctx.stroke();
 
       const lonVal = (ROIs[state.activeROI].lon + (i - gridCols / 2) * 4).toFixed(1);
-      ctx.fillText(`${lonVal}°`, x + 4 / state.zoom, 18 / state.zoom);
+      ctx.fillText(`${lonVal}°`, x + 4 / state.zoom, Math.max(rect.oy + 18 / state.zoom, 18 / state.zoom));
     }
 
     for (let j = 0; j <= gridRows; j++) {
-      const y = (j / gridRows) * h;
+      const y = rect.oy + (j / gridRows) * rect.scale;
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
+      ctx.moveTo(rect.ox, y);
+      ctx.lineTo(rect.ox + rect.scale, y);
       ctx.stroke();
 
       const latVal = (ROIs[state.activeROI].lat - (j - gridRows / 2) * 3).toFixed(1);
-      ctx.fillText(`${latVal}°`, 8 / state.zoom, y - 4 / state.zoom);
+      ctx.fillText(`${latVal}°`, Math.max(rect.ox + 8 / state.zoom, 8 / state.zoom), y - 4 / state.zoom);
     }
     ctx.restore();
   }
 
   function drawMatchCorrespondences() {
-    const w = canvas.width;
-    const h = canvas.height;
+    const rect = getMapViewportRect();
     ctx.save();
 
     matchPoints.forEach((pt, i) => {
       if (state.layers.inliersOnly && !pt.isInlier) return;
       if (pt.errorPx > state.rmseThreshold) return;
 
-      const px1 = pt.refX * w;
-      const py1 = pt.refY * h;
-      const px2 = pt.tgtX * w;
-      const py2 = pt.tgtY * h;
+      const px1 = rect.ox + pt.refX * rect.scale;
+      const py1 = rect.oy + pt.refY * rect.scale;
+      const px2 = rect.ox + pt.tgtX * rect.scale;
+      const py2 = rect.oy + pt.tgtY * rect.scale;
       const isHovered = (i === state.hoverPointIndex);
 
       ctx.beginPath();
@@ -2101,15 +2250,14 @@
 
   function drawAnnotations() {
     const roi = ROIs[state.activeROI];
-    const w = canvas.width;
-    const h = canvas.height;
+    const rect = getMapViewportRect();
 
     ctx.save();
     ctx.font = `${Math.max(9, 10 / state.zoom)}px "JetBrains Mono"`;
 
     roi.features.forEach(feat => {
-      const px = feat.xRel * w;
-      const py = feat.yRel * h;
+      const px = rect.ox + feat.xRel * rect.scale;
+      const py = rect.oy + feat.yRel * rect.scale;
 
       ctx.strokeStyle = '#dfc08a';
       ctx.lineWidth = 1 / state.zoom;
@@ -2939,26 +3087,48 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
         splitLine.classList.add('dragging');
       });
 
-      window.addEventListener('mousemove', (e) => {
+      splitLine.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        resultsState.isDraggingSplit = true;
+        splitLine.classList.add('dragging');
+      }, { passive: true });
+
+      const handleSplitMove = (clientX) => {
         if (resultsState.isDraggingSplit && viewportWrap) {
           const rect = viewportWrap.getBoundingClientRect();
-          const relX = (e.clientX - rect.left) / rect.width;
+          const relX = (clientX - rect.left) / rect.width;
           resultsState.splitPos = Math.max(0.02, Math.min(0.98, relX));
           updateResultsSplitUI();
           drawResultsCanvas();
         }
+      };
+
+      window.addEventListener('mousemove', (e) => {
+        handleSplitMove(e.clientX);
       });
 
-      window.addEventListener('mouseup', () => {
+      window.addEventListener('touchmove', (e) => {
+        if (resultsState.isDraggingSplit && e.touches.length > 0) {
+          handleSplitMove(e.touches[0].clientX);
+        }
+      }, { passive: true });
+
+      const stopSplitDrag = () => {
         if (resultsState.isDraggingSplit) {
           resultsState.isDraggingSplit = false;
           if (splitLine) splitLine.classList.remove('dragging');
         }
-      });
+      };
+
+      window.addEventListener('mouseup', stopSplitDrag);
+      window.addEventListener('touchend', stopSplitDrag);
     }
 
-    // 7. Viewport Pan & Wheel Zoom
+    // 7. Viewport Mouse Pan, Touch Pan & Pinch Zoom
     if (viewportWrap) {
+      let resTouchStartDist = 0;
+      let resInitialZoom = 1.0;
+
       viewportWrap.addEventListener('mousedown', (e) => {
         if (e.button === 0 && !resultsState.isDraggingSplit) {
           resultsState.isDragging = true;
@@ -2966,6 +3136,21 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
           resultsState.dragStartY = e.clientY - resultsState.panY;
         }
       });
+
+      viewportWrap.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1 && !resultsState.isDraggingSplit) {
+          const t = e.touches[0];
+          resultsState.isDragging = true;
+          resultsState.dragStartX = t.clientX - resultsState.panX;
+          resultsState.dragStartY = t.clientY - resultsState.panY;
+        } else if (e.touches.length === 2) {
+          resultsState.isDragging = false;
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          resTouchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          resInitialZoom = resultsState.zoom;
+        }
+      }, { passive: false });
 
       window.addEventListener('mousemove', (e) => {
         if (resultsState.isDragging) {
@@ -2975,9 +3160,38 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
         }
       });
 
-      window.addEventListener('mouseup', () => {
-        resultsState.isDragging = false;
-      });
+      viewportWrap.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && resultsState.isDragging) {
+          e.preventDefault();
+          const t = e.touches[0];
+          resultsState.panX = t.clientX - resultsState.dragStartX;
+          resultsState.panY = t.clientY - resultsState.dragStartY;
+          drawResultsCanvas();
+        } else if (e.touches.length === 2 && resTouchStartDist > 0) {
+          e.preventDefault();
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          const curDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          resultsState.zoom = Math.max(0.4, Math.min(6.0, resInitialZoom * (curDist / resTouchStartDist)));
+          drawResultsCanvas();
+        }
+      }, { passive: false });
+
+      const stopResultsPan = (e) => {
+        if (!e.touches || e.touches.length === 0) {
+          resultsState.isDragging = false;
+          resTouchStartDist = 0;
+        } else if (e.touches.length === 1) {
+          const t = e.touches[0];
+          resultsState.isDragging = true;
+          resultsState.dragStartX = t.clientX - resultsState.panX;
+          resultsState.dragStartY = t.clientY - resultsState.panY;
+          resTouchStartDist = 0;
+        }
+      };
+
+      window.addEventListener('mouseup', () => { resultsState.isDragging = false; });
+      viewportWrap.addEventListener('touchend', stopResultsPan);
 
       viewportWrap.addEventListener('wheel', (e) => {
         e.preventDefault();
