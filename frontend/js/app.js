@@ -61,6 +61,15 @@
     probePoint: null,
     selectedLocation: null,
 
+    // Section 10 Map Layer Architecture: Individual Opacities & Georeference State
+    mapLayers: {
+      basemap: { visible: true, opacity: 1.0 },
+      reference: { visible: true, opacity: 1.0 },
+      target: { visible: false, opacity: 0.8 },
+      registered: { visible: true, opacity: 0.85, hasGeoref: true },
+      matches: { visible: true, inliersOnly: true }
+    },
+
     // Layer Visibility
     layers: {
       basemap: true,
@@ -1075,12 +1084,73 @@
       });
     }
 
-    // Layer checkboxes inside dropdown
-    document.getElementById('layer-opt-basemap').addEventListener('change', (e) => { state.layers.basemap = e.target.checked; draw(); });
-    document.getElementById('layer-opt-contours').addEventListener('change', (e) => { state.layers.contours = e.target.checked; draw(); });
-    document.getElementById('layer-opt-graticule').addEventListener('change', (e) => { state.layers.graticule = e.target.checked; draw(); });
-    document.getElementById('layer-opt-annotations').addEventListener('change', (e) => { state.layers.annotations = e.target.checked; draw(); });
-    document.getElementById('layer-opt-tiepoints').addEventListener('change', (e) => { state.layers.matchPoints = e.target.checked; draw(); });
+    // Section 10: Map Layer Manager Toggles & Opacity Controls
+    const bindLayerToggle = (id, prop) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', (e) => {
+          if (state.mapLayers[prop]) state.mapLayers[prop].visible = e.target.checked;
+          if (prop === 'basemap') state.layers.basemap = e.target.checked;
+          if (prop === 'matches') state.layers.matchPoints = e.target.checked;
+          draw();
+        });
+      }
+    };
+
+    const bindLayerOpacity = (sliderId, valId, prop) => {
+      const slider = document.getElementById(sliderId);
+      const valEl = document.getElementById(valId);
+      if (slider) {
+        slider.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value, 10);
+          if (state.mapLayers[prop]) state.mapLayers[prop].opacity = val / 100;
+          if (valEl) valEl.textContent = `${val}%`;
+          draw();
+        });
+      }
+    };
+
+    bindLayerToggle('layer-opt-basemap', 'basemap');
+    bindLayerToggle('layer-opt-ref', 'reference');
+    bindLayerToggle('layer-opt-tgt', 'target');
+    bindLayerToggle('layer-opt-reg', 'registered');
+    bindLayerToggle('layer-opt-tiepoints', 'matches');
+
+    bindLayerOpacity('slider-opacity-basemap', 'val-opacity-basemap', 'basemap');
+    bindLayerOpacity('slider-opacity-ref', 'val-opacity-ref', 'reference');
+    bindLayerOpacity('slider-opacity-tgt', 'val-opacity-tgt', 'target');
+    bindLayerOpacity('slider-opacity-reg', 'val-opacity-reg', 'registered');
+
+    const inliersOnlyToggle = document.getElementById('layer-opt-inliers-only');
+    if (inliersOnlyToggle) {
+      inliersOnlyToggle.addEventListener('change', (e) => {
+        state.layers.inliersOnly = e.target.checked;
+        state.mapLayers.matches.inliersOnly = e.target.checked;
+        draw();
+      });
+    }
+
+    const contoursToggle = document.getElementById('layer-opt-contours');
+    if (contoursToggle) contoursToggle.addEventListener('change', (e) => { state.layers.contours = e.target.checked; draw(); });
+
+    const graticuleToggle = document.getElementById('layer-opt-graticule');
+    if (graticuleToggle) graticuleToggle.addEventListener('change', (e) => { state.layers.graticule = e.target.checked; draw(); });
+
+    const annotationsToggle = document.getElementById('layer-opt-annotations');
+    if (annotationsToggle) annotationsToggle.addEventListener('change', (e) => { state.layers.annotations = e.target.checked; draw(); });
+
+    // Quick Actions
+    const zoomRegionBtn = document.getElementById('btn-zoom-registered-region');
+    if (zoomRegionBtn) zoomRegionBtn.addEventListener('click', zoomToRegisteredRegion);
+
+    const layerResetBtn = document.getElementById('btn-layer-reset-view');
+    if (layerResetBtn) layerResetBtn.addEventListener('click', fitToView);
+
+    const openResultsBtn = document.getElementById('btn-open-results-comparison');
+    if (openResultsBtn) openResultsBtn.addEventListener('click', () => switchAppView('results'));
+
+    const bannerResultsBtn = document.getElementById('btn-banner-open-results');
+    if (bannerResultsBtn) bannerResultsBtn.addEventListener('click', () => switchAppView('results'));
 
     // =========================================================================
     // FLOATING MAP TOOLBAR: 8 DEDICATED TOOLS
@@ -1654,18 +1724,68 @@
     }
   }
 
+  function zoomToRegisteredRegion() {
+    state.panX = 0;
+    state.panY = 0;
+    state.zoom = 1.35;
+    state.rotation = 0;
+    const northBadge = document.getElementById('btn-reset-north');
+    if (northBadge) northBadge.style.transform = 'rotate(0deg)';
+    updateScaleBar();
+    draw();
+  }
+
+  function drawGeoreferencedFootprint(x, y, w, h, roi) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(223, 192, 138, 0.75)';
+    ctx.lineWidth = 1.5 / state.zoom;
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+
+    // Corner Alignment Reticles
+    const cLen = 16 / state.zoom;
+    const corners = [
+      [x + 2, y + 2, 1, 1],
+      [x + w - 2, y + 2, -1, 1],
+      [x + 2, y + h - 2, 1, -1],
+      [x + w - 2, y + h - 2, -1, -1]
+    ];
+    corners.forEach(([cx, cy, dx, dy]) => {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + dx * cLen, cy);
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx, cy + dy * cLen);
+      ctx.stroke();
+    });
+
+    // Geodetic Footprint Callout Tag
+    const latDir = roi.lat >= 0 ? 'N' : 'S';
+    const lonDir = roi.lon >= 0 ? 'E' : 'W';
+    const tagText = `CH2_TMC2_REGISTERED • ${Math.abs(roi.lat).toFixed(2)}°${latDir} ${Math.abs(roi.lon).toFixed(2)}°${lonDir} [GSD 5.0m | RMSE ${roi.rmse}]`;
+
+    ctx.font = `${10 / state.zoom}px "JetBrains Mono"`;
+    const tw = ctx.measureText(tagText).width;
+
+    ctx.fillStyle = 'rgba(10, 10, 14, 0.88)';
+    ctx.fillRect(x + 10 / state.zoom, y + 10 / state.zoom, tw + 14 / state.zoom, 20 / state.zoom);
+    ctx.strokeStyle = '#dfc08a';
+    ctx.lineWidth = 1 / state.zoom;
+    ctx.strokeRect(x + 10 / state.zoom, y + 10 / state.zoom, tw + 14 / state.zoom, 20 / state.zoom);
+
+    ctx.fillStyle = '#dfc08a';
+    ctx.fillText(tagText, x + 17 / state.zoom, y + 24 / state.zoom);
+    ctx.restore();
+  }
+
   function drawImageryLayers() {
     const roi = ROIs[state.activeROI];
     const w = canvas.width;
     const h = canvas.height;
 
-    let imgLeft = state.referenceImage;
-    let imgRight = state.targetImage;
-
-    if (roi.baseImg === 'south_pole') {
-      imgLeft = state.southPoleImage;
-      imgRight = state.southPoleImage;
-    }
+    let baseImg = (roi.baseImg === 'south_pole') ? state.southPoleImage : state.referenceImage;
+    let refImg = (regWorkflowState.refMeta && resultsState.refImage) ? resultsState.refImage : baseImg;
+    let tgtImg = (regWorkflowState.tgtMeta && resultsState.tgtOriginalImage) ? resultsState.tgtOriginalImage : state.targetImage;
+    let regImg = (resultsState.tgtRegisteredImage) ? resultsState.tgtRegisteredImage : state.targetImage;
 
     if (state.viewMode === 'comparator') {
       // Left Pass (Reference)
@@ -1674,18 +1794,75 @@
       const splitCanvasX = (state.splitPosition * canvas.width - state.panX) / state.zoom;
       ctx.rect(0, 0, splitCanvasX, h);
       ctx.clip();
-      ctx.drawImage(imgLeft, 0, 0, w, h);
+      ctx.drawImage(refImg || baseImg, 0, 0, w, h);
       ctx.restore();
 
-      // Right Pass (Target)
+      // Right Pass (Target / Registered)
       ctx.save();
       ctx.beginPath();
       ctx.rect(splitCanvasX, 0, w - splitCanvasX, h);
       ctx.clip();
-      ctx.drawImage(imgRight, 0, 0, w, h);
+      ctx.drawImage(regImg || tgtImg, 0, 0, w, h);
       ctx.restore();
     } else {
-      ctx.drawImage(imgLeft, 0, 0, w, h);
+      // SECTION 10: MULTI-LAYER MAP STACK WITH INDIVIDUAL OPACITIES
+
+      // 1. BASE LUNAR TERRAIN
+      if (state.mapLayers.basemap.visible && baseImg) {
+        ctx.save();
+        ctx.globalAlpha = state.mapLayers.basemap.opacity;
+        ctx.drawImage(baseImg, 0, 0, w, h);
+        ctx.restore();
+      }
+
+      // 2. REFERENCE IMAGE
+      if (state.mapLayers.reference.visible && refImg) {
+        ctx.save();
+        ctx.globalAlpha = state.mapLayers.reference.opacity;
+        ctx.drawImage(refImg, 0, 0, w, h);
+        ctx.restore();
+      }
+
+      // 3. TARGET IMAGE (RAW / UNALIGNED)
+      if (state.mapLayers.target.visible && tgtImg) {
+        ctx.save();
+        ctx.globalAlpha = state.mapLayers.target.opacity;
+        // Subtle unaligned offset to compare with base/reference
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(-0.02);
+        ctx.translate(-w / 2 + 12, -h / 2 - 8);
+        ctx.drawImage(tgtImg, 0, 0, w, h);
+        ctx.restore();
+      }
+
+      // 4. REGISTERED IMAGE OVERLAY (GEOREFERENCED OR LOCAL)
+      if (state.mapLayers.registered.visible && regImg) {
+        ctx.save();
+        ctx.globalAlpha = state.mapLayers.registered.opacity;
+        ctx.drawImage(regImg, 0, 0, w, h);
+        ctx.restore();
+
+        // Check if geospatial metadata is available
+        if (state.mapLayers.registered.hasGeoref) {
+          drawGeoreferencedFootprint(0, 0, w, h, roi);
+          const georefBadge = document.getElementById('layer-georef-badge');
+          if (georefBadge) {
+            georefBadge.textContent = 'GEOREF ACTIVE';
+            georefBadge.className = 'layers-status-tag';
+          }
+          const mapIndicator = document.getElementById('map-georef-indicator');
+          if (mapIndicator) mapIndicator.style.display = 'none';
+        } else {
+          // SCIENTIFIC HONESTY: Do not pretend unreferenced image is georeferenced
+          const georefBadge = document.getElementById('layer-georef-badge');
+          if (georefBadge) {
+            georefBadge.textContent = 'UNREFERENCED';
+            georefBadge.className = 'layers-status-tag warning';
+          }
+          const mapIndicator = document.getElementById('map-georef-indicator');
+          if (mapIndicator) mapIndicator.style.display = 'flex';
+        }
+      }
     }
   }
 
