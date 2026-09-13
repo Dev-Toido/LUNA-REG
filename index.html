@@ -2226,7 +2226,7 @@
             <div class="info-section-header">SELECTED IMAGE</div>
             <div class="selected-image-box">
               <div class="selected-image-wrapper">
-                <img id="selected-image-thumbnail" class="selected-image-thumb" src="assets/lunar_nadir.jpg" alt="Selected Lunar Terrain Image">
+                <img id="selected-image-thumbnail" class="selected-image-thumb" src="assets/lunar_nadir.jpg" onerror="if(!this.src.includes('frontend/assets/')) this.src='frontend/assets/lunar_nadir.jpg';" alt="Selected Lunar Terrain Image">
                 <div class="selected-image-overlay">
                   <span id="selected-image-tag">CHANDRAYAAN-2 TMC-2</span>
                   <span id="selected-image-orbit">ORBIT #4829</span>

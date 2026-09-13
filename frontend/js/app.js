@@ -372,17 +372,23 @@
       }
     };
 
-    state.referenceImage = new Image();
-    state.referenceImage.src = 'assets/lunar_nadir.jpg';
-    state.referenceImage.onload = checkLoaded;
+    const attachSafeImage = (prop, filename) => {
+      const img = new Image();
+      state[prop] = img;
+      img.onload = checkLoaded;
+      img.onerror = () => {
+        if (!img.src.includes('frontend/assets/')) {
+          img.src = 'frontend/assets/' + filename;
+        } else {
+          checkLoaded();
+        }
+      };
+      img.src = 'assets/' + filename;
+    };
 
-    state.targetImage = new Image();
-    state.targetImage.src = 'assets/lunar_low_sun.jpg';
-    state.targetImage.onload = checkLoaded;
-
-    state.southPoleImage = new Image();
-    state.southPoleImage.src = 'assets/lunar_south_pole.jpg';
-    state.southPoleImage.onload = checkLoaded;
+    attachSafeImage('referenceImage', 'lunar_nadir.jpg');
+    attachSafeImage('targetImage', 'lunar_low_sun.jpg');
+    attachSafeImage('southPoleImage', 'lunar_south_pole.jpg');
   }
 
   // =========================================================================
@@ -5291,6 +5297,10 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
   window.switchView = switchAppView;
   window.checkFilesReady = checkRegistrationReadiness;
 
-  window.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
 })();
