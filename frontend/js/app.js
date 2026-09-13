@@ -3133,8 +3133,12 @@
   window.__appOnViewSwitch = function(targetView) {
     try {
       if (targetView === 'explorer') {
-        resizeCanvases();
-        draw();
+        if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
+          window.lunarMapPage.init();
+        } else {
+          resizeCanvases();
+          draw();
+        }
       } else if (targetView === 'results') {
         if (window.resultsPage && typeof window.resultsPage.init === 'function') {
           window.resultsPage.init();
@@ -3199,8 +3203,11 @@
     } else if (hash === '#/history') {
       switchAppView('history', false);
       return;
-    } else if (hash === '#/lunar-map' || hash === '#/explorer' || hash === '#/map') {
+    } else if (hash.startsWith('#/lunar-map') || hash === '#/explorer' || hash === '#/map') {
       switchAppView('explorer', false);
+      if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
+        window.lunarMapPage.init();
+      }
       return;
     } else if (hash.startsWith('#/analysis-tools') || hash.startsWith('#/analysis')) {
       switchAppView('analysis', false);
