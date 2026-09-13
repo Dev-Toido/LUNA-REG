@@ -3119,9 +3119,9 @@
         resizeCanvases();
         draw();
       } else if (targetView === 'results') {
-        syncResultsImagery();
-        resizeResultsCanvas();
-        drawResultsCanvas();
+        if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+          window.resultsPage.init();
+        }
       } else if (targetView === 'history') {
         loadRegistrationHistory();
       } else if (targetView === 'dashboard') {
@@ -3156,14 +3156,11 @@
         switchAppView('new-reg', false);
       }
       return;
-    } else if (hash.startsWith('#/results/')) {
-      const jobId = hash.replace('#/results/', '').trim();
-      if (jobId) {
-        loadJobResultsIntoViewer(jobId, false);
-        return;
-      }
-    } else if (hash === '#/results') {
+    } else if (hash.startsWith('#/results')) {
       switchAppView('results', false);
+      if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+        window.resultsPage.init();
+      }
       return;
     } else if (hash === '#/new-registration' || hash === '#/new-reg' || hash === '#/register') {
       switchAppView('new-reg', false);

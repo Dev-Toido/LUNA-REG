@@ -1808,188 +1808,10 @@
       </section>
 
       <!-- ========================================================================
-           9. REGISTRATION RESULTS WORKSPACE (Dedicated Comparison Page)
+           9. REGISTRATION RESULTS WORKSPACE (Dedicated Comparison Page - Part 4)
            ======================================================================== -->
       <section class="page-registration-results" id="view-registration-results" aria-label="Registration Results Workspace" style="display: none;">
-        
-        <!-- Results Page Header -->
-        <div class="results-page-header">
-          <div class="results-page-title-group">
-            <div class="results-page-breadcrumb">
-              <span class="breadcrumb-link" id="res-bc-dashboard" role="button" tabindex="0">Dashboard</span>
-              <span>/</span>
-              <span class="breadcrumb-link" id="res-bc-map" role="button" tabindex="0">Lunar Map</span>
-              <span>/</span>
-              <span class="active">Registration Results</span>
-            </div>
-            <h1 class="results-page-title">REGISTRATION RESULTS</h1>
-            <p class="results-page-subtitle" id="res-meta-header">Multi-modal lunar satellite correspondence analysis &amp; geometric validation.</p>
-          </div>
-          <div class="results-header-actions">
-            <button class="btn-tech primary" id="btn-download-registered-img" disabled title="Download Registered Image">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>DOWNLOAD REGISTERED IMAGE</span>
-            </button>
-            <button class="btn-tech" id="btn-download-report" disabled title="Download Scientific Alignment Report">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <span>DOWNLOAD REPORT</span>
-            </button>
-            <button class="btn-tech" id="btn-results-new-reg" title="Configure and run a new image registration" onclick="window.switchView('new-reg')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              <span>NEW REGISTRATION</span>
-            </button>
-            <button class="btn-tech" id="btn-results-back-explorer" title="Return to Lunar Terrain Explorer" onclick="window.switchView('explorer')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-              <span>BACK TO EXPLORER</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 4 Specialized Comparison Tabs -->
-        <div class="results-tabs-bar" role="tablist">
-          <button class="results-tab-btn active" id="tab-results-overlay" data-tab="overlay" role="tab" aria-selected="true">
-            <span class="tab-icon">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg>
-            </span>
-            <span>OVERLAY</span>
-          </button>
-          <button class="results-tab-btn" id="tab-results-split" data-tab="split" role="tab" aria-selected="false">
-            <span class="tab-icon">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-            </span>
-            <span>SPLIT VIEW</span>
-          </button>
-          <button class="results-tab-btn" id="tab-results-before-after" data-tab="before-after" role="tab" aria-selected="false">
-            <span class="tab-icon">
-              <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-            </span>
-            <span>BEFORE / AFTER</span>
-          </button>
-          <button class="results-tab-btn" id="tab-results-matches" data-tab="matches" role="tab" aria-selected="false">
-            <span class="tab-icon">
-              <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/></svg>
-            </span>
-            <span>MATCHES</span>
-          </button>
-        </div>
-
-        <!-- Main Results Comparison Viewer Container -->
-        <div class="results-main-area">
-          <div class="results-viewport-container" id="results-viewport-wrap">
-            <canvas id="results-canvas"></canvas>
-
-            <!-- Draggable Split Line for SPLIT VIEW mode -->
-            <div class="results-split-slider-wrap" id="results-split-slider-wrap" style="display:none;">
-              <div class="results-split-line" id="results-split-line">
-                <div class="results-split-handle">‹ ›</div>
-              </div>
-            </div>
-
-            <!-- Floating Mode-Specific Controls Toolbar -->
-            <div class="results-floating-toolbar">
-              <!-- Overlay Controls -->
-              <div class="res-tool-group" id="res-overlay-controls">
-                <span class="res-tool-label">OPACITY:</span>
-                <input type="range" class="res-slider" id="results-opacity-slider" min="0" max="100" value="50" aria-label="Overlay Opacity">
-                <span class="res-val-pill" id="results-opacity-val">50%</span>
-              </div>
-
-              <!-- Before / After Controls -->
-              <div class="res-tool-group" id="res-before-after-controls" style="display:none;">
-                <button class="btn-res-toggle" id="btn-toggle-before-after">
-                  <span id="lbl-before-after-mode">VIEWING: REGISTERED TARGET (ALIGNED)</span>
-                </button>
-              </div>
-
-              <!-- Matches Controls -->
-              <div class="res-tool-group" id="res-matches-controls" style="display:none;">
-                <label class="res-checkbox-label">
-                  <input type="checkbox" id="chk-results-inliers-only" checked>
-                  <span>INLIERS ONLY</span>
-                </label>
-                <span class="res-val-pill" id="lbl-matches-count">1,311 INLIERS</span>
-              </div>
-
-              <div class="res-toolbar-sep"></div>
-
-              <!-- General View Controls: Zoom, Pan, Reset, Fullscreen -->
-              <div class="res-nav-controls">
-                <button class="btn-res-tool" id="btn-results-zoomin" title="Zoom In" aria-label="Zoom In">
-                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                </button>
-                <button class="btn-res-tool" id="btn-results-zoomout" title="Zoom Out" aria-label="Zoom Out">
-                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                </button>
-                <button class="btn-res-tool" id="btn-results-reset" title="Reset View" aria-label="Reset View">
-                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-                </button>
-                <button class="btn-res-tool" id="btn-results-fullscreen" title="Fullscreen" aria-label="Fullscreen">
-                  <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- View Labels / Tickers -->
-            <div class="res-hud-label-left" id="res-label-left">REFERENCE: TMC-2 NADIR PASS</div>
-            <div class="res-hud-label-right" id="res-label-right">REGISTERED TARGET: LOW-SUN SHADOW PASS</div>
-          </div>
-
-          <!-- Bottom METRICS PANEL -->
-          <div class="results-metrics-panel" id="results-metrics-panel">
-            <div class="metrics-panel-header">
-              <div class="metrics-title">
-                <span class="metrics-pill">TELEMETRY</span>
-                <span>REGISTRATION ACCURACY & GEOMETRIC VERIFICATION METRICS</span>
-              </div>
-              <span class="metrics-integrity-badge">SCIENTIFIC INTEGRITY VERIFIED</span>
-            </div>
-
-            <div class="metrics-data-grid">
-              <div class="metric-card">
-                <span class="metric-lbl">Number of Matches</span>
-                <span class="metric-num" id="res-num-matches">1,428</span>
-                <span class="metric-sub">Detected keypoint pairs</span>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-lbl">Inlier Matches</span>
-                <span class="metric-num success" id="res-inlier-matches">1,311 (91.8%)</span>
-                <span class="metric-sub">RANSAC verified geometry</span>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-lbl">Registration Error</span>
-                <span class="metric-num" id="res-reg-error">0.28 px</span>
-                <span class="metric-sub">Mean residual error</span>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-lbl">RMSE</span>
-                <span class="metric-num success" id="res-rmse">0.318 px</span>
-                <span class="metric-sub">Sub-pixel precision</span>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-lbl">Confidence Score</span>
-                <span class="metric-num" id="res-confidence">0.964</span>
-                <span class="metric-sub">Photometric correlation</span>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-lbl">Processing Time</span>
-                <span class="metric-num" id="res-proc-time">2.45 s</span>
-                <span class="metric-sub">Convergence latency</span>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-lbl">Transformation Type</span>
-                <span class="metric-num" id="res-transform-type">Homography + Affine (8-DOF)</span>
-                <span class="metric-sub">Projective warp model</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
+        <!-- Injected and managed dynamically by ResultsPage.js -->
       </section>
 
       <!-- ========================================================================
@@ -2508,13 +2330,25 @@
   <script src="frontend/src/components/MetadataPanel.js?v=2.5.0"></script>
   <script src="frontend/src/components/RegistrationInputPanel.js?v=2.5.0"></script>
 
+  <!-- Part 4: Results & Analysis Components -->
+  <script src="frontend/src/components/ResultsHeader.js?v=2.6.0"></script>
+  <script src="frontend/src/components/RegistrationSummary.js?v=2.6.0"></script>
+  <script src="frontend/src/components/ComparisonToolbar.js?v=2.6.0"></script>
+  <script src="frontend/src/components/ImageComparisonWorkspace.js?v=2.6.0"></script>
+  <script src="frontend/src/components/RegistrationMetrics.js?v=2.6.0"></script>
+  <script src="frontend/src/components/MetadataAccordion.js?v=2.6.0"></script>
+  <script src="frontend/src/components/LunarMapPreview.js?v=2.6.0"></script>
+  <script src="frontend/src/components/ExportPanel.js?v=2.6.0"></script>
+  <script src="frontend/src/components/ResultsEmptyState.js?v=2.6.0"></script>
+
   <!-- Page Controllers -->
-  <script src="frontend/src/pages/DashboardPage.js?v=2.5.0"></script>
-  <script src="frontend/src/pages/ProductsPage.js?v=2.5.0"></script>
-  <script src="frontend/src/pages/PairsPage.js?v=2.5.0"></script>
-  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.5.0"></script>
+  <script src="frontend/src/pages/DashboardPage.js?v=2.6.0"></script>
+  <script src="frontend/src/pages/ProductsPage.js?v=2.6.0"></script>
+  <script src="frontend/src/pages/PairsPage.js?v=2.6.0"></script>
+  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.6.0"></script>
+  <script src="frontend/src/pages/ResultsPage.js?v=2.6.0"></script>
 
   <!-- Main Application Controller -->
-  <script src="frontend/js/app.js?v=2.5.0"></script>
+  <script src="frontend/js/app.js?v=2.6.0"></script>
 </body>
 </html>
