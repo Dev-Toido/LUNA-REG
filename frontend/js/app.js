@@ -3107,7 +3107,11 @@
     } else if (targetView === 'dashboard') {
       if (window.dashboardPage) window.dashboardPage.refreshTelemetry();
     } else if (targetView === 'dataset') {
-      initDatasetCatalogView();
+      if (window.datasetPage && typeof window.datasetPage.init === 'function') {
+        window.datasetPage.init();
+      } else {
+        initDatasetCatalogView();
+      }
     } else if (targetView === 'new-reg') {
       if (window.registrationPreparationPage) window.registrationPreparationPage.init();
     }
@@ -3116,6 +3120,7 @@
     document.querySelectorAll('.mob-nav-btn').forEach(b => {
       const match = ((targetView === 'new-reg' || targetView === 'processing') && b.id === 'mob-btn-new-reg') ||
                     (targetView === 'results' && b.id === 'mob-btn-results') ||
+                    (targetView === 'dataset' && b.id === 'mob-btn-dataset') ||
                     (targetView === 'history' && b.id === 'mob-btn-history') ||
                     (targetView === 'explorer' && b.id === 'mob-btn-explorer') ||
                     (targetView === 'dashboard' && b.id === 'mob-btn-explorer');
@@ -3145,7 +3150,11 @@
           window.dashboardPage.refreshTelemetry();
         }
       } else if (targetView === 'dataset') {
-        initDatasetCatalogView();
+        if (window.datasetPage && typeof window.datasetPage.init === 'function') {
+          window.datasetPage.init();
+        } else {
+          initDatasetCatalogView();
+        }
       } else if (targetView === 'new-reg') {
         if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
           window.registrationPreparationPage.init();
@@ -3181,12 +3190,10 @@
     } else if (hash === '#/new-registration' || hash === '#/new-reg' || hash === '#/register') {
       switchAppView('new-reg', false);
       return;
-    } else if (hash === '#/dataset' || hash === '#/pairs' || hash === '#/products') {
+    } else if (hash.startsWith('#/dataset') || hash === '#/pairs' || hash === '#/products' || hash === '#/regions') {
       switchAppView('dataset', false);
-      if (hash === '#/products') {
-        activateDatasetTab('products');
-      } else {
-        activateDatasetTab('pairs');
+      if (window.datasetPage && typeof window.datasetPage.init === 'function') {
+        window.datasetPage.init();
       }
       return;
     } else if (hash === '#/history') {

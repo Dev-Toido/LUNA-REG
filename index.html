@@ -78,6 +78,7 @@
         document.querySelectorAll('.mob-nav-btn').forEach(function(b) {
           var isAct = ((viewKey === 'new-reg' || viewKey === 'processing') && b.id === 'mob-btn-new-reg') ||
                       (viewKey === 'results' && b.id === 'mob-btn-results') ||
+                      (viewKey === 'dataset' && b.id === 'mob-btn-dataset') ||
                       (viewKey === 'history' && b.id === 'mob-btn-history') ||
                       ((viewKey === 'explorer' || viewKey === 'dashboard') && b.id === 'mob-btn-explorer');
           b.classList.toggle('active', isAct);
@@ -118,8 +119,11 @@
           if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
             window.analysisToolsPage.init();
           }
-        } else if (h === '#/dataset' || h === '#/pairs' || h === '#/products') {
+        } else if (h.startsWith('#/dataset') || h === '#/pairs' || h === '#/products' || h === '#/regions') {
           window.switchView('dataset', false);
+          if (window.datasetPage && typeof window.datasetPage.init === 'function') {
+            window.datasetPage.init();
+          }
         } else if (h === '#/history') {
           window.switchView('history', false);
         } else if (h === '#/about') {
@@ -2296,6 +2300,10 @@
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <span>RESULTS</span>
       </button>
+      <button class="mob-nav-btn" data-view="dataset" id="mob-btn-dataset" title="Planetary Dataset Explorer" onclick="window.switchView('dataset')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+        <span>DATASET</span>
+      </button>
       <button class="mob-nav-btn" data-view="history" id="mob-btn-history" title="Registration Job History" onclick="window.switchView('history')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>HISTORY</span>
@@ -2357,6 +2365,16 @@
   <script src="frontend/src/components/CoordinatePanel.js?v=2.8.0"></script>
   <script src="frontend/src/components/AnalysisExportPanel.js?v=2.8.0"></script>
 
+  <!-- Part 6: Dataset Explorer Components -->
+  <script src="frontend/src/components/DatasetOverview.js?v=2.9.0"></script>
+  <script src="frontend/src/components/DatasetFilters.js?v=2.9.0"></script>
+  <script src="frontend/src/components/RegionTable.js?v=2.9.0"></script>
+  <script src="frontend/src/components/ProductDetailsDrawer.js?v=2.9.0"></script>
+  <script src="frontend/src/components/PairDetailsDrawer.js?v=2.9.0"></script>
+  <script src="frontend/src/components/RegionDetailsDrawer.js?v=2.9.0"></script>
+  <script src="frontend/src/components/FileMetadataPanel.js?v=2.9.0"></script>
+  <script src="frontend/src/components/DatasetEmptyState.js?v=2.9.0"></script>
+
   <!-- Page Controllers -->
   <script src="frontend/src/pages/DashboardPage.js?v=2.8.0"></script>
   <script src="frontend/src/pages/ProductsPage.js?v=2.8.0"></script>
@@ -2364,8 +2382,9 @@
   <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.8.0"></script>
   <script src="frontend/src/pages/ResultsPage.js?v=2.8.0"></script>
   <script src="frontend/src/pages/AnalysisToolsPage.js?v=2.8.0"></script>
+  <script src="frontend/src/pages/DatasetPage.js?v=2.9.0"></script>
 
   <!-- Main Application Controller -->
-  <script src="frontend/js/app.js?v=2.8.0"></script>
+  <script src="frontend/js/app.js?v=2.9.0"></script>
 </body>
 </html>
