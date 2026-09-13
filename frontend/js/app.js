@@ -1923,38 +1923,46 @@
 
   // --- EVENT SETUP ---
   function setupEvents() {
-    const container = canvas.parentElement;
+    const container = canvas ? canvas.parentElement : null;
 
     // 1. Sidebar Collapse/Expand Toggle
     const sidebar = document.getElementById('left-sidebar');
     const sidebarToggle = document.getElementById('sidebar-toggle-btn');
     const toggleIcon = document.getElementById('sidebar-toggle-icon');
 
-    sidebarToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('collapsed');
-      const isCollapsed = sidebar.classList.contains('collapsed');
-      toggleIcon.innerHTML = isCollapsed
-        ? '<polyline points="9 18 15 12 9 6"></polyline>'
-        : '<polyline points="15 18 9 12 15 6"></polyline>';
-      setTimeout(() => {
-        resizeCanvases();
-        draw();
-      }, 260);
-    });
+    if (sidebarToggle && sidebar) {
+      sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (toggleIcon) {
+          toggleIcon.innerHTML = isCollapsed
+            ? '<polyline points="9 18 15 12 9 6"></polyline>'
+            : '<polyline points="15 18 9 12 15 6"></polyline>';
+        }
+        setTimeout(() => {
+          resizeCanvases();
+          draw();
+        }, 260);
+      });
+    }
 
     // 2. Mobile Drawer Toggle
     const mobileBtn = document.getElementById('mobile-menu-toggle');
     const backdrop = document.getElementById('mobile-backdrop');
 
-    mobileBtn.addEventListener('click', () => {
-      sidebar.classList.add('mobile-open');
-      backdrop.classList.add('open');
-    });
+    if (mobileBtn && sidebar) {
+      mobileBtn.addEventListener('click', () => {
+        sidebar.classList.add('mobile-open');
+        if (backdrop) backdrop.classList.add('open');
+      });
+    }
 
-    backdrop.addEventListener('click', () => {
-      sidebar.classList.remove('mobile-open');
-      backdrop.classList.remove('open');
-    });
+    if (backdrop && sidebar) {
+      backdrop.addEventListener('click', () => {
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('open');
+      });
+    }
 
     // 3. Right Info Panel Collapse/Expand Toggle
     const rightPanel = document.getElementById('right-info-panel');
@@ -1978,9 +1986,9 @@
         document.querySelectorAll('.sidebar-nav-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        if (sidebar.classList.contains('mobile-open')) {
+        if (sidebar && sidebar.classList.contains('mobile-open')) {
           sidebar.classList.remove('mobile-open');
-          backdrop.classList.remove('open');
+          if (backdrop) backdrop.classList.remove('open');
         }
 
         handleSidebarAction(btn.getAttribute('data-target'));
@@ -1989,7 +1997,8 @@
 
     // 5. Top Center Navigation Tabs (EXPLORE, REGISTER, ANALYZE, DATASET)
     document.querySelectorAll('.nav-link-btn').forEach(tab => {
-      tab.addEventListener('click', () => {
+      tab.addEventListener('click', (e) => {
+        e.preventDefault();
         document.querySelectorAll('.nav-link-btn').forEach(t => {
           t.classList.remove('active');
           t.setAttribute('aria-selected', 'false');
@@ -2002,12 +2011,14 @@
 
     // 6. Search Bar
     const searchInput = document.getElementById('search-crater-input');
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const query = searchInput.value.trim().toLowerCase();
-        handleSearch(query);
-      }
-    });
+    if (searchInput) {
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const query = searchInput.value.trim().toLowerCase();
+          handleSearch(query);
+        }
+      });
+    }
 
     // 7. Map Style Select Control
     const styleSelect = document.getElementById('map-style-select');
@@ -2198,23 +2209,26 @@
     if (exportTiepointsBtn) exportTiepointsBtn.addEventListener('click', () => openModal('tiepoints'));
 
     // Canvas Mouse Click & Drag
-    container.addEventListener('mousedown', (e) => {
-      if (e.button === 0) {
-        if (state.activeTool === 'select') {
-          handleSelectLocationClick(e);
-        } else if (state.activeTool === 'measure') {
-          handleMeasureClick(e);
-        } else if (state.activeTool === 'probe') {
-          handleProbeClick(e);
-        } else {
-          state.isDragging = true;
-          state.dragStartX = e.clientX - state.panX;
-          state.dragStartY = e.clientY - state.panY;
+    if (container) {
+      container.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+          if (state.activeTool === 'select') {
+            handleSelectLocationClick(e);
+          } else if (state.activeTool === 'measure') {
+            handleMeasureClick(e);
+          } else if (state.activeTool === 'probe') {
+            handleProbeClick(e);
+          } else {
+            state.isDragging = true;
+            state.dragStartX = e.clientX - state.panX;
+            state.dragStartY = e.clientY - state.panY;
+          }
         }
-      }
-    });
+      });
+    }
 
     window.addEventListener('mousemove', (e) => {
+      if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -2244,76 +2258,81 @@
     });
 
     // Wheel Zoom
-    container.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-
-      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-      const newZoom = Math.max(0.6, Math.min(8.0, state.zoom * zoomFactor));
-
-      state.panX = mouseX - (mouseX - state.panX) * (newZoom / state.zoom);
-      state.panY = mouseY - (mouseY - state.panY) * (newZoom / state.zoom);
-      state.zoom = newZoom;
-
-      updateScaleBar();
-      draw();
-    }, { passive: false });
-
-    // Touch Events for Mobile / Tablet (Single-Finger Pan & Two-Finger Pinch Zoom)
-    let touchStartDist = 0;
-    let initialTouchZoom = 1.0;
-
-    container.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        const t = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-        updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
-        state.isDragging = true;
-        state.dragStartX = t.clientX - state.panX;
-        state.dragStartY = t.clientY - state.panY;
-      } else if (e.touches.length === 2) {
-        state.isDragging = false;
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        touchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        initialTouchZoom = state.zoom;
-      }
-    }, { passive: false });
-
-    container.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 1 && state.isDragging) {
+    if (container) {
+      container.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const t = e.touches[0];
-        state.panX = t.clientX - state.dragStartX;
-        state.panY = t.clientY - state.dragStartY;
+        if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
-        updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
-        draw();
-      } else if (e.touches.length === 2 && touchStartDist > 0) {
-        e.preventDefault();
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        const curDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        state.zoom = Math.max(0.6, Math.min(8.0, initialTouchZoom * (curDist / touchStartDist)));
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+        const newZoom = Math.max(0.6, Math.min(8.0, state.zoom * zoomFactor));
+
+        state.panX = mouseX - (mouseX - state.panX) * (newZoom / state.zoom);
+        state.panY = mouseY - (mouseY - state.panY) * (newZoom / state.zoom);
+        state.zoom = newZoom;
+
         updateScaleBar();
         draw();
-      }
-    }, { passive: false });
+      }, { passive: false });
 
-    container.addEventListener('touchend', (e) => {
-      if (e.touches.length === 0) {
-        state.isDragging = false;
-        touchStartDist = 0;
-      } else if (e.touches.length === 1) {
-        const t = e.touches[0];
-        state.isDragging = true;
-        state.dragStartX = t.clientX - state.panX;
-        state.dragStartY = t.clientY - state.panY;
-        touchStartDist = 0;
-      }
-    });
+      // Touch Events for Mobile / Tablet (Single-Finger Pan & Two-Finger Pinch Zoom)
+      let touchStartDist = 0;
+      let initialTouchZoom = 1.0;
+
+      container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          const t = e.touches[0];
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
+          state.isDragging = true;
+          state.dragStartX = t.clientX - state.panX;
+          state.dragStartY = t.clientY - state.panY;
+        } else if (e.touches.length === 2) {
+          state.isDragging = false;
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          touchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          initialTouchZoom = state.zoom;
+        }
+      }, { passive: false });
+
+      container.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && state.isDragging) {
+          e.preventDefault();
+          const t = e.touches[0];
+          state.panX = t.clientX - state.dragStartX;
+          state.panY = t.clientY - state.dragStartY;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
+          draw();
+        } else if (e.touches.length === 2 && touchStartDist > 0) {
+          e.preventDefault();
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          const curDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          state.zoom = Math.max(0.6, Math.min(8.0, initialTouchZoom * (curDist / touchStartDist)));
+          updateScaleBar();
+          draw();
+        }
+      }, { passive: false });
+
+      container.addEventListener('touchend', (e) => {
+        if (e.touches.length === 0) {
+          state.isDragging = false;
+          touchStartDist = 0;
+        } else if (e.touches.length === 1) {
+          const t = e.touches[0];
+          state.isDragging = true;
+          state.dragStartX = t.clientX - state.panX;
+          state.dragStartY = t.clientY - state.panY;
+          touchStartDist = 0;
+        }
+      });
+    }
 
     // Split Line Mouse & Touch Dragging
     const splitLine = document.getElementById('split-line');
