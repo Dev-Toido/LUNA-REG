@@ -301,32 +301,31 @@
   // --- INITIALIZATION ---
   let canvas, ctx, histCanvas, histCtx;
 
-  async function init() {
-  const api = window.LUNAR_API || window.apiService;
-  const pairSelect = document.getElementById('pair-select');
-  if (pairSelect && api) {
-    try {
-      const pairs = await api.getPairs();
-      pairSelect.innerHTML = '<option value="">-- Select an existing Pair --</option>';
-      pairs.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = `Pair #${p.id}: ${p.source_instrument} + ${p.reference_instrument} (${p.overlap_status})`;
-        pairSelect.appendChild(opt);
+  function init() {
+    const api = window.LUNAR_API || window.apiService;
+    const pairSelect = document.getElementById('pair-select');
+    if (pairSelect && api) {
+      api.getPairs().then(pairs => {
+        pairSelect.innerHTML = '<option value="">-- Select an existing Pair --</option>';
+        (pairs || []).forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `Pair #${p.id}: ${p.source_instrument} + ${p.reference_instrument} (${p.overlap_status})`;
+          pairSelect.appendChild(opt);
+        });
+      }).catch(() => {
+        pairSelect.innerHTML = '<option value="">Failed to load pairs</option>';
       });
-    } catch (err) {
-      pairSelect.innerHTML = '<option value="">Failed to load pairs</option>';
     }
-  }
 
-    setupCanvases();
-    generateMatchPoints();
-    loadAssets();
-    setupEvents();
-    renderHistogram();
-    checkInitialBackendHealth();
-    setupResultsViewer();
-    setupHistoryEvents();
+    try { setupCanvases(); } catch(e) { console.warn('setupCanvases:', e); }
+    try { generateMatchPoints(); } catch(e) { console.warn('generateMatchPoints:', e); }
+    try { loadAssets(); } catch(e) { console.warn('loadAssets:', e); }
+    try { setupEvents(); } catch(e) { console.warn('setupEvents:', e); }
+    try { renderHistogram(); } catch(e) { console.warn('renderHistogram:', e); }
+    try { checkInitialBackendHealth(); } catch(e) { console.warn('checkInitialBackendHealth:', e); }
+    try { setupResultsViewer(); } catch(e) { console.warn('setupResultsViewer:', e); }
+    try { setupHistoryEvents(); } catch(e) { console.warn('setupHistoryEvents:', e); }
 
     window.addEventListener('hashchange', handleRouteHash);
     if (window.location.hash && window.location.hash.length > 1) {
@@ -3111,6 +3110,35 @@
       b.classList.toggle('active', match);
     });
   }
+
+  // Globally expose view switcher early & connect transition hook
+  window.switchView = switchAppView;
+  window.__appOnViewSwitch = function(targetView) {
+    try {
+      if (targetView === 'explorer') {
+        resizeCanvases();
+        draw();
+      } else if (targetView === 'results') {
+        syncResultsImagery();
+        resizeResultsCanvas();
+        drawResultsCanvas();
+      } else if (targetView === 'history') {
+        loadRegistrationHistory();
+      } else if (targetView === 'dashboard') {
+        if (window.dashboardPage && typeof window.dashboardPage.refreshTelemetry === 'function') {
+          window.dashboardPage.refreshTelemetry();
+        }
+      } else if (targetView === 'dataset') {
+        initDatasetCatalogView();
+      } else if (targetView === 'new-reg') {
+        if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
+          window.registrationPreparationPage.init();
+        }
+      }
+    } catch(e) {
+      console.warn('__appOnViewSwitch error:', e);
+    }
+  };
 
   function handleRouteHash() {
     const rawHash = window.location.hash || '';

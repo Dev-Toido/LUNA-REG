@@ -5,7 +5,132 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LUNA-REG — Lunar Terrain Explorer — Map & GIS</title>
   <meta name="description" content="LUNA-REG: Professional Lunar Terrain Explorer and multi-modal image registration GIS platform for Chandrayaan-2 planetary data.">
-  <link rel="stylesheet" href="frontend/css/style.css">
+  <link rel="stylesheet" href="frontend/css/style.css?v=2.5.0">
+  <script>
+    (function() {
+      var viewMap = {
+        'dashboard': 'view-dashboard',
+        'explorer': 'map-workspace',
+        'new-reg': 'view-new-registration',
+        'processing': 'view-processing',
+        'results': 'view-registration-results',
+        'history': 'view-registration-history',
+        'analysis': 'view-analysis-tools',
+        'dataset': 'view-dataset',
+        'about': 'view-about'
+      };
+      var hashMap = {
+        'dashboard': '#/dashboard',
+        'explorer': '#/lunar-map',
+        'new-reg': '#/new-registration',
+        'processing': '#/processing',
+        'results': '#/results',
+        'history': '#/history',
+        'analysis': '#/analysis-tools',
+        'dataset': '#/dataset',
+        'about': '#/about'
+      };
+      var navKeyMap = {
+        'dashboard': 'dashboard',
+        'explorer': 'explore',
+        'new-reg': 'register',
+        'processing': 'register',
+        'results': 'results',
+        'analysis': 'analysis',
+        'dataset': 'dataset',
+        'about': 'about'
+      };
+
+      window.switchView = function(viewKey, updateHash) {
+        if (updateHash === undefined) updateHash = true;
+        if (!viewMap[viewKey]) viewKey = 'dashboard';
+
+        // 1. Hide all views and display target
+        Object.keys(viewMap).forEach(function(k) {
+          var el = document.getElementById(viewMap[k]);
+          if (el) el.style.display = (k === viewKey) ? 'flex' : 'none';
+        });
+
+        // 2. Right panel toggle for GIS map
+        var rightPanel = document.getElementById('right-info-panel');
+        if (rightPanel) {
+          rightPanel.style.display = (viewKey === 'explorer') ? 'flex' : 'none';
+        }
+
+        // 3. Highlight top nav buttons
+        var targetNav = navKeyMap[viewKey];
+        document.querySelectorAll('.nav-link-btn').forEach(function(b) {
+          var isAct = b.getAttribute('data-nav') === targetNav;
+          b.classList.toggle('active', isAct);
+          b.setAttribute('aria-selected', String(isAct));
+        });
+
+        // 4. Highlight sidebar nav buttons
+        document.querySelectorAll('.sidebar-nav-btn').forEach(function(b) {
+          var st = b.getAttribute('data-target');
+          var isAct = (st === viewKey) ||
+                      (viewKey === 'dashboard' && (st === 'dashboard' || st === 'overview')) ||
+                      (viewKey === 'explorer' && (st === 'explorer' || st === 'layers'));
+          b.classList.toggle('active', isAct);
+        });
+
+        // 5. Highlight mobile bottom nav
+        document.querySelectorAll('.mob-nav-btn').forEach(function(b) {
+          var isAct = ((viewKey === 'new-reg' || viewKey === 'processing') && b.id === 'mob-btn-new-reg') ||
+                      (viewKey === 'results' && b.id === 'mob-btn-results') ||
+                      (viewKey === 'history' && b.id === 'mob-btn-history') ||
+                      ((viewKey === 'explorer' || viewKey === 'dashboard') && b.id === 'mob-btn-explorer');
+          b.classList.toggle('active', isAct);
+        });
+
+        // 6. Synchronize Hash
+        if (updateHash && hashMap[viewKey]) {
+          try {
+            if (window.location.hash !== hashMap[viewKey]) {
+              history.replaceState(null, '', hashMap[viewKey]);
+            }
+          } catch(e) {
+            window.location.hash = hashMap[viewKey];
+          }
+        }
+
+        // 7. Invoke app.js lifecycle hook if available
+        if (window.__appOnViewSwitch && typeof window.__appOnViewSwitch === 'function') {
+          try { window.__appOnViewSwitch(viewKey); } catch(e) { console.warn(e); }
+        }
+      };
+
+      function routeFromHash() {
+        var h = (window.location.hash || '').split('?')[0].replace(/\/$/, '');
+        if (h === '#/lunar-map' || h === '#/explorer' || h === '#/map') {
+          window.switchView('explorer', false);
+        } else if (h === '#/new-registration' || h === '#/new-reg' || h === '#/register') {
+          window.switchView('new-reg', false);
+        } else if (h.startsWith('#/results')) {
+          window.switchView('results', false);
+        } else if (h.startsWith('#/processing')) {
+          window.switchView('processing', false);
+        } else if (h === '#/analysis-tools' || h === '#/analysis') {
+          window.switchView('analysis', false);
+        } else if (h === '#/dataset' || h === '#/pairs' || h === '#/products') {
+          window.switchView('dataset', false);
+        } else if (h === '#/history') {
+          window.switchView('history', false);
+        } else if (h === '#/about') {
+          window.switchView('about', false);
+        } else {
+          window.switchView('dashboard', false);
+        }
+      }
+
+      window.addEventListener('hashchange', routeFromHash);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', routeFromHash);
+      } else {
+        routeFromHash();
+      }
+    })();
+  </script>
 </head>
 <body>
   <!-- Accessible Skip Navigation Link for Screen Readers and Keyboard Traversal -->
@@ -41,13 +166,13 @@
 
       <!-- Center Navigation Tabs -->
       <nav class="nav-center" aria-label="Primary Mission Views" role="tablist">
-        <button class="nav-link-btn active" data-nav="dashboard" id="nav-dashboard" role="tab" aria-selected="true" aria-controls="view-dashboard">DASHBOARD</button>
-        <button class="nav-link-btn" data-nav="explore" id="nav-explore" role="tab" aria-selected="false" aria-controls="map-workspace">LUNAR MAP</button>
-        <button class="nav-link-btn" data-nav="register" id="nav-register" role="tab" aria-selected="false" aria-controls="view-new-registration">REGISTER</button>
-        <button class="nav-link-btn" data-nav="results" id="nav-results" role="tab" aria-selected="false" aria-controls="view-registration-results">RESULTS</button>
-        <button class="nav-link-btn" data-nav="analysis" id="nav-analysis" role="tab" aria-selected="false" aria-controls="view-analysis-tools">ANALYSIS</button>
-        <button class="nav-link-btn" data-nav="dataset" id="nav-dataset" role="tab" aria-selected="false" aria-controls="view-dataset">DATASET</button>
-        <button class="nav-link-btn" data-nav="about" id="nav-about" role="tab" aria-selected="false" aria-controls="view-about">ABOUT</button>
+        <button class="nav-link-btn active" data-nav="dashboard" id="nav-dashboard" role="tab" aria-selected="true" aria-controls="view-dashboard" onclick="window.switchView('dashboard')">DASHBOARD</button>
+        <button class="nav-link-btn" data-nav="explore" id="nav-explore" role="tab" aria-selected="false" aria-controls="map-workspace" onclick="window.switchView('explorer')">LUNAR MAP</button>
+        <button class="nav-link-btn" data-nav="register" id="nav-register" role="tab" aria-selected="false" aria-controls="view-new-registration" onclick="window.switchView('new-reg')">REGISTER</button>
+        <button class="nav-link-btn" data-nav="results" id="nav-results" role="tab" aria-selected="false" aria-controls="view-registration-results" onclick="window.switchView('results')">RESULTS</button>
+        <button class="nav-link-btn" data-nav="analysis" id="nav-analysis" role="tab" aria-selected="false" aria-controls="view-analysis-tools" onclick="window.switchView('analysis')">ANALYSIS</button>
+        <button class="nav-link-btn" data-nav="dataset" id="nav-dataset" role="tab" aria-selected="false" aria-controls="view-dataset" onclick="window.switchView('dataset')">DATASET</button>
+        <button class="nav-link-btn" data-nav="about" id="nav-about" role="tab" aria-selected="false" aria-controls="view-about" onclick="window.switchView('about')">ABOUT</button>
       </nav>
 
       <!-- Right Navigation Tools & Branding -->
@@ -114,7 +239,7 @@
         <ul class="sidebar-nav-list">
           
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn active" data-target="dashboard" id="side-dashboard">
+            <button class="sidebar-nav-btn active" data-target="dashboard" id="side-dashboard" onclick="window.switchView('dashboard')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <rect x="3" y="3" width="7" height="7"></rect>
@@ -128,7 +253,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="explorer" id="side-explorer">
+            <button class="sidebar-nav-btn" data-target="explorer" id="side-explorer" onclick="window.switchView('explorer')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="9"></circle>
@@ -143,7 +268,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="new-reg" id="side-new-reg">
+            <button class="sidebar-nav-btn" data-target="new-reg" id="side-new-reg" onclick="window.switchView('new-reg')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="4"></circle>
@@ -158,7 +283,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="results" id="side-results">
+            <button class="sidebar-nav-btn" data-target="results" id="side-results" onclick="window.switchView('results')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
@@ -169,7 +294,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="history" id="side-history">
+            <button class="sidebar-nav-btn" data-target="history" id="side-history" onclick="window.switchView('history')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10"></circle>
@@ -181,7 +306,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="layers" id="side-layers">
+            <button class="sidebar-nav-btn" data-target="layers" id="side-layers" onclick="window.switchView('explorer')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
@@ -194,7 +319,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="analysis" id="side-analysis">
+            <button class="sidebar-nav-btn" data-target="analysis" id="side-analysis" onclick="window.switchView('analysis')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
@@ -205,7 +330,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="dataset" id="side-dataset">
+            <button class="sidebar-nav-btn" data-target="dataset" id="side-dataset" onclick="window.switchView('dataset')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
@@ -218,7 +343,7 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="about" id="side-about">
+            <button class="sidebar-nav-btn" data-target="about" id="side-about" onclick="window.switchView('about')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10"></circle>
@@ -245,7 +370,7 @@
       <!-- ========================================================================
            DASHBOARD VIEW (Mission Overview, Telemetry & Rapid Workflows)
            ======================================================================== -->
-      <section class="page-dashboard" id="view-dashboard" aria-label="Mission Dashboard Workspace" style="display: none;">
+      <section class="page-dashboard" id="view-dashboard" aria-label="Mission Dashboard Workspace">
         <!-- Header -->
         <div class="dash-page-header">
           <div class="dash-header-title-area">
@@ -254,11 +379,11 @@
             <p class="dash-page-subtitle">Chandrayaan-2 Planetary Multi-Modal Registration &amp; Telemetry Overview</p>
           </div>
           <div class="dash-header-actions">
-            <button class="btn-tech primary" id="btn-dash-quick-reg">
+            <button class="btn-tech primary" id="btn-dash-quick-reg" onclick="window.switchView('new-reg')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               <span>NEW REGISTRATION</span>
             </button>
-            <button class="btn-tech" id="btn-dash-open-map">
+            <button class="btn-tech" id="btn-dash-open-map" onclick="window.switchView('explorer')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg>
               <span>EXPLORE MAP</span>
             </button>
@@ -368,7 +493,7 @@
               <h3 style="margin:0; font-size:13px; font-weight:700; letter-spacing:1px; color:var(--text-bright);">AVAILABLE REGISTRATION PAIRS</h3>
               <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">Browse source and reference image combinations prepared for lunar registration from backend catalog.</p>
             </div>
-            <button type="button" class="btn-tech-sm" id="btn-dash-view-all-pairs" title="View full Pairs catalog">
+            <button type="button" class="btn-tech-sm" id="btn-dash-view-all-pairs" title="View full Pairs catalog" onclick="window.switchView('dataset')">
               <span>VIEW ALL PAIRS &rarr;</span>
             </button>
           </div>
@@ -381,7 +506,7 @@
             <h3>PLATFORM WORKSPACES</h3>
           </div>
           <div class="dash-workspaces-grid">
-            <div class="dash-workspace-tile" id="dash-tile-map" role="button" tabindex="0">
+            <div class="dash-workspace-tile" id="dash-tile-map" role="button" tabindex="0" onclick="window.switchView('explorer')">
               <div class="tile-top">
                 <div class="tile-badge">GIS CANVAS</div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg>
@@ -391,7 +516,7 @@
               <span class="tile-action">OPEN MAP &rarr;</span>
             </div>
 
-            <div class="dash-workspace-tile" id="dash-tile-newreg" role="button" tabindex="0">
+            <div class="dash-workspace-tile" id="dash-tile-newreg" role="button" tabindex="0" onclick="window.switchView('new-reg')">
               <div class="tile-top">
                 <div class="tile-badge gold">CORE PIPELINE</div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
@@ -401,7 +526,7 @@
               <span class="tile-action">START REGISTRATION &rarr;</span>
             </div>
 
-            <div class="dash-workspace-tile" id="dash-tile-results" role="button" tabindex="0">
+            <div class="dash-workspace-tile" id="dash-tile-results" role="button" tabindex="0" onclick="window.switchView('results')">
               <div class="tile-top">
                 <div class="tile-badge">COMPARISON</div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -411,7 +536,7 @@
               <span class="tile-action">VIEW RESULTS &rarr;</span>
             </div>
 
-            <div class="dash-workspace-tile" id="dash-tile-history" role="button" tabindex="0">
+            <div class="dash-workspace-tile" id="dash-tile-history" role="button" tabindex="0" onclick="window.switchView('history')">
               <div class="tile-top">
                 <div class="tile-badge">RECORDS</div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -421,7 +546,7 @@
               <span class="tile-action">EXPLORE HISTORY &rarr;</span>
             </div>
 
-            <div class="dash-workspace-tile" id="dash-tile-analysis" role="button" tabindex="0">
+            <div class="dash-workspace-tile" id="dash-tile-analysis" role="button" tabindex="0" onclick="window.switchView('analysis')">
               <div class="tile-top">
                 <div class="tile-badge">ANALYTICS</div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -431,7 +556,7 @@
               <span class="tile-action">LAUNCH TOOLS &rarr;</span>
             </div>
 
-            <div class="dash-workspace-tile" id="dash-tile-dataset" role="button" tabindex="0">
+            <div class="dash-workspace-tile" id="dash-tile-dataset" role="button" tabindex="0" onclick="window.switchView('dataset')">
               <div class="tile-top">
                 <div class="tile-badge">ARCHIVES</div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
@@ -447,7 +572,7 @@
       <!-- ========================================================================
            3. MAIN MAP WORKSPACE (VISUAL HERO — LUNAR TERRAIN EXPLORER)
            ======================================================================== -->
-      <main class="main-map-workspace" id="map-workspace" aria-label="Lunar GIS Canvas Viewport">
+      <main class="main-map-workspace" id="map-workspace" aria-label="Lunar GIS Canvas Viewport" style="display: none;">
         
         <!-- Canvas Render Container -->
         <div class="map-canvas-container" id="map-container">
@@ -816,7 +941,7 @@
               <span>RESET STATE</span>
             </button>
 
-            <button class="btn-tech" id="btn-back-to-explorer" title="Return to Lunar Terrain Explorer">
+            <button class="btn-tech" id="btn-back-to-explorer" title="Return to Lunar Terrain Explorer" onclick="window.switchView('explorer')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
@@ -1709,11 +1834,11 @@
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span>DOWNLOAD REPORT</span>
             </button>
-            <button class="btn-tech" id="btn-results-new-reg" title="Configure and run a new image registration">
+            <button class="btn-tech" id="btn-results-new-reg" title="Configure and run a new image registration" onclick="window.switchView('new-reg')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               <span>NEW REGISTRATION</span>
             </button>
-            <button class="btn-tech" id="btn-results-back-explorer" title="Return to Lunar Terrain Explorer">
+            <button class="btn-tech" id="btn-results-back-explorer" title="Return to Lunar Terrain Explorer" onclick="window.switchView('explorer')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
               <span>BACK TO EXPLORER</span>
             </button>
@@ -2202,7 +2327,7 @@
       <!-- ========================================================================
            5. RIGHT INFORMATION PANEL (Collapsible Lunar Terrain Data / Mobile Bottom Sheet)
            ======================================================================== -->
-      <aside class="right-info-panel" id="right-info-panel" aria-label="Lunar Terrain Data">
+      <aside class="right-info-panel" id="right-info-panel" aria-label="Lunar Terrain Data" style="display: none;">
         <!-- Mobile Bottom-Sheet Pull Handle -->
         <div class="sheet-drag-handle-bar" id="sheet-drag-handle" title="Tap or drag to expand Lunar Terrain Data">
           <div class="sheet-handle-pill"></div>
@@ -2327,7 +2452,7 @@
          MOBILE BOTTOM NAVIGATION & SHEET CONTROLS (Map-First Experience)
          ======================================================================== -->
     <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Mobile Navigation">
-      <button class="mob-nav-btn active" data-view="explorer" id="mob-btn-explorer" title="Lunar Map View">
+      <button class="mob-nav-btn active" data-view="explorer" id="mob-btn-explorer" title="Lunar Map View" onclick="window.switchView('explorer')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
         <span>MAP</span>
       </button>
@@ -2335,15 +2460,15 @@
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
         <span>TERRAIN</span>
       </button>
-      <button class="mob-nav-btn" data-view="new-reg" id="mob-btn-new-reg" title="New Image Registration">
+      <button class="mob-nav-btn" data-view="new-reg" id="mob-btn-new-reg" title="New Image Registration" onclick="window.switchView('new-reg')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         <span>REGISTER</span>
       </button>
-      <button class="mob-nav-btn" data-view="results" id="mob-btn-results" title="Registration Comparison Viewer">
+      <button class="mob-nav-btn" data-view="results" id="mob-btn-results" title="Registration Comparison Viewer" onclick="window.switchView('results')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <span>RESULTS</span>
       </button>
-      <button class="mob-nav-btn" data-view="history" id="mob-btn-history" title="Registration Job History">
+      <button class="mob-nav-btn" data-view="history" id="mob-btn-history" title="Registration Job History" onclick="window.switchView('history')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>HISTORY</span>
       </button>
@@ -2364,32 +2489,32 @@
   </div>
 
   <!-- Modular API Service Layer -->
-  <script src="frontend/src/services/api.js"></script>
-  <script src="frontend/src/services/systemService.js"></script>
-  <script src="frontend/src/services/regionService.js"></script>
-  <script src="frontend/src/services/productService.js"></script>
-  <script src="frontend/src/services/pairService.js"></script>
+  <script src="frontend/src/services/api.js?v=2.5.0"></script>
+  <script src="frontend/src/services/systemService.js?v=2.5.0"></script>
+  <script src="frontend/src/services/regionService.js?v=2.5.0"></script>
+  <script src="frontend/src/services/productService.js?v=2.5.0"></script>
+  <script src="frontend/src/services/pairService.js?v=2.5.0"></script>
 
   <!-- Canonical UI Components -->
-  <script src="frontend/src/components/StatusBadge.js"></script>
-  <script src="frontend/src/components/EmptyState.js"></script>
-  <script src="frontend/src/components/LoadingState.js"></script>
-  <script src="frontend/src/components/ErrorState.js"></script>
-  <script src="frontend/src/components/FilterBar.js"></script>
-  <script src="frontend/src/components/ProductCard.js"></script>
-  <script src="frontend/src/components/ProductTable.js"></script>
-  <script src="frontend/src/components/PairCard.js"></script>
-  <script src="frontend/src/components/PairTable.js"></script>
-  <script src="frontend/src/components/MetadataPanel.js"></script>
-  <script src="frontend/src/components/RegistrationInputPanel.js"></script>
+  <script src="frontend/src/components/StatusBadge.js?v=2.5.0"></script>
+  <script src="frontend/src/components/EmptyState.js?v=2.5.0"></script>
+  <script src="frontend/src/components/LoadingState.js?v=2.5.0"></script>
+  <script src="frontend/src/components/ErrorState.js?v=2.5.0"></script>
+  <script src="frontend/src/components/FilterBar.js?v=2.5.0"></script>
+  <script src="frontend/src/components/ProductCard.js?v=2.5.0"></script>
+  <script src="frontend/src/components/ProductTable.js?v=2.5.0"></script>
+  <script src="frontend/src/components/PairCard.js?v=2.5.0"></script>
+  <script src="frontend/src/components/PairTable.js?v=2.5.0"></script>
+  <script src="frontend/src/components/MetadataPanel.js?v=2.5.0"></script>
+  <script src="frontend/src/components/RegistrationInputPanel.js?v=2.5.0"></script>
 
   <!-- Page Controllers -->
-  <script src="frontend/src/pages/DashboardPage.js"></script>
-  <script src="frontend/src/pages/ProductsPage.js"></script>
-  <script src="frontend/src/pages/PairsPage.js"></script>
-  <script src="frontend/src/pages/RegistrationPreparationPage.js"></script>
+  <script src="frontend/src/pages/DashboardPage.js?v=2.5.0"></script>
+  <script src="frontend/src/pages/ProductsPage.js?v=2.5.0"></script>
+  <script src="frontend/src/pages/PairsPage.js?v=2.5.0"></script>
+  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.5.0"></script>
 
   <!-- Main Application Controller -->
-  <script src="frontend/js/app.js"></script>
+  <script src="frontend/js/app.js?v=2.5.0"></script>
 </body>
 </html>
