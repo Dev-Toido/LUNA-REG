@@ -307,6 +307,26 @@
                 <span class="dash-card-sub" id="dash-backend-status-sub">FastAPI Service Status</span>
               </div>
             </div>
+            <div class="dash-metric-card" id="dash-card-regions" role="button" tabindex="0" title="View canonical target regions">
+              <div class="dash-card-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+              </div>
+              <div class="dash-card-info">
+                <span class="dash-card-label">TARGET REGIONS</span>
+                <span class="dash-card-val"><span id="dash-metric-regions-count">--</span> REGIONS</span>
+                <span class="dash-card-sub">Lunar Landing &amp; Polar ROIs</span>
+              </div>
+            </div>
+            <div class="dash-metric-card" id="dash-card-unverified" role="button" tabindex="0" title="Unverified overlap pairs">
+              <div class="dash-card-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div class="dash-card-info">
+                <span class="dash-card-label">UNVERIFIED PAIRS</span>
+                <span class="dash-card-val"><span id="dash-metric-unverified-count">--</span> PAIRS</span>
+                <span class="dash-card-sub" style="color: var(--warning);">Pending Footprint Check</span>
+              </div>
+            </div>
           </div>
 
           <!-- SYSTEM STATUS AREA -->
@@ -339,6 +359,20 @@
                 <span class="sys-cell-val col-mono" id="sys-status-env">--</span>
               </div>
             </div>
+          </div>
+
+          <!-- AVAILABLE REGISTRATION PAIRS SECTION -->
+          <div class="dash-section-header" style="margin-top: 24px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h3 style="margin:0; font-size:13px; font-weight:700; letter-spacing:1px; color:var(--text-bright);">AVAILABLE REGISTRATION PAIRS</h3>
+              <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">Browse source and reference image combinations prepared for lunar registration from backend catalog.</p>
+            </div>
+            <button type="button" class="btn-tech-sm" id="btn-dash-view-all-pairs" title="View full Pairs catalog">
+              <span>VIEW ALL PAIRS &rarr;</span>
+            </button>
+          </div>
+          <div class="dash-available-pairs-card" id="dash-available-pairs-container">
+            <div class="dash-empty-pairs-hint">Loading available registration pairs...</div>
           </div>
 
           <!-- Quick Navigation Cards Grid -->
@@ -831,25 +865,55 @@
         <!-- Registration Content Scroll Area -->
         <div class="reg-content-scroll">
           
-          <!-- Canonical Pair Staging Bar -->
-          <div class="reg-source-toggle-bar">
-            <div class="reg-source-info">
-              <span class="reg-source-pill">INPUT SOURCE</span>
-              <span class="reg-source-text">Upload raw local satellite imagery or stage verified canonical pairs from the database catalog.</span>
+          <!-- REGISTRATION SOURCE Segmented Control (Default: DATABASE PAIR) -->
+          <div class="reg-source-selector-bar">
+            <div class="reg-source-selector-title">
+              <span class="reg-source-pill">REGISTRATION SOURCE</span>
+              <span class="reg-source-subtitle">Select database-cataloged pair combination or upload custom raw raster files.</span>
             </div>
-            <div class="reg-source-actions">
-              <button type="button" class="btn-tech primary" id="btn-load-canonical-pair" title="Browse and stage verified canonical image pairs from backend catalog">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-                <span>LOAD CANONICAL PAIR</span>
+            <div class="reg-source-segmented-control" role="tablist" aria-label="Registration Source Mode">
+              <button type="button" class="source-seg-btn active" id="btn-source-db-pair" role="tab" aria-selected="true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                <span>DATABASE PAIR</span>
+              </button>
+              <button type="button" class="source-seg-btn" id="btn-source-manual-upload" role="tab" aria-selected="false">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>MANUAL UPLOAD</span>
               </button>
             </div>
           </div>
 
-          <!-- Staged Canonical Pair Details Container (Injected when a pair is staged) -->
-          <div id="registration-input-container" style="display:none; margin-bottom: 20px;"></div>
+          <!-- MODE 1: DATABASE PAIR WORKSPACE (Default Active Mode) -->
+          <div id="reg-mode-db-pair-container" class="reg-mode-panel">
+            <div class="reg-db-pair-toolbar">
+              <div class="db-pair-select-group">
+                <label for="reg-db-pair-select" class="db-pair-label">SELECT LUNAR PAIR:</label>
+                <div class="db-pair-select-wrap">
+                  <select id="reg-db-pair-select" class="reg-pair-select" aria-label="Select Pair Combination">
+                    <option value="">Loading available pairs from backend...</option>
+                  </select>
+                </div>
+              </div>
+              <div class="db-pair-toolbar-actions">
+                <button type="button" class="btn-tech-sm" id="btn-refresh-reg-pairs" title="Refresh available pairs from backend">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                  <span>REFRESH</span>
+                </button>
+                <button type="button" class="btn-tech-sm" id="btn-browse-pairs-picker" title="Browse catalog modal">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  <span>BROWSE CATALOG</span>
+                </button>
+              </div>
+            </div>
 
-          <!-- Image Upload Cards Grid -->
-          <div class="reg-cards-grid">
+            <!-- Staged Canonical Registration Input Container -->
+            <div id="registration-input-container" style="margin-top: 16px;"></div>
+          </div>
+
+          <!-- MODE 2: MANUAL UPLOAD WORKSPACE (Preserved Dual Raster Flow) -->
+          <div id="reg-mode-manual-container" class="reg-mode-panel" style="display:none;">
+            <!-- Image Upload Cards Grid -->
+            <div class="reg-cards-grid">
             
             <!-- REFERENCE IMAGE CARD -->
             <div class="reg-image-card" id="card-ref">
@@ -1303,6 +1367,7 @@
               </div>
             </div>
           </div>
+          </div> <!-- Close reg-mode-manual-container -->
 
           <!-- PRIMARY ACTION & PIPELINE MONITOR SECTION -->
           <div class="reg-action-panel">

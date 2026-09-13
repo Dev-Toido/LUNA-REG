@@ -3,123 +3,120 @@
  * Canonical Image Pairs & Registration Input Service
  * 
  * Interacts with:
- * - GET  /api/v1/pairs (with optional query: source_instrument, reference_instrument, overlap_status, region_id)
- * - GET  /api/v1/pairs/{pair_id}
- * - GET  /api/v1/pairs/{pair_id}/registration-input
- * - POST /api/v1/pairs/{pair_id}/registration-jobs (when backend supports it)
- * - GET  /api/v1/registration-jobs/{job_id}
+ * - GET /api/v1/pairs (filters: source_instrument, reference_instrument, overlap_status, region_id)
+ * - GET /api/v1/pairs/{pair_id}
+ * - GET /api/v1/pairs/{pair_id}/registration-input
+ * 
+ * Pair Model:
+ * id, region_id (nullable), source_product_id, reference_product_id,
+ * source_instrument, reference_instrument, overlap_status, overlap_area,
+ * overlap_ratio, verification_method, evidence_source, verification_notes,
+ * overlap_geometry_json, created_at
  */
 
 class PairService {
-  constructor(api = null) {
-    this.api = api || (typeof window !== 'undefined' ? window.apiService : null);
+  constructor(client = null) {
+    this.client = client || (typeof window !== 'undefined' ? window.apiClient : null);
   }
 
-  getApi() {
-    if (!this.api && typeof window !== 'undefined') {
-      this.api = window.apiService;
+  getClient() {
+    if (!this.client && typeof window !== 'undefined') {
+      this.client = window.apiClient || window.apiService;
     }
-    return this.api;
+    return this.client;
   }
 
   /**
-   * List all canonical lunar image pairs with optional filters
+   * List all canonical lunar image pairs with optional dynamic filters: GET /api/v1/pairs
+   * Supported filters: source_instrument, reference_instrument, overlap_status, region_id
    * @param {Object} [filters] - { source_instrument, reference_instrument, overlap_status, region_id }
+   * @param {Object} [options] - Request options (e.g. signal, timeoutMs)
    * @returns {Promise<Array<Object>>}
    */
-  async listPairs(filters = {}) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    return await api.get('/pairs', filters);
+  async getPairs(filters = {}, options = {}) {
+    const client = this.getClient();
+    if (!client) throw new Error('API client unavailable.');
+
+    const queryParams = {};
+    if (filters) {
+      if (filters.source_instrument) queryParams.source_instrument = filters.source_instrument;
+      if (filters.reference_instrument) queryParams.reference_instrument = filters.reference_instrument;
+      if (filters.overlap_status) queryParams.overlap_status = filters.overlap_status;
+      if (filters.region_id !== undefined && filters.region_id !== null && filters.region_id !== '') {
+        queryParams.region_id = filters.region_id;
+      }
+    }
+
+    return await client.get('/pairs', queryParams, options);
   }
 
   /**
-   * Get single pair by integer ID
-   * @param {number|string} pairId
-   * @returns {Promise<Object>}
-   */
-  async getPair(pairId) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    if (!pairId) throw new Error('Pair ID required.');
-    return await api.get(`/pairs/${pairId}`);
-  }
-
-  /**
-   * Load complete registration input metadata for a pair
-   * Returns pair metadata, source product with files, and reference product with files
-   * @param {number|string} pairId
-   * @returns {Promise<Object>}
-   */
-  async getPairRegistrationInput(pairId) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    if (!pairId) throw new Error('Pair ID required.');
-    return await api.get(`/pairs/${pairId}/registration-input`);
-  }
-
-  /**
-   * Prepare a canonical pair for future registration pipeline
-   * Loads and validates inputs without fabricating synthetic processing
-   * @param {number|string} pairId
-   * @returns {Promise<Object>} Formatted registration preparation package
-   */
-  async preparePairForRegistration(pairId) {
-    const regInput = await this.getPairRegistrationInput(pairId);
-    if (!regInput) throw new Error('Failed to load registration input from backend.');
-
-    const pair = regInput.pair || {};
-    const source = regInput.source || {};
-    const reference = regInput.reference || {};
-
-    return {
-      pairId: pair.id,
-      pair,
-      sourceProduct: source.product || null,
-      sourceFiles: source.files || [],
-      referenceProduct: reference.product || null,
-      referenceFiles: reference.files || [],
-      overlapStatus: pair.overlap_status || 'UNKNOWN',
-      overlapArea: pair.overlap_area !== undefined ? pair.overlap_area : null,
-      overlapRatio: pair.overlap_ratio !== undefined ? pair.overlap_ratio : null,
-      preparedAt: new Date().toISOString(),
-      readyForPipeline: true
-    };
-  }
-
-  /**
-   * Submit registration job to backend (if supported)
+   * Fetch single pair by integer ID: GET /api/v1/pairs/{pair_id}
    * @param {number|string} pairId
    * @param {Object} [options]
    * @returns {Promise<Object>}
    */
-  async submitRegistrationJob(pairId, options = {}) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    return await api.post(`/pairs/${pairId}/registration-jobs`, {
-      options: options || {}
-    });
+  async getPairById(pairId, options = {}) {
+    const client = this.getClient();
+    if (!client) throw new Error('API client unavailable.');
+    if (!pairId) throw new Error('Pair ID required.');
+    return await client.get(`/pairs/${pairId}`, null, options);
   }
 
   /**
-   * Get registration job status
-   * @param {number|string} jobId
+   * Load complete registration input metadata for a pair: GET /api/v1/pairs/{pair_id}/registration-input
+   * Returns: { pair, source: { product, files }, reference: { product, files } }
+   * @param {number|string} pairId
+   * @param {Object} [options]
    * @returns {Promise<Object>}
    */
-  async getRegistrationJob(jobId) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    return await api.get(`/registration-jobs/${jobId}`);
+  async getRegistrationInput(pairId, options = {}) {
+    const client = this.getClient();
+    if (!client) throw new Error('API client unavailable.');
+    if (!pairId) throw new Error('Pair ID required.');
+    return await client.get(`/pairs/${pairId}/registration-input`, null, options);
+  }
+
+  // Backwards compatibility aliases
+  async listPairs(filters = {}, options = {}) {
+    return await this.getPairs(filters, options);
+  }
+
+  async getPair(pairId, options = {}) {
+    return await this.getPairById(pairId, options);
+  }
+
+  async getPairRegistrationInput(pairId, options = {}) {
+    return await this.getRegistrationInput(pairId, options);
   }
 }
 
 const pairService = new PairService();
 
+// Standalone reusable functions
+async function getPairs(filters = {}, options = {}) {
+  return await pairService.getPairs(filters, options);
+}
+
+async function getPairById(pairId, options = {}) {
+  return await pairService.getPairById(pairId, options);
+}
+
+async function getRegistrationInput(pairId, options = {}) {
+  return await pairService.getRegistrationInput(pairId, options);
+}
+
 if (typeof exports !== 'undefined') {
   exports.PairService = PairService;
   exports.pairService = pairService;
+  exports.getPairs = getPairs;
+  exports.getPairById = getPairById;
+  exports.getRegistrationInput = getRegistrationInput;
 }
 if (typeof window !== 'undefined') {
   window.PairService = PairService;
   window.pairService = pairService;
+  window.getPairs = getPairs;
+  window.getPairById = getPairById;
+  window.getRegistrationInput = getRegistrationInput;
 }

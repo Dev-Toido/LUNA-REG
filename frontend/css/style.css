@@ -7294,3 +7294,312 @@ canvas#results-canvas {
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ==========================================================================
+   REGISTRATION PREPARATION & PAIRS CATALOG STYLES
+   ========================================================================== */
+
+/* Registration Source Segmented Control */
+.reg-source-selector-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  gap: 16px;
+}
+
+.reg-source-selector-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reg-source-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-gold);
+}
+
+.reg-source-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.reg-source-segmented-control {
+  display: inline-flex;
+  background: var(--bg-obsidian);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 3px;
+  gap: 4px;
+}
+
+.source-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.source-seg-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.source-seg-btn.active {
+  background: var(--bg-panel);
+  color: var(--accent-gold);
+  border-color: var(--accent-gold-muted);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Database Pair Mode Toolbar */
+.reg-db-pair-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.db-pair-select-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.db-pair-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent-gold);
+  white-space: nowrap;
+}
+
+.db-pair-select-wrap {
+  flex: 1;
+}
+
+.reg-pair-select {
+  width: 100%;
+  background: var(--bg-obsidian);
+  color: var(--text-primary);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.reg-pair-select:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 1px var(--accent-gold-muted);
+}
+
+.db-pair-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dashboard Available Pairs Card */
+.dash-available-pairs-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  margin-top: 10px;
+  margin-bottom: 24px;
+}
+
+.dash-empty-pairs-hint {
+  padding: 24px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Resolution Comparison Bar */
+.resolution-comparison-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: var(--bg-obsidian);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px 16px;
+  margin: 14px 0;
+  gap: 16px;
+}
+
+.res-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.res-col-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.res-col-inst {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin: 2px 0;
+}
+
+.res-col-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.res-vs-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-gold-muted);
+  letter-spacing: 0.05em;
+}
+
+.res-ratio-pill {
+  font-size: 9px;
+  background: rgba(223, 192, 138, 0.1);
+  color: var(--accent-gold);
+  padding: 2px 6px;
+  border-radius: 2px;
+  margin-top: 2px;
+}
+
+/* Geospatial Preview Panel */
+.geospatial-preview-panel {
+  background: var(--bg-obsidian);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xs);
+  padding: 12px;
+  margin-top: 14px;
+}
+
+.geospatial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.geospatial-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent-gold);
+}
+
+.geospatial-coords-summary {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Registration Readiness Panel */
+.reg-readiness-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 14px 16px;
+  margin: 14px 0;
+}
+
+.reg-readiness-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.reg-readiness-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-bright);
+}
+
+.reg-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.reg-readiness-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reg-readiness-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.reg-readiness-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.readiness-notice-amber {
+  background: rgba(223, 192, 138, 0.08);
+  border: 1px solid var(--accent-gold-muted);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+

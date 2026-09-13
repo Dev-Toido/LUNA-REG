@@ -1,40 +1,351 @@
 /**
  * LUNA-REG: RegistrationPreparationPage Controller
- * Integrates dual image uploads with canonical pair registration staging
+ * Hybrid Registration Preparation Workspace:
+ * - Mode 1: DATABASE PAIR (Default) — loads from GET /api/v1/pairs & GET /api/v1/pairs/{id}/registration-input
+ * - Mode 2: MANUAL UPLOAD — preserves existing drag-and-drop dual raster workflow
+ * 
+ * Note: No fake POST registration requests or fake progress is fabricated.
  */
 
 class RegistrationPreparationPage {
   constructor() {
-    this.stagedPairId = null;
-    this.stagedPairData = null;
-    this.registrationMode = 'automatic';
+    this.sourceMode = 'db-pair'; // 'db-pair' | 'manual-upload'
+    this.availablePairs = [];
+    this.selectedPairId = null;
+    this.stagedRegistrationInput = null;
+    this.loadingPair = false;
+    this.loadingPairsList = false;
+    this.pairFilter = '';
   }
 
-  init() {
-    this.bindCanonicalPairPicker();
+  async init() {
+    this.bindSourceSegmentedControl();
+    this.bindDatabasePairControls();
+    await this.loadAvailablePairs();
   }
 
-  bindCanonicalPairPicker() {
-    // Staging button from UI
-    const loadCanonicalBtn = document.getElementById('btn-load-canonical-pair');
-    if (loadCanonicalBtn) {
-      loadCanonicalBtn.addEventListener('click', () => this.openPairPickerModal());
+  bindSourceSegmentedControl() {
+    const btnDbPair = document.getElementById('btn-source-db-pair');
+    const btnManual = document.getElementById('btn-source-manual-upload');
+
+    if (btnDbPair && !btnDbPair.dataset.bound) {
+      btnDbPair.dataset.bound = 'true';
+      btnDbPair.addEventListener('click', () => this.setSourceMode('db-pair'));
     }
 
-    // Dismiss staged pair
-    const clearBtn = document.getElementById('btn-clear-staged-pair');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => this.clearStagedPair());
+    if (btnManual && !btnManual.dataset.bound) {
+      btnManual.dataset.bound = 'true';
+      btnManual.addEventListener('click', () => this.setSourceMode('manual-upload'));
+    }
+
+    this.updateSourceModeUI();
+  }
+
+  setSourceMode(mode) {
+    this.sourceMode = mode;
+    this.updateSourceModeUI();
+  }
+
+  updateSourceModeUI() {
+    const btnDbPair = document.getElementById('btn-source-db-pair');
+    const btnManual = document.getElementById('btn-source-manual-upload');
+    const containerDbPair = document.getElementById('reg-mode-db-pair-container');
+    const containerManual = document.getElementById('reg-mode-manual-container');
+    const ctaTip = document.getElementById('reg-cta-tip');
+    const executeBtn = document.getElementById('btn-execute-registration');
+
+    const isDb = (this.sourceMode === 'db-pair');
+
+    if (btnDbPair) {
+      btnDbPair.classList.toggle('active', isDb);
+      btnDbPair.setAttribute('aria-selected', String(isDb));
+    }
+    if (btnManual) {
+      btnManual.classList.toggle('active', !isDb);
+      btnManual.setAttribute('aria-selected', String(!isDb));
+    }
+
+    if (containerDbPair) {
+      containerDbPair.style.display = isDb ? 'block' : 'none';
+    }
+    if (containerManual) {
+      containerManual.style.display = !isDb ? 'block' : 'none';
+    }
+
+    if (isDb) {
+      if (executeBtn) {
+        executeBtn.querySelector('span').textContent = 'PREPARE REGISTRATION →';
+        executeBtn.disabled = !this.stagedRegistrationInput;
+      }
+      if (ctaTip) {
+        ctaTip.textContent = this.stagedRegistrationInput
+          ? 'Registration metadata loaded from backend. Processing API integration is pending.'
+          : 'Select a canonical image pair from the database to prepare registration metadata.';
+      }
+    } else {
+      if (typeof window.checkFilesReady === 'function') {
+        window.checkFilesReady();
+      }
+    }
+  }
+
+  bindDatabasePairControls() {
+    const pairSelect = document.getElementById('reg-db-pair-select');
+    if (pairSelect && !pairSelect.dataset.bound) {
+      pairSelect.dataset.bound = 'true';
+      pairSelect.addEventListener('change', async (e) => {
+        const pairId = e.target.value;
+        if (pairId) {
+          await this.stagePair(pairId);
+        } else {
+          this.clearStagedPair();
+        }
+      });
+    }
+
+    const refreshBtn = document.getElementById('btn-refresh-reg-pairs');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+      refreshBtn.dataset.bound = 'true';
+      refreshBtn.addEventListener('click', async () => {
+        await this.loadAvailablePairs();
+      });
+    }
+
+    const modalBrowseBtn = document.getElementById('btn-browse-pairs-picker');
+    if (modalBrowseBtn && !modalBrowseBtn.dataset.bound) {
+      modalBrowseBtn.dataset.bound = 'true';
+      modalBrowseBtn.addEventListener('click', () => this.openPairPickerModal());
+    }
+
+    // Execute button in primary CTA
+    const executeBtn = document.getElementById('btn-execute-registration');
+    if (executeBtn && !executeBtn.dataset.boundPrepared) {
+      executeBtn.dataset.boundPrepared = 'true';
+      executeBtn.addEventListener('click', () => {
+        if (this.sourceMode === 'db-pair') {
+          this.handlePrepareRegistrationSubmit();
+        }
+      });
+    }
+  }
+
+  async loadAvailablePairs() {
+    this.loadingPairsList = true;
+    const pairSelect = document.getElementById('reg-db-pair-select');
+    if (pairSelect) {
+      pairSelect.innerHTML = '<option value="">Loading available pairs from backend...</option>';
+      pairSelect.disabled = true;
+    }
+
+    try {
+      const pairs = await window.pairService.getPairs();
+      this.availablePairs = Array.isArray(pairs) ? pairs : [];
+      this.populatePairsDropdown();
+
+      // If we had a previously selected pair, preserve or auto-select first
+      if (this.selectedPairId) {
+        if (pairSelect) pairSelect.value = String(this.selectedPairId);
+      } else if (this.availablePairs.length > 0) {
+        // Automatically stage the first available pair (e.g. Pair-B)
+        const firstPair = this.availablePairs[0];
+        if (pairSelect) pairSelect.value = String(firstPair.id);
+        await this.stagePair(firstPair.id);
+      }
+    } catch (err) {
+      console.error('Failed to load pairs list for registration preparation:', err);
+      if (pairSelect) {
+        pairSelect.innerHTML = '<option value="">Failed to connect to /api/v1/pairs</option>';
+      }
+    } finally {
+      this.loadingPairsList = false;
+      if (pairSelect) pairSelect.disabled = false;
+    }
+  }
+
+  populatePairsDropdown() {
+    const pairSelect = document.getElementById('reg-db-pair-select');
+    if (!pairSelect) return;
+
+    if (this.availablePairs.length === 0) {
+      pairSelect.innerHTML = '<option value="">No canonical pairs in catalog</option>';
+      return;
+    }
+
+    let html = '<option value="">-- SELECT CANONICAL LUNAR PAIR --</option>';
+    this.availablePairs.forEach(p => {
+      const ratio = (p.overlap_ratio !== null && p.overlap_ratio !== undefined)
+        ? ` • ${(p.overlap_ratio * 100).toFixed(1)}% overlap`
+        : '';
+      html += `
+        <option value="${p.id}" ${String(this.selectedPairId) === String(p.id) ? 'selected' : ''}>
+          PAIR #${p.id} &bull; ${p.source_instrument} ↔ ${p.reference_instrument} [${p.overlap_status}]${ratio}
+        </option>
+      `;
+    });
+
+    pairSelect.innerHTML = html;
+  }
+
+  async stagePair(pairId) {
+    if (!pairId) return;
+
+    this.selectedPairId = pairId;
+    this.loadingPair = true;
+
+    // Update dropdown selection if not matched
+    const pairSelect = document.getElementById('reg-db-pair-select');
+    if (pairSelect && pairSelect.value !== String(pairId)) {
+      pairSelect.value = String(pairId);
+    }
+
+    const container = document.getElementById('registration-input-container');
+    if (container) {
+      container.style.display = 'block';
+      container.innerHTML = `
+        <div class="canonical-loading-state" style="padding: 30px 20px;">
+          <div class="planetary-radar-pulse"></div>
+          <p style="margin-top:14px; color:var(--accent-gold); font-family:var(--font-mono); font-size:11px;">
+            FETCHING REGISTRATION METADATA FROM /api/v1/pairs/${pairId}/registration-input...
+          </p>
+        </div>
+      `;
+    }
+
+    try {
+      const regInput = await window.pairService.getRegistrationInput(pairId);
+      this.stagedRegistrationInput = regInput;
+
+      if (container && typeof renderRegistrationInputPanel === 'function') {
+        container.innerHTML = renderRegistrationInputPanel(regInput);
+
+        const dismissBtn = container.querySelector('#btn-clear-staged-pair');
+        if (dismissBtn) {
+          dismissBtn.addEventListener('click', () => this.clearStagedPair());
+        }
+      }
+
+      this.updateSourceModeUI();
+    } catch (err) {
+      console.error(`Failed to stage pair #${pairId}:`, err);
+      if (container) {
+        container.innerHTML = `
+          <div class="canonical-error-state" style="padding: 24px;">
+            <div class="error-msg">Failed to retrieve registration input: ${err.message}</div>
+            <button type="button" class="btn-tech-sm" id="btn-retry-stage-pair" style="margin-top:10px;">RETRY</button>
+          </div>
+        `;
+        const retryBtn = container.querySelector('#btn-retry-stage-pair');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => this.stagePair(pairId));
+        }
+      }
+      this.stagedRegistrationInput = null;
+      this.updateSourceModeUI();
+    } finally {
+      this.loadingPair = false;
+    }
+  }
+
+  clearStagedPair() {
+    this.selectedPairId = null;
+    this.stagedRegistrationInput = null;
+
+    const pairSelect = document.getElementById('reg-db-pair-select');
+    if (pairSelect) pairSelect.value = '';
+
+    const container = document.getElementById('registration-input-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="reg-db-empty-prompt">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+          </svg>
+          <span style="font-size:12px; color:var(--text-muted); margin-top:8px;">
+            Select a canonical lunar image pair above to inspect registration metadata and ground bounds.
+          </span>
+        </div>
+      `;
+    }
+
+    this.updateSourceModeUI();
+  }
+
+  handlePrepareRegistrationSubmit() {
+    if (!this.stagedRegistrationInput) {
+      alert('Please select a canonical image pair from the database before proceeding.');
+      return;
+    }
+
+    const pair = this.stagedRegistrationInput.pair;
+    const source = this.stagedRegistrationInput.source || {};
+    const reference = this.stagedRegistrationInput.reference || {};
+    const srcProd = source.product || {};
+    const refProd = reference.product || {};
+
+    const modalContent = `
+      <div class="registration-staging-summary">
+        <div class="summary-icon" style="text-align:center; margin-bottom:14px;">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="m9 12 2 2 4-4"></path>
+          </svg>
+        </div>
+        <h4 style="color:var(--accent-gold); text-align:center; margin-bottom:6px; font-family:var(--font-mono); letter-spacing:0.05em;">
+          REGISTRATION METADATA PREPARED
+        </h4>
+        <p style="font-size:12px; color:var(--text-light); text-align:center; line-height:1.6; margin-bottom:16px;">
+          Canonical Pair <strong>#${pair.id}</strong> (${pair.source_instrument} ↔ ${pair.reference_instrument}) is validated and prepared in workspace state.
+        </p>
+
+        <div class="dataset-meta-list" style="margin-bottom:16px;">
+          <div class="dataset-meta-row">
+            <span>Source Product:</span>
+            <strong>${srcProd.product_id || `#${pair.source_product_id}`}</strong>
+          </div>
+          <div class="dataset-meta-row">
+            <span>Reference Product:</span>
+            <strong>${refProd.product_id || `#${pair.reference_product_id}`}</strong>
+          </div>
+          <div class="dataset-meta-row">
+            <span>Overlap Status:</span>
+            <span>${pair.overlap_status || 'UNVERIFIED'}</span>
+          </div>
+          <div class="dataset-meta-row">
+            <span>Overlap Ratio:</span>
+            <span>${pair.overlap_ratio ? `${(pair.overlap_ratio * 100).toFixed(2)}%` : 'Not available'}</span>
+          </div>
+          <div class="dataset-meta-row">
+            <span>Integration Notice:</span>
+            <span style="color:var(--accent-gold);">Registration metadata loaded successfully. Processing API integration is pending.</span>
+          </div>
+        </div>
+
+        <div style="text-align:center;">
+          <button type="button" class="btn-tech primary" id="btn-summary-done">OK, CONTINUE</button>
+        </div>
+      </div>
+    `;
+
+    if (window.openAppModal) {
+      window.openAppModal('REGISTRATION PREPARATION SUMMARY', modalContent);
+      const doneBtn = document.getElementById('btn-summary-done');
+      if (doneBtn) {
+        doneBtn.addEventListener('click', () => {
+          if (window.closeAppModal) window.closeAppModal();
+        });
+      }
     }
   }
 
   async openPairPickerModal() {
     try {
-      const pairs = await window.pairService.listPairs();
+      const pairs = await window.pairService.getPairs();
       const modalContent = `
         <div class="pair-picker-modal-content">
           <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">
-            Select a verified or unverified canonical lunar image pair from the SQLite database to stage into the registration workspace:
+            Select a verified or unverified canonical lunar image pair from the database catalog to stage into the registration preparation workspace:
           </p>
           <div class="pair-picker-list">
             ${pairs.map(p => `
@@ -45,9 +356,9 @@ class RegistrationPreparationPage {
                 </div>
                 <div class="picker-item-meta">
                   <span>${p.overlap_status || 'UNVERIFIED'}</span>
-                  <span>${p.overlap_ratio ? `${(p.overlap_ratio * 100).toFixed(1)}% overlap` : ''}</span>
+                  <span>${p.overlap_ratio ? `${(p.overlap_ratio * 100).toFixed(1)}%` : ''}</span>
                 </div>
-                <button class="btn-tech-sm primary btn-select-pair" data-pair-id="${p.id}">STAGE</button>
+                <button type="button" class="btn-tech-sm primary btn-select-pair-modal" data-pair-id="${p.id}">SELECT</button>
               </div>
             `).join('')}
           </div>
@@ -57,156 +368,17 @@ class RegistrationPreparationPage {
       if (window.openAppModal) {
         window.openAppModal('SELECT CANONICAL PAIR', modalContent);
 
-        document.querySelectorAll('.btn-select-pair').forEach(btn => {
+        document.querySelectorAll('.btn-select-pair-modal').forEach(btn => {
           btn.addEventListener('click', async () => {
             const pairId = btn.dataset.pairId;
             if (window.closeAppModal) window.closeAppModal();
+            this.setSourceMode('db-pair');
             await this.stagePair(pairId);
           });
         });
       }
     } catch (err) {
       alert(`Failed to load pairs list: ${err.message}`);
-    }
-  }
-
-  async stagePair(pairId) {
-    if (!pairId) return;
-    try {
-      const regInput = await window.pairService.getPairRegistrationInput(pairId);
-      this.stagedPairId = pairId;
-      this.stagedPairData = regInput;
-
-      // Render registration input panel
-      const container = document.getElementById('registration-input-container');
-      if (container && typeof renderRegistrationInputPanel === 'function') {
-        container.innerHTML = renderRegistrationInputPanel(regInput);
-        container.style.display = 'block';
-
-        const clearBtn = container.querySelector('#btn-clear-staged-pair');
-        if (clearBtn) {
-          clearBtn.addEventListener('click', () => this.clearStagedPair());
-        }
-      }
-
-      // Update status panel
-      const refStatusEl = document.getElementById('status-val-ref');
-      const tgtStatusEl = document.getElementById('status-val-tgt');
-      const overallStatusEl = document.getElementById('status-val-overall');
-      const runBtn = document.getElementById('btn-run-registration');
-
-      if (refStatusEl) {
-        refStatusEl.textContent = `Ready (${regInput.pair.reference_instrument || 'REF'})`;
-        refStatusEl.className = 'status-badge-val status-val-ready';
-      }
-      if (tgtStatusEl) {
-        tgtStatusEl.textContent = `Ready (${regInput.pair.source_instrument || 'SRC'})`;
-        tgtStatusEl.className = 'status-badge-val status-val-ready';
-      }
-      if (overallStatusEl) {
-        overallStatusEl.textContent = 'Ready for registration staging';
-        overallStatusEl.className = 'status-badge-val status-val-ready';
-      }
-
-      if (runBtn) {
-        runBtn.removeAttribute('disabled');
-        runBtn.classList.remove('disabled');
-      }
-
-      // Populate file details in settings if present
-      const refSettingEl = document.getElementById('setting-ref-image');
-      const tgtSettingEl = document.getElementById('setting-target-image');
-      if (refSettingEl && regInput.reference && regInput.reference.product) {
-        refSettingEl.textContent = regInput.reference.product.product_id || `Reference #${regInput.pair.reference_product_id}`;
-      }
-      if (tgtSettingEl && regInput.source && regInput.source.product) {
-        tgtSettingEl.textContent = regInput.source.product.product_id || `Target #${regInput.pair.source_product_id}`;
-      }
-
-    } catch (err) {
-      console.error('Failed to stage pair:', err);
-      alert(`Could not stage canonical pair: ${err.message}`);
-    }
-  }
-
-  clearStagedPair() {
-    this.stagedPairId = null;
-    this.stagedPairData = null;
-
-    const container = document.getElementById('registration-input-container');
-    if (container) {
-      container.innerHTML = '';
-      container.style.display = 'none';
-    }
-
-    // Check if local files are uploaded, else revert to missing
-    if (typeof window.checkFilesReady === 'function') {
-      window.checkFilesReady();
-    }
-  }
-
-  async runRegistration() {
-    if (this.stagedPairId && this.stagedPairData) {
-      // We have a staged canonical pair
-      const pair = this.stagedPairData.pair;
-      const modalContent = `
-        <div class="registration-staging-summary">
-          <div class="summary-icon" style="text-align:center; margin-bottom:14px;">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="1.5">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 14 14"></polyline>
-            </svg>
-          </div>
-          <h4 style="color:var(--accent-gold); text-align:center; margin-bottom:8px; font-family:var(--font-mono); letter-spacing:0.05em;">
-            REGISTRATION STAGED & VERIFIED
-          </h4>
-          <p style="font-size:12px; color:var(--text-light); line-height:1.6; margin-bottom:16px;">
-            Canonical Pair <strong>#${pair.id}</strong> (${pair.source_instrument} ↔ ${pair.reference_instrument}) has been validated against the backend database catalog.
-          </p>
-          <div class="dataset-meta-list" style="margin-bottom:16px;">
-            <div class="dataset-meta-row">
-              <span>Overlap Status:</span>
-              <strong>${pair.overlap_status}</strong>
-            </div>
-            <div class="dataset-meta-row">
-              <span>Overlap Area:</span>
-              <span>${pair.overlap_area ? `${pair.overlap_area.toFixed(2)} km²` : 'Calculated'}</span>
-            </div>
-            <div class="dataset-meta-row">
-              <span>Backend Endpoint:</span>
-              <span class="col-mono">/api/v1/pairs/${pair.id}/registration-input</span>
-            </div>
-            <div class="dataset-meta-row">
-              <span>Registration Pipeline:</span>
-              <span style="color:var(--accent-gold);">Prepared (Execution engine awaiting pipeline worker)</span>
-            </div>
-          </div>
-          <div style="text-align:center;">
-            <button class="btn-tech primary" id="btn-inspect-results-now">VIEW RESULTS WORKSPACE →</button>
-          </div>
-        </div>
-      `;
-
-      if (window.openAppModal) {
-        window.openAppModal('REGISTRATION PIPELINE STATUS', modalContent);
-        const resultsBtn = document.getElementById('btn-inspect-results-now');
-        if (resultsBtn) {
-          resultsBtn.addEventListener('click', () => {
-            if (window.closeAppModal) window.closeAppModal();
-            if (typeof window.switchView === 'function') window.switchView('results');
-          });
-        }
-      }
-    } else {
-      // Local upload files
-      if (window.openAppModal) {
-        window.openAppModal('REGISTRATION PROCESSING', `
-          <div style="padding:10px; font-size:12px; color:var(--text-light); line-height:1.6;">
-            <p>Uploaded local images have been verified and processed in the browser workspace.</p>
-            <p style="color:var(--text-muted); margin-top:8px;">Ready for alignment transformation.</p>
-          </div>
-        `);
-      }
     }
   }
 }
