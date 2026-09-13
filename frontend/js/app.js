@@ -1220,9 +1220,10 @@
     const runBtn = document.getElementById('btn-execute-registration');
     const ctaTip = document.getElementById('reg-cta-tip');
 
-    const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
-    const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
-    const bothReady = isRefValid && isTgtValid;
+    const isPairStaged = window.registrationPreparationPage && !!window.registrationPreparationPage.stagedPairId;
+    const isRefValid = (!!regWorkflowState.refFile && !regWorkflowState.refError) || isPairStaged;
+    const isTgtValid = (!!regWorkflowState.tgtFile && !regWorkflowState.tgtError) || isPairStaged;
+    const bothReady = isPairStaged || (isRefValid && isTgtValid);
 
     // Update Settings displays
     const refNameDisplay = document.getElementById('settings-ref-name');
@@ -1499,6 +1500,11 @@
     const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
     const ctaTip = document.getElementById('reg-cta-tip');
     const runBtn = document.getElementById('btn-execute-registration');
+
+    if (window.registrationPreparationPage && window.registrationPreparationPage.stagedPairId) {
+      await window.registrationPreparationPage.runRegistration();
+      return;
+    }
 
     if (!isRefValid || !isTgtValid) {
       if (ctaTip) {
@@ -2685,6 +2691,14 @@
     bindClick('dash-tile-history', () => switchAppView('history'));
     bindClick('dash-tile-analysis', () => switchAppView('analysis'));
     bindClick('dash-tile-dataset', () => switchAppView('dataset'));
+    bindClick('dash-card-products', () => {
+      switchAppView('dataset');
+      activateDatasetTab('products');
+    });
+    bindClick('dash-card-pairs', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+    });
 
     bindClick('btn-analysis-open-map', () => switchAppView('explorer'));
     bindClick('btn-analysis-start-reg', () => switchAppView('new-reg'));
@@ -2717,6 +2731,14 @@
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target.id === 'modal-overlay') closeModal();
     });
+
+    // Initialize modular page controllers
+    if (window.dashboardPage) {
+      window.dashboardPage.init();
+    }
+    if (window.registrationPreparationPage) {
+      window.registrationPreparationPage.init();
+    }
 
     // 9. WCAG Modal Focus Trapping
     const modalOverlay = document.getElementById('modal-overlay');
@@ -3034,6 +3056,12 @@
       drawResultsCanvas();
     } else if (targetView === 'history') {
       loadRegistrationHistory();
+    } else if (targetView === 'dashboard') {
+      if (window.dashboardPage) window.dashboardPage.refreshTelemetry();
+    } else if (targetView === 'dataset') {
+      initDatasetCatalogView();
+    } else if (targetView === 'new-reg') {
+      if (window.registrationPreparationPage) window.registrationPreparationPage.init();
     }
 
     // Synchronize Mobile Bottom Navigation active pill
@@ -3074,26 +3102,92 @@
     } else if (hash === '#/new-registration' || hash === '#/new-reg' || hash === '#/register') {
       switchAppView('new-reg', false);
       return;
+    } else if (hash === '#/dataset' || hash === '#/pairs' || hash === '#/products') {
+      switchAppView('dataset', false);
+      if (hash === '#/products') {
+        activateDatasetTab('products');
+      } else {
+        activateDatasetTab('pairs');
+      }
+      return;
     } else if (hash === '#/history') {
       switchAppView('history', false);
       return;
-    } else if (hash === '#/explorer' || hash === '#/lunar-map') {
+    } else if (hash === '#/explorer' || hash === '#/map') {
       switchAppView('explorer', false);
-      return;
-    } else if (hash === '#/dashboard' || hash === '#/overview' || hash === '') {
-      switchAppView('dashboard', false);
       return;
     } else if (hash === '#/analysis') {
       switchAppView('analysis', false);
       return;
-    } else if (hash === '#/dataset') {
-      switchAppView('dataset', false);
-      return;
     } else if (hash === '#/about') {
       switchAppView('about', false);
       return;
+    } else {
+      switchAppView('dashboard', false);
     }
-    switchAppView('dashboard', false);
+  }
+
+  // --- DATASET CATALOG VIEW CONTROLLER ---
+  function initDatasetCatalogView() {
+    bindDatasetSubtabs();
+    // Default to pairs if nothing active
+    const activeTab = document.querySelector('.dataset-tab-btn.active')?.dataset.subtab || 'pairs';
+    activateDatasetTab(activeTab);
+  }
+
+  function bindDatasetSubtabs() {
+    const tabPairs = document.getElementById('tab-btn-pairs');
+    const tabProducts = document.getElementById('tab-btn-products');
+    const tabSensors = document.getElementById('tab-btn-sensors');
+    const refreshBtn = document.getElementById('btn-refresh-catalog');
+
+    if (tabPairs && !tabPairs.dataset.bound) {
+      tabPairs.dataset.bound = 'true';
+      tabPairs.addEventListener('click', () => activateDatasetTab('pairs'));
+    }
+    if (tabProducts && !tabProducts.dataset.bound) {
+      tabProducts.dataset.bound = 'true';
+      tabProducts.addEventListener('click', () => activateDatasetTab('products'));
+    }
+    if (tabSensors && !tabSensors.dataset.bound) {
+      tabSensors.dataset.bound = 'true';
+      tabSensors.addEventListener('click', () => activateDatasetTab('sensors'));
+    }
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+      refreshBtn.dataset.bound = 'true';
+      refreshBtn.addEventListener('click', async () => {
+        const activeTab = document.querySelector('.dataset-tab-btn.active')?.dataset.subtab || 'pairs';
+        if (activeTab === 'pairs' && window.pairsPage) {
+          await window.pairsPage.loadData();
+        } else if (activeTab === 'products' && window.productsPage) {
+          await window.productsPage.loadData();
+        }
+      });
+    }
+  }
+
+  function activateDatasetTab(tabKey) {
+    const pairsPanel = document.getElementById('dataset-pairs-container');
+    const prodsPanel = document.getElementById('dataset-products-container');
+    const sensorsPanel = document.getElementById('dataset-sensors-container');
+
+    const tabPairs = document.getElementById('tab-btn-pairs');
+    const tabProducts = document.getElementById('tab-btn-products');
+    const tabSensors = document.getElementById('tab-btn-sensors');
+
+    if (tabPairs) tabPairs.classList.toggle('active', tabKey === 'pairs');
+    if (tabProducts) tabProducts.classList.toggle('active', tabKey === 'products');
+    if (tabSensors) tabSensors.classList.toggle('active', tabKey === 'sensors');
+
+    if (pairsPanel) pairsPanel.style.display = (tabKey === 'pairs') ? 'block' : 'none';
+    if (prodsPanel) prodsPanel.style.display = (tabKey === 'products') ? 'block' : 'none';
+    if (sensorsPanel) sensorsPanel.style.display = (tabKey === 'sensors') ? 'block' : 'none';
+
+    if (tabKey === 'pairs' && window.pairsPage && pairsPanel) {
+      window.pairsPage.init(pairsPanel);
+    } else if (tabKey === 'products' && window.productsPage && prodsPanel) {
+      window.productsPage.init(prodsPanel);
+    }
   }
 
   // --- NAVIGATION ACTION HANDLERS ---
@@ -4097,7 +4191,7 @@
   // --- MODAL DIALOGS ---
   let lastFocusedElement = null;
 
-  function openModal(type) {
+  function openModal(type, customHtml) {
     lastFocusedElement = document.activeElement;
     const overlay = document.getElementById('modal-overlay');
     const title = document.getElementById('modal-title');
@@ -4105,6 +4199,12 @@
     const closeBtn = document.getElementById('modal-close');
     overlay.classList.add('open');
     if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
+
+    if (customHtml) {
+      title.textContent = type;
+      content.innerHTML = customHtml;
+      return;
+    }
 
     if (type === 'geotiff') {
       title.textContent = 'EXPORT GEOTIFF METADATA / REGISTRATION HEADER';
@@ -5171,6 +5271,12 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
       emptyStartBtn.addEventListener('click', () => switchAppView('new-reg'));
     }
   }
+
+  // Expose core app methods to modular controllers
+  window.openAppModal = openModal;
+  window.closeAppModal = closeModal;
+  window.switchView = switchAppView;
+  window.checkFilesReady = checkRegistrationReadiness;
 
   window.addEventListener('DOMContentLoaded', init);
 
