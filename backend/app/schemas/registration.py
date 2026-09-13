@@ -1,0 +1,1 @@
+"""Registration schema placeholder."""

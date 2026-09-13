@@ -1,0 +1,2 @@
+LUNA-REG Google Drive storage test.
+This file is only for validating the backend upload pipeline.
