@@ -113,8 +113,11 @@
           }
         } else if (h.startsWith('#/processing')) {
           window.switchView('processing', false);
-        } else if (h === '#/analysis-tools' || h === '#/analysis') {
+        } else if (h.startsWith('#/analysis-tools') || h.startsWith('#/analysis')) {
           window.switchView('analysis', false);
+          if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+            window.analysisToolsPage.init();
+          }
         } else if (h === '#/dataset' || h === '#/pairs' || h === '#/products') {
           window.switchView('dataset', false);
         } else if (h === '#/history') {
@@ -1934,84 +1937,43 @@
       </section>
 
       <!-- ========================================================================
-           ANALYSIS TOOLS WORKSPACE (Placeholder Layout & Empty States)
+           10. ANALYSIS TOOLS WORKSPACE (Planetary Multi-Sensor GIS Analysis - Part 5)
            ======================================================================== -->
-      <section class="page-analysis-tools" id="view-analysis-tools" aria-label="Planetary Analysis Tools" style="display: none;">
-        <div class="reg-page-header">
-          <div>
-            <div class="reg-page-breadcrumb"><span class="breadcrumb-link" id="analysis-bc-dashboard" role="button" tabindex="0">Dashboard</span> &gt; <span class="active">Analysis Tools</span></div>
-            <h1 class="reg-page-title">PLANETARY ANALYSIS TOOLS</h1>
-            <p class="reg-page-subtitle">Geospatial analytics, photometric profiling, crater morphology, and elevation cross-sections.</p>
-          </div>
-          <div class="history-header-actions">
-            <button class="btn-tech primary" id="btn-analysis-open-map">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg>
-              <span>SELECT REGION ON MAP</span>
-            </button>
-          </div>
-        </div>
+      <section class="page-analysis-tools" id="view-analysis-tools" aria-label="Planetary Analysis Tools Workspace" style="display: none;">
+        <div class="analysis-page-layout">
+          <!-- 1. Master Header Mount -->
+          <header class="analysis-mount-header" id="analysis-mount-header"></header>
 
-        <div class="placeholder-page-body">
-          <!-- Analytical Tool Suite Cards Grid -->
-          <div class="tools-catalog-grid">
-            <div class="tool-catalog-card">
-              <div class="tool-card-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              </div>
-              <div class="tool-card-body">
-                <div class="tool-card-status">MODULE READY</div>
-                <h3 class="tool-card-name">Photometric Reflectance Profiler</h3>
-                <p class="tool-card-desc">Extracts cross-sectional pixel intensity histograms across crater rims and computes Hapke photometric model parameters.</p>
-              </div>
-            </div>
+          <!-- Main Scrollable Workstation Body -->
+          <div class="analysis-page-scroll" id="analysis-page-scroll">
+            
+            <!-- 2. Interactive Image Inspector Controls Mount -->
+            <section class="analysis-mount-inspector" id="analysis-mount-inspector"></section>
 
-            <div class="tool-catalog-card">
-              <div class="tool-card-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
-              </div>
-              <div class="tool-card-body">
-                <div class="tool-card-status">MODULE READY</div>
-                <h3 class="tool-card-name">Crater Morphology &amp; CSFD</h3>
-                <p class="tool-card-desc">Detects circular crater rims, calculates depth-to-diameter (d/D) ratios, and computes Crater Size Frequency Distribution curves.</p>
-              </div>
-            </div>
+            <!-- 3. Primary Dual-Raster Comparison Engine & Layer Control Grid -->
+            <section class="analysis-workspace-grid">
+              <!-- Left: High-Precision Canvas Comparison Engine -->
+              <div class="analysis-mount-viewer" id="analysis-mount-viewer"></div>
 
-            <div class="tool-catalog-card">
-              <div class="tool-card-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-              </div>
-              <div class="tool-card-body">
-                <div class="tool-card-status">MODULE READY</div>
-                <h3 class="tool-card-name">Sub-pixel Affine Distortion Grid</h3>
-                <p class="tool-card-desc">Visualizes non-linear optical distortion vectors and spatial residual strain fields between registered sensor passes.</p>
-              </div>
-            </div>
+              <!-- Right: 5-Layer Stack & Opacity Controller -->
+              <div class="analysis-mount-layers" id="analysis-mount-layers"></div>
+            </section>
 
-            <div class="tool-catalog-card">
-              <div class="tool-card-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              </div>
-              <div class="tool-card-body">
-                <div class="tool-card-status">STANDBY</div>
-                <h3 class="tool-card-name">SLDEM2015 Elevation Transect</h3>
-                <p class="tool-card-desc">Samples LOLA laser altimeter digital elevation model along user-defined line segments to generate topographic cross-sections.</p>
-              </div>
-            </div>
-          </div>
+            <!-- 4. Interactive Surface Measurement Suite -->
+            <section class="analysis-mount-measurements" id="analysis-mount-measurements"></section>
 
-          <!-- Empty State Standby Banner -->
-          <div class="placeholder-empty-state">
-            <div class="empty-icon-wrap">
-              <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
-            </div>
-            <h2 class="empty-state-title">No Active Target Region Selected</h2>
-            <p class="empty-state-desc">Select an aligned image pair from Registration Results or target a crater Region of Interest in the Lunar Map to execute planetary spatial analytics.</p>
-            <div style="display: flex; gap: 10px; margin-top: 14px;">
-              <button class="btn-tech primary" id="btn-analysis-start-reg"><span>START NEW REGISTRATION</span></button>
-              <button class="btn-tech" id="btn-analysis-jump-map"><span>GO TO LUNAR MAP</span></button>
-            </div>
+            <!-- 5. Transformation Matrix & Parameter Telemetry -->
+            <section class="analysis-mount-transform" id="analysis-mount-transform"></section>
+
+            <!-- 6. 7 Scientific Accuracy Metric Cards -->
+            <section class="analysis-mount-metrics" id="analysis-mount-metrics"></section>
+
+            <!-- 7. Geodetic Coordinate & Footprint Mini-Map -->
+            <section class="analysis-mount-coords" id="analysis-mount-coords"></section>
+
+            <!-- 8. Mission Deliverables & Analytics Export Hub -->
+            <section class="analysis-mount-export" id="analysis-mount-export"></section>
+
           </div>
         </div>
       </section>
@@ -2375,24 +2337,35 @@
   <script src="frontend/src/components/RegistrationInputPanel.js?v=2.5.0"></script>
 
   <!-- Part 4: Results & Analysis Components -->
-  <script src="frontend/src/components/ResultsHeader.js?v=2.7.0"></script>
-  <script src="frontend/src/components/RegistrationSummary.js?v=2.7.0"></script>
-  <script src="frontend/src/components/ComparisonToolbar.js?v=2.7.0"></script>
-  <script src="frontend/src/components/ImageComparisonWorkspace.js?v=2.7.0"></script>
-  <script src="frontend/src/components/RegistrationMetrics.js?v=2.7.0"></script>
-  <script src="frontend/src/components/MetadataAccordion.js?v=2.7.0"></script>
-  <script src="frontend/src/components/LunarMapPreview.js?v=2.7.0"></script>
-  <script src="frontend/src/components/ExportPanel.js?v=2.7.0"></script>
-  <script src="frontend/src/components/ResultsEmptyState.js?v=2.7.0"></script>
+  <script src="frontend/src/components/ResultsHeader.js?v=2.8.0"></script>
+  <script src="frontend/src/components/RegistrationSummary.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ComparisonToolbar.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ImageComparisonWorkspace.js?v=2.8.0"></script>
+  <script src="frontend/src/components/RegistrationMetrics.js?v=2.8.0"></script>
+  <script src="frontend/src/components/MetadataAccordion.js?v=2.8.0"></script>
+  <script src="frontend/src/components/LunarMapPreview.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ExportPanel.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ResultsEmptyState.js?v=2.8.0"></script>
+
+  <!-- Part 5: Analysis Tools Workspace Components -->
+  <script src="frontend/src/components/ImageInspector.js?v=2.8.0"></script>
+  <script src="frontend/src/components/LayerControlPanel.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ComparisonViewer.js?v=2.8.0"></script>
+  <script src="frontend/src/components/MeasurementTools.js?v=2.8.0"></script>
+  <script src="frontend/src/components/TransformationPanel.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ScientificMetrics.js?v=2.8.0"></script>
+  <script src="frontend/src/components/CoordinatePanel.js?v=2.8.0"></script>
+  <script src="frontend/src/components/AnalysisExportPanel.js?v=2.8.0"></script>
 
   <!-- Page Controllers -->
-  <script src="frontend/src/pages/DashboardPage.js?v=2.7.0"></script>
-  <script src="frontend/src/pages/ProductsPage.js?v=2.7.0"></script>
-  <script src="frontend/src/pages/PairsPage.js?v=2.7.0"></script>
-  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.7.0"></script>
-  <script src="frontend/src/pages/ResultsPage.js?v=2.7.0"></script>
+  <script src="frontend/src/pages/DashboardPage.js?v=2.8.0"></script>
+  <script src="frontend/src/pages/ProductsPage.js?v=2.8.0"></script>
+  <script src="frontend/src/pages/PairsPage.js?v=2.8.0"></script>
+  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.8.0"></script>
+  <script src="frontend/src/pages/ResultsPage.js?v=2.8.0"></script>
+  <script src="frontend/src/pages/AnalysisToolsPage.js?v=2.8.0"></script>
 
   <!-- Main Application Controller -->
-  <script src="frontend/js/app.js?v=2.7.0"></script>
+  <script src="frontend/js/app.js?v=2.8.0"></script>
 </body>
 </html>

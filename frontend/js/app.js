@@ -3075,7 +3075,11 @@
       } else if (targetView === 'explorer') {
         targetHash = '#/lunar-map';
       } else if (targetView === 'analysis') {
-        targetHash = '#/analysis-tools';
+        if (window.location.hash.startsWith('#/analysis-tools') || window.location.hash.startsWith('#/analysis')) {
+          targetHash = window.location.hash;
+        } else {
+          targetHash = '#/analysis-tools';
+        }
       } else if (targetView === 'dataset') {
         targetHash = '#/dataset';
       } else if (targetView === 'about') {
@@ -3093,6 +3097,10 @@
     } else if (targetView === 'results') {
       if (window.resultsPage && typeof window.resultsPage.init === 'function') {
         window.resultsPage.init();
+      }
+    } else if (targetView === 'analysis') {
+      if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+        window.analysisToolsPage.init();
       }
     } else if (targetView === 'history') {
       loadRegistrationHistory();
@@ -3125,6 +3133,10 @@
       } else if (targetView === 'results') {
         if (window.resultsPage && typeof window.resultsPage.init === 'function') {
           window.resultsPage.init();
+        }
+      } else if (targetView === 'analysis') {
+        if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+          window.analysisToolsPage.init();
         }
       } else if (targetView === 'history') {
         loadRegistrationHistory();
@@ -3183,8 +3195,11 @@
     } else if (hash === '#/lunar-map' || hash === '#/explorer' || hash === '#/map') {
       switchAppView('explorer', false);
       return;
-    } else if (hash === '#/analysis-tools' || hash === '#/analysis') {
+    } else if (hash.startsWith('#/analysis-tools') || hash.startsWith('#/analysis')) {
       switchAppView('analysis', false);
+      if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+        window.analysisToolsPage.init();
+      }
       return;
     } else if (hash === '#/about') {
       switchAppView('about', false);
