@@ -108,6 +108,9 @@
           window.switchView('new-reg', false);
         } else if (h.startsWith('#/results')) {
           window.switchView('results', false);
+          if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+            window.resultsPage.init();
+          }
         } else if (h.startsWith('#/processing')) {
           window.switchView('processing', false);
         } else if (h === '#/analysis-tools' || h === '#/analysis') {
@@ -1811,7 +1814,48 @@
            9. REGISTRATION RESULTS WORKSPACE (Dedicated Comparison Page - Part 4)
            ======================================================================== -->
       <section class="page-registration-results" id="view-registration-results" aria-label="Registration Results Workspace" style="display: none;">
-        <!-- Injected and managed dynamically by ResultsPage.js -->
+        <div class="results-page-layout">
+          <!-- 1. Header Mount -->
+          <header class="res-mount-header" id="res-mount-header"></header>
+
+          <!-- Main Scrollable Body -->
+          <div class="results-page-scroll" id="res-page-scroll">
+            
+            <!-- State Overlay Container (Loading / Error / Empty) -->
+            <div class="res-mount-state" id="res-mount-state" style="display: none;"></div>
+
+            <!-- Populated Content Area -->
+            <div class="results-populated-content" id="res-populated-content">
+              
+              <!-- 2. Dual Raster Comparison Area + Toolbar -->
+              <section class="res-section-comparison">
+                <!-- Comparison Toolbar Mount -->
+                <div class="res-mount-toolbar" id="res-mount-toolbar"></div>
+                <!-- Image Comparison Canvas Viewport Mount -->
+                <div class="res-mount-workspace" id="res-mount-workspace"></div>
+              </section>
+
+              <!-- 3. Telemetry Grid (Summary + Metrics + Lunar Map) -->
+              <div class="results-telemetry-row">
+                <!-- Left: Sensor Summary & Resolution Ratio -->
+                <div class="res-mount-summary" id="res-mount-summary"></div>
+                
+                <!-- Right: Lunar Geospatial Footprint Mini-Map -->
+                <div class="res-mount-map" id="res-mount-map"></div>
+              </div>
+
+              <!-- 4. Registration Metrics Telemetry Cards (9 Cards) -->
+              <div class="res-mount-metrics" id="res-mount-metrics"></div>
+
+              <!-- 5. Expandable Metadata Accordion (5 Sections) -->
+              <div class="res-mount-accordion" id="res-mount-accordion"></div>
+
+              <!-- 6. Bottom Export & Download Hub -->
+              <div class="res-mount-export" id="res-mount-export"></div>
+
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ========================================================================
@@ -2331,24 +2375,24 @@
   <script src="frontend/src/components/RegistrationInputPanel.js?v=2.5.0"></script>
 
   <!-- Part 4: Results & Analysis Components -->
-  <script src="frontend/src/components/ResultsHeader.js?v=2.6.0"></script>
-  <script src="frontend/src/components/RegistrationSummary.js?v=2.6.0"></script>
-  <script src="frontend/src/components/ComparisonToolbar.js?v=2.6.0"></script>
-  <script src="frontend/src/components/ImageComparisonWorkspace.js?v=2.6.0"></script>
-  <script src="frontend/src/components/RegistrationMetrics.js?v=2.6.0"></script>
-  <script src="frontend/src/components/MetadataAccordion.js?v=2.6.0"></script>
-  <script src="frontend/src/components/LunarMapPreview.js?v=2.6.0"></script>
-  <script src="frontend/src/components/ExportPanel.js?v=2.6.0"></script>
-  <script src="frontend/src/components/ResultsEmptyState.js?v=2.6.0"></script>
+  <script src="frontend/src/components/ResultsHeader.js?v=2.7.0"></script>
+  <script src="frontend/src/components/RegistrationSummary.js?v=2.7.0"></script>
+  <script src="frontend/src/components/ComparisonToolbar.js?v=2.7.0"></script>
+  <script src="frontend/src/components/ImageComparisonWorkspace.js?v=2.7.0"></script>
+  <script src="frontend/src/components/RegistrationMetrics.js?v=2.7.0"></script>
+  <script src="frontend/src/components/MetadataAccordion.js?v=2.7.0"></script>
+  <script src="frontend/src/components/LunarMapPreview.js?v=2.7.0"></script>
+  <script src="frontend/src/components/ExportPanel.js?v=2.7.0"></script>
+  <script src="frontend/src/components/ResultsEmptyState.js?v=2.7.0"></script>
 
   <!-- Page Controllers -->
-  <script src="frontend/src/pages/DashboardPage.js?v=2.6.0"></script>
-  <script src="frontend/src/pages/ProductsPage.js?v=2.6.0"></script>
-  <script src="frontend/src/pages/PairsPage.js?v=2.6.0"></script>
-  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.6.0"></script>
-  <script src="frontend/src/pages/ResultsPage.js?v=2.6.0"></script>
+  <script src="frontend/src/pages/DashboardPage.js?v=2.7.0"></script>
+  <script src="frontend/src/pages/ProductsPage.js?v=2.7.0"></script>
+  <script src="frontend/src/pages/PairsPage.js?v=2.7.0"></script>
+  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.7.0"></script>
+  <script src="frontend/src/pages/ResultsPage.js?v=2.7.0"></script>
 
   <!-- Main Application Controller -->
-  <script src="frontend/js/app.js?v=2.6.0"></script>
+  <script src="frontend/js/app.js?v=2.7.0"></script>
 </body>
 </html>

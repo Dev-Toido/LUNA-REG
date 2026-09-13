@@ -3063,7 +3063,11 @@
       if (targetView === 'processing') {
         targetHash = regWorkflowState.activeJobId ? `#/processing/${regWorkflowState.activeJobId}` : '#/processing';
       } else if (targetView === 'results') {
-        targetHash = regWorkflowState.activeJobId ? `#/results/${regWorkflowState.activeJobId}` : '#/results';
+        if (window.location.hash.startsWith('#/results')) {
+          targetHash = window.location.hash;
+        } else {
+          targetHash = regWorkflowState.activeJobId ? `#/results/${regWorkflowState.activeJobId}` : '#/results';
+        }
       } else if (targetView === 'new-reg') {
         targetHash = '#/new-registration';
       } else if (targetView === 'history') {
@@ -3087,9 +3091,9 @@
       resizeCanvases();
       draw();
     } else if (targetView === 'results') {
-      syncResultsImagery();
-      resizeResultsCanvas();
-      drawResultsCanvas();
+      if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+        window.resultsPage.init();
+      }
     } else if (targetView === 'history') {
       loadRegistrationHistory();
     } else if (targetView === 'dashboard') {

@@ -272,10 +272,13 @@ class ImageComparisonWorkspace {
 
     const rect = wrap.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(300, rect.width) * dpr;
-    canvas.height = Math.max(200, rect.height) * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+    const w = rect.width > 50 ? rect.width : (wrap.parentElement?.clientWidth || 800);
+    const h = rect.height > 50 ? rect.height : 480;
+
+    canvas.width = Math.max(300, w) * dpr;
+    canvas.height = Math.max(200, h) * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
