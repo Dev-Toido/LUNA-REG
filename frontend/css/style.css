@@ -7603,3 +7603,32 @@ canvas#results-canvas {
   gap: 8px;
 }
 
+/* Accessible Breadcrumb Navigation Links */
+.breadcrumb-link {
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+
+.breadcrumb-link:hover,
+.breadcrumb-link:focus-visible {
+  color: var(--accent-gold);
+  text-decoration: underline;
+}
+
+/* Tool Catalog Card Interactivity */
+.tool-catalog-card {
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tool-catalog-card:hover {
+  border-color: var(--accent-gold-muted);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.tool-catalog-card:active {
+  transform: translateY(0);
+}
+
+

@@ -1220,7 +1220,7 @@
     const runBtn = document.getElementById('btn-execute-registration');
     const ctaTip = document.getElementById('reg-cta-tip');
 
-    const isPairStaged = window.registrationPreparationPage && !!window.registrationPreparationPage.stagedPairId;
+    const isPairStaged = window.registrationPreparationPage && (!!window.registrationPreparationPage.selectedPairId || !!window.registrationPreparationPage.stagedPairId);
     const isRefValid = (!!regWorkflowState.refFile && !regWorkflowState.refError) || isPairStaged;
     const isTgtValid = (!!regWorkflowState.tgtFile && !regWorkflowState.tgtError) || isPairStaged;
     const bothReady = isPairStaged || (isRefValid && isTgtValid);
@@ -1279,9 +1279,13 @@
     updatePreflightValidation();
 
     if (bothReady) {
-      if (runBtn) runBtn.disabled = false;
+      if (runBtn) {
+        runBtn.disabled = false;
+        const btnSpan = runBtn.querySelector('span');
+        if (btnSpan) btnSpan.textContent = 'PREPARE REGISTRATION →';
+      }
       if (ctaTip) {
-        ctaTip.textContent = 'Both images are ready for registration.';
+        ctaTip.textContent = 'Images are ready. Registration processing API is not connected yet.';
         ctaTip.className = 'reg-cta-tip ready';
       }
       updateWorkflowStepper(4); // Stage 4: Validate files completed
@@ -1496,15 +1500,17 @@
   async function executeRegistrationWorkflow() {
     if (regWorkflowState.isSubmitting || regWorkflowState.isProcessing) return;
 
+    // 1. If in Database Pair mode, delegate to RegistrationPreparationPage
+    if (window.registrationPreparationPage && window.registrationPreparationPage.sourceMode === 'db-pair') {
+      window.registrationPreparationPage.handlePrepareRegistrationSubmit();
+      return;
+    }
+
+    // 2. Manual Upload Mode: Validate files
     const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
     const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
     const ctaTip = document.getElementById('reg-cta-tip');
     const runBtn = document.getElementById('btn-execute-registration');
-
-    if (window.registrationPreparationPage && window.registrationPreparationPage.stagedPairId) {
-      await window.registrationPreparationPage.runRegistration();
-      return;
-    }
 
     if (!isRefValid || !isTgtValid) {
       if (ctaTip) {
@@ -1514,121 +1520,32 @@
       return;
     }
 
-    // 1. Prepare genuine files / blobs
-    let refFile = regWorkflowState.refFile;
-    let tgtFile = regWorkflowState.tgtFile;
-
-    if (!(refFile instanceof Blob) && regWorkflowState.refUrl) {
-      try {
-        const blob = await fetch(regWorkflowState.refUrl).then(r => r.blob());
-        refFile = new File([blob], regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ref.png', { type: blob.type || 'image/png' });
-        regWorkflowState.refFile = refFile;
-      } catch (_) {}
-    }
-
-    if (!(tgtFile instanceof Blob) && regWorkflowState.tgtUrl) {
-      try {
-        const blob = await fetch(regWorkflowState.tgtUrl).then(r => r.blob());
-        tgtFile = new File([blob], regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'tgt.png', { type: blob.type || 'image/png' });
-        regWorkflowState.tgtFile = tgtFile;
-      } catch (_) {}
-    }
-
-    // 2. Read settings
-    const mode = (regWorkflowState.regSettings && regWorkflowState.regSettings.mode) ? regWorkflowState.regSettings.mode : 'automatic';
-    const detectorEl = document.getElementById('reg-param-detector');
-    const outlierEl = document.getElementById('reg-param-outlier');
-    const modelEl = document.getElementById('reg-param-model');
-    const subpixelEl = document.getElementById('reg-param-subpixel');
-    const claheEl = document.getElementById('reg-param-clahe');
-
-    const settings = {
-      mode: mode,
-      detector: detectorEl ? detectorEl.value : 'FAST+SIFT',
-      outlier_filter: outlierEl ? outlierEl.value : 'RANSAC',
-      geometric_model: modelEl ? modelEl.value : 'Homography',
-      subpixel_refinement: subpixelEl ? subpixelEl.checked : true,
-      clahe_normalization: claheEl ? claheEl.checked : true
-    };
-
-    // 3. Display submission loading state
-    regWorkflowState.isSubmitting = true;
-    const overlay = document.getElementById('reg-submitting-overlay');
-    if (overlay) overlay.style.display = 'flex';
-    if (runBtn) {
-      runBtn.disabled = true;
-      runBtn.textContent = 'TRANSMITTING TO BACKEND...';
-    }
+    // Inform the operator that images are ready and processing API is pending
     if (ctaTip) {
-      ctaTip.textContent = 'Transmitting images and parameters to backend registration service...';
-      ctaTip.className = 'reg-cta-tip notice';
+      ctaTip.textContent = 'Images are ready. Registration processing API is not connected yet.';
+      ctaTip.className = 'reg-cta-tip ready';
     }
 
-    const api = window.LUNAR_API || window.apiService;
-
-    try {
-      // 4. Submit to backend API POST /api/register
-      
-      const pairId = document.getElementById('pair-select').value;
-      if (!pairId) throw new Error('Please select an image pair first.');
-      const submission = await api.registerPair(pairId, settings);
-
-
-      if (!submission || !submission.job_id) {
-        throw new Error('Backend did not return a valid Job ID.');
-      }
-
-      const jobId = submission.job_id;
-
-      // 5. Hide submitting overlay and show Job Created Banner
-      if (overlay) overlay.style.display = 'none';
-      const banner = document.getElementById('reg-created-banner');
-      const bannerJobId = document.getElementById('reg-created-job-id');
-      if (banner) banner.style.display = 'flex';
-      if (bannerJobId) bannerJobId.textContent = jobId;
-
-      // 6. Save job to history as Processing
-      saveJobToHistory({
-        id: jobId,
-        refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : (refFile.name || 'reference.tif'),
-        refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : null,
-        tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : (tgtFile.name || 'target.tif'),
-        tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : null,
-        status: 'Processing',
-        date: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-        timestamp: Date.now(),
-        processingTime: '--',
-        metrics: null
-      });
-
-      updateApiStatusBadge('online');
-
-      // 7. Transition to dedicated processing page
-      setTimeout(() => {
-        if (banner) banner.style.display = 'none';
-        if (runBtn) {
-          runBtn.disabled = false;
-          runBtn.textContent = 'RUN REGISTRATION →';
-        }
-        regWorkflowState.isSubmitting = false;
-        openProcessingPage(jobId);
-      }, 900);
-
-    } catch (err) {
-      if (overlay) overlay.style.display = 'none';
-      if (runBtn) {
-        runBtn.disabled = false;
-        runBtn.textContent = 'RUN REGISTRATION →';
-      }
-      regWorkflowState.isSubmitting = false;
-      updateApiStatusBadge('offline');
-
-      if (ctaTip) {
-        ctaTip.textContent = err.message || 'Registration could not be started. Backend server is unreachable.';
-        ctaTip.className = 'reg-cta-tip error';
-      }
-      console.error('[LUNA-REG] Registration submission error:', err);
-    }
+    openModal('MANUAL REGISTRATION PREPARATION', `
+      <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+        <div style="color:var(--accent-gold); font-size:13px; font-weight:700; margin-bottom:10px;">
+          PREPARATION COMPLETE — IMAGES VALIDATED
+        </div>
+        <p style="margin-bottom:6px;">Reference: <strong style="color:var(--text-primary);">${regWorkflowState.refMeta ? regWorkflowState.refMeta.name : (regWorkflowState.refFile?.name || 'Validated')}</strong></p>
+        <p style="margin-bottom:6px;">Target: <strong style="color:var(--text-primary);">${regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : (regWorkflowState.tgtFile?.name || 'Validated')}</strong></p>
+        <div class="readiness-notice-amber" style="margin: 14px 0;">
+          <span>Images are ready. Registration processing API is not connected yet.</span>
+        </div>
+        <p style="font-size:11px; color:var(--text-muted); margin-bottom:14px;">
+          Both lunar rasters are stored in session memory and validated for alignment. When the backend registration processing endpoint is deployed, jobs can be directly dispatched.
+        </p>
+        <div style="display:flex; justify-content:flex-end;">
+          <button type="button" class="btn-tech" onclick="document.getElementById('modal-close').click();">
+            <span>CLOSE</span>
+          </button>
+        </div>
+      </div>
+    `);
   }
 
   // --- DEDICATED PROCESSING PAGE ORCHESTRATOR ---
@@ -2699,16 +2616,108 @@
       switchAppView('dataset');
       activateDatasetTab('pairs');
     });
+    bindClick('dash-card-regions', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+    });
+    bindClick('dash-card-unverified', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+      if (window.pairsPage) {
+        window.pairsPage.filters.overlap_status = 'UNVERIFIED';
+        window.pairsPage.applyFilters();
+      }
+    });
+    bindClick('btn-dash-view-all-pairs', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+    });
     bindClick('btn-refresh-telemetry', () => {
       if (window.dashboardPage) window.dashboardPage.refreshTelemetry();
     });
+
+    // Breadcrumb Navigation links
+    bindClick('res-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('res-bc-map', () => switchAppView('explorer'));
+    bindClick('hist-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('analysis-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('dataset-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('about-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('dash-bc-luna', () => switchAppView('dashboard'));
 
     bindClick('btn-analysis-open-map', () => switchAppView('explorer'));
     bindClick('btn-analysis-start-reg', () => switchAppView('new-reg'));
     bindClick('btn-analysis-jump-map', () => switchAppView('explorer'));
 
+    // Analysis Tool Module Cards Interaction
+    document.querySelectorAll('.tool-catalog-card').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const name = card.querySelector('.tool-card-name')?.textContent || 'Analytical Tool';
+        const desc = card.querySelector('.tool-card-desc')?.textContent || '';
+        openModal(name.toUpperCase(), `
+          <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+            <p style="color:var(--text-primary); margin-bottom:10px;">${desc}</p>
+            <div class="readiness-notice-amber" style="margin: 12px 0;">
+              <span>Analytical module is configured. Dedicated remote computation API is pending backend deployment.</span>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:14px;">
+              <button class="btn-tech primary" onclick="window.switchView('explorer'); document.getElementById('modal-close').click();"><span>SELECT REGION ON MAP</span></button>
+              <button class="btn-tech" onclick="window.switchView('new-reg'); document.getElementById('modal-close').click();"><span>STAGE REGISTRATION PAIR</span></button>
+            </div>
+          </div>
+        `);
+      });
+    });
+
+    // Download buttons feedback on results page
+    const dlImgBtn = document.getElementById('btn-download-registered-img');
+    if (dlImgBtn) {
+      dlImgBtn.addEventListener('click', (e) => {
+        if (!dlImgBtn.disabled && dlImgBtn.onclick) return;
+        openModal('IMAGE DOWNLOAD PENDING', `
+          <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+            <div style="color:var(--accent-gold); font-size:13px; font-weight:700; margin-bottom:8px;">
+              Registered Raster Asset
+            </div>
+            <p>Full-resolution warped GeoTIFF raster download will be enabled once the backend registration pipeline is integrated.</p>
+            <div class="readiness-notice-amber" style="margin: 12px 0;">
+              <span>Registration processing and raster download API is pending backend deployment.</span>
+            </div>
+          </div>
+        `);
+      });
+    }
+
+    const dlReportBtn = document.getElementById('btn-download-report');
+    if (dlReportBtn) {
+      dlReportBtn.addEventListener('click', (e) => {
+        if (!dlReportBtn.disabled && dlReportBtn.onclick) return;
+        openModal('ALIGNMENT REPORT PENDING', `
+          <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+            <div style="color:var(--accent-gold); font-size:13px; font-weight:700; margin-bottom:8px;">
+              Scientific Alignment Report
+            </div>
+            <p>PDF/JSON geometric verification report download will be available upon backend processing integration.</p>
+            <div class="readiness-notice-amber" style="margin: 12px 0;">
+              <span>Report generation API is pending backend deployment.</span>
+            </div>
+          </div>
+        `);
+      });
+    }
+
+    // Modal-based Raster Ingestion
     bindClick('btn-dataset-import', () => {
-      alert('Raster Import: Select GeoTIFF or PDS4 orbital image file to import into local catalog.');
+      openModal('RASTER IMPORT & CATALOG INGESTION', `
+        <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+          <p style="color:var(--text-primary); margin-bottom:10px;">Select GeoTIFF or PDS4 orbital image files to import into the local planetary catalog.</p>
+          <div class="readiness-notice-amber" style="margin: 12px 0;">
+            <span>Raster file upload and SQLite catalog write API is pending backend deployment.</span>
+          </div>
+          <p style="font-size:11px; color:var(--text-muted);">In the current stage, all available canonical products and image pairs are loaded directly via <code>GET /api/v1/products</code> and <code>GET /api/v1/pairs</code>.</p>
+        </div>
+      `);
     });
     bindClick('btn-dataset-sample-ref', () => {
       loadSamplePreset('ref');
@@ -3036,9 +3045,9 @@
       } else if (targetView === 'history') {
         targetHash = '#/history';
       } else if (targetView === 'explorer') {
-        targetHash = '#/explorer';
+        targetHash = '#/lunar-map';
       } else if (targetView === 'analysis') {
-        targetHash = '#/analysis';
+        targetHash = '#/analysis-tools';
       } else if (targetView === 'dataset') {
         targetHash = '#/dataset';
       } else if (targetView === 'about') {
@@ -3079,7 +3088,8 @@
   }
 
   function handleRouteHash() {
-    const hash = window.location.hash || '';
+    const rawHash = window.location.hash || '';
+    const hash = rawHash.split('?')[0].replace(/\/$/, '');
     if (hash.startsWith('#/processing/')) {
       const jobId = hash.replace('#/processing/', '').trim();
       if (jobId) {
@@ -3116,10 +3126,10 @@
     } else if (hash === '#/history') {
       switchAppView('history', false);
       return;
-    } else if (hash === '#/explorer' || hash === '#/map') {
+    } else if (hash === '#/lunar-map' || hash === '#/explorer' || hash === '#/map') {
       switchAppView('explorer', false);
       return;
-    } else if (hash === '#/analysis') {
+    } else if (hash === '#/analysis-tools' || hash === '#/analysis') {
       switchAppView('analysis', false);
       return;
     } else if (hash === '#/about') {
