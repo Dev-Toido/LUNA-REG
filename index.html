@@ -17,7 +17,8 @@
         'history': 'view-registration-history',
         'analysis': 'view-analysis-tools',
         'dataset': 'view-dataset',
-        'about': 'view-about'
+        'about': 'view-about',
+        'not-found': 'view-not-found'
       };
       var hashMap = {
         'dashboard': '#/dashboard',
@@ -28,7 +29,8 @@
         'history': '#/history',
         'analysis': '#/analysis-tools',
         'dataset': '#/dataset',
-        'about': '#/about'
+        'about': '#/about',
+        'not-found': '#/not-found'
       };
       var navKeyMap = {
         'dashboard': 'dashboard',
@@ -43,7 +45,7 @@
 
       window.switchView = function(viewKey, updateHash) {
         if (updateHash === undefined) updateHash = true;
-        if (!viewMap[viewKey]) viewKey = 'dashboard';
+        if (!viewMap[viewKey]) viewKey = 'not-found';
 
         // 1. Hide all views and display target
         Object.keys(viewMap).forEach(function(k) {
@@ -102,7 +104,9 @@
       };
 
       function routeFromHash() {
-        var h = (window.location.hash || '').split('?')[0].replace(/\/$/, '');
+        var raw = window.location.hash || '';
+        var h = raw.split('?')[0].replace(/\/$/, '');
+
         if (h.startsWith('#/lunar-map') || h === '#/explorer' || h === '#/map') {
           window.switchView('explorer', false);
           if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
@@ -110,6 +114,9 @@
           }
         } else if (h === '#/new-registration' || h === '#/new-reg' || h === '#/register') {
           window.switchView('new-reg', false);
+          if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
+            window.registrationPreparationPage.init();
+          }
         } else if (h.startsWith('#/results')) {
           window.switchView('results', false);
           if (window.resultsPage && typeof window.resultsPage.init === 'function') {
@@ -131,8 +138,16 @@
           window.switchView('history', false);
         } else if (h === '#/about') {
           window.switchView('about', false);
-        } else {
+        } else if (h === '#/dashboard' || h === '#/overview' || h === '' || h === '#') {
           window.switchView('dashboard', false);
+          if (window.dashboardPage && typeof window.dashboardPage.refreshTelemetry === 'function') {
+            window.dashboardPage.refreshTelemetry();
+          }
+        } else {
+          // 404 Route Not Found
+          window.switchView('not-found', false);
+          var routeEl = document.getElementById('notfound-attempted-route');
+          if (routeEl) routeEl.textContent = raw || h;
         }
       }
 
@@ -146,6 +161,26 @@
   </script>
 </head>
 <body>
+  <!-- Global Mission-Control Loading Screen -->
+  <div class="global-app-loader" id="global-app-loader" aria-live="polite" role="status">
+    <div class="global-loader-content">
+      <div class="loader-radar-sweep" aria-hidden="true">
+        <div class="loader-radar-circle lrc-1"></div>
+        <div class="loader-radar-circle lrc-2"></div>
+        <div class="loader-radar-circle lrc-3"></div>
+        <div class="loader-radar-line"></div>
+        <div class="loader-radar-blip blip-1"></div>
+        <div class="loader-radar-blip blip-2"></div>
+      </div>
+      <div class="loader-brand-title">LUNA-REG WORKSTATION</div>
+      <div class="loader-brand-sub">CHANDRAYAAN-2 PLANETARY MISSION CONTROL</div>
+      <div class="loader-progress-bar">
+        <div class="loader-progress-inner" id="global-loader-bar"></div>
+      </div>
+      <div class="loader-status-text" id="global-loader-status">INITIALIZING WORKSTATION TELEMETRY...</div>
+    </div>
+  </div>
+
   <!-- Accessible Skip Navigation Link for Screen Readers and Keyboard Traversal -->
   <a href="#map-workspace" class="skip-to-main">Skip to lunar map workspace</a>
 
@@ -200,6 +235,13 @@
             </svg>
           </div>
         </div>
+
+        <!-- Global API Health & Telemetry Indicator -->
+        <button type="button" class="api-health-badge" id="btn-api-health-status" title="FastAPI Backend Health Telemetry (Click to Inspect)" aria-label="Backend Connection Status">
+          <span class="api-pulse-dot" id="api-pulse-dot"></span>
+          <span class="api-status-label" id="api-status-label">BACKEND: CHECKING</span>
+          <span class="api-latency-pill" id="api-latency-pill">-- ms</span>
+        </button>
 
         <!-- Notifications Trigger -->
         <button class="nav-icon-btn" id="btn-notifications" title="System Notifications" aria-label="System Notifications">
@@ -1789,6 +1831,49 @@
       </section>
 
       <!-- ========================================================================
+           404 NOT FOUND VIEW (Mission Control Fallback Error Workspace)
+           ======================================================================== -->
+      <section class="page-not-found" id="view-not-found" aria-label="Route Not Found" style="display: none;">
+        <div class="notfound-card">
+          <div class="notfound-radar-graphic" aria-hidden="true">
+            <div class="radar-circle rc-1"></div>
+            <div class="radar-circle rc-2"></div>
+            <div class="radar-circle rc-3"></div>
+            <div class="radar-crosshair-h"></div>
+            <div class="radar-crosshair-v"></div>
+            <div class="radar-scan-arm"></div>
+            <div class="radar-lost-target">?</div>
+          </div>
+          <div class="notfound-badge">TELEMETRY OUT OF RANGE &bull; HTTP 404</div>
+          <h1 class="notfound-title">ROUTE NOT FOUND</h1>
+          <p class="notfound-desc">
+            The requested orbital route <code id="notfound-attempted-route">#/unknown</code> does not correspond to any registered lunar GIS or planetary registration subsystem.
+          </p>
+          <div class="notfound-guidance">
+            <span>Verify the route URL or return to an active mission control module:</span>
+          </div>
+          <div class="notfound-actions">
+            <button type="button" class="btn-tech primary" id="btn-404-dashboard" onclick="window.switchView('dashboard')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span>MISSION DASHBOARD</span>
+            </button>
+            <button type="button" class="btn-tech" id="btn-404-map" onclick="window.switchView('explorer')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg>
+              <span>LUNAR MAP EXPLORER</span>
+            </button>
+            <button type="button" class="btn-tech" id="btn-404-dataset" onclick="window.switchView('dataset')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              <span>DATASET EXPLORER</span>
+            </button>
+            <button type="button" class="btn-tech" id="btn-404-register" onclick="window.switchView('new-reg')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span>NEW REGISTRATION</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================================
            5. RIGHT INFORMATION PANEL (Collapsible Lunar Terrain Data / Mobile Bottom Sheet)
            ======================================================================== -->
       <aside class="right-info-panel" id="right-info-panel" aria-label="Lunar Terrain Data" style="display: none;">
@@ -1957,78 +2042,79 @@
   </div>
 
   <!-- Modular API Service Layer -->
-  <script src="frontend/src/services/api.js?v=2.5.0"></script>
-  <script src="frontend/src/services/systemService.js?v=2.5.0"></script>
-  <script src="frontend/src/services/regionService.js?v=2.5.0"></script>
-  <script src="frontend/src/services/productService.js?v=2.5.0"></script>
-  <script src="frontend/src/services/pairService.js?v=2.5.0"></script>
+  <script src="frontend/src/services/api.js?v=3.1.0"></script>
+  <script src="frontend/src/services/systemService.js?v=3.1.0"></script>
+  <script src="frontend/src/services/regionService.js?v=3.1.0"></script>
+  <script src="frontend/src/services/productService.js?v=3.1.0"></script>
+  <script src="frontend/src/services/pairService.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ToastManager.js?v=3.1.0"></script>
 
   <!-- Canonical UI Components -->
-  <script src="frontend/src/components/StatusBadge.js?v=2.5.0"></script>
-  <script src="frontend/src/components/EmptyState.js?v=2.5.0"></script>
-  <script src="frontend/src/components/LoadingState.js?v=2.5.0"></script>
-  <script src="frontend/src/components/ErrorState.js?v=2.5.0"></script>
-  <script src="frontend/src/components/FilterBar.js?v=2.5.0"></script>
-  <script src="frontend/src/components/ProductCard.js?v=2.5.0"></script>
-  <script src="frontend/src/components/ProductTable.js?v=2.5.0"></script>
-  <script src="frontend/src/components/PairCard.js?v=2.5.0"></script>
-  <script src="frontend/src/components/PairTable.js?v=2.5.0"></script>
-  <script src="frontend/src/components/MetadataPanel.js?v=2.5.0"></script>
-  <script src="frontend/src/components/RegistrationInputPanel.js?v=2.5.0"></script>
+  <script src="frontend/src/components/StatusBadge.js?v=3.1.0"></script>
+  <script src="frontend/src/components/EmptyState.js?v=3.1.0"></script>
+  <script src="frontend/src/components/LoadingState.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ErrorState.js?v=3.1.0"></script>
+  <script src="frontend/src/components/FilterBar.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ProductCard.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ProductTable.js?v=3.1.0"></script>
+  <script src="frontend/src/components/PairCard.js?v=3.1.0"></script>
+  <script src="frontend/src/components/PairTable.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MetadataPanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/RegistrationInputPanel.js?v=3.1.0"></script>
 
   <!-- Part 4: Results & Analysis Components -->
-  <script src="frontend/src/components/ResultsHeader.js?v=2.8.0"></script>
-  <script src="frontend/src/components/RegistrationSummary.js?v=2.8.0"></script>
-  <script src="frontend/src/components/ComparisonToolbar.js?v=2.8.0"></script>
-  <script src="frontend/src/components/ImageComparisonWorkspace.js?v=2.8.0"></script>
-  <script src="frontend/src/components/RegistrationMetrics.js?v=2.8.0"></script>
-  <script src="frontend/src/components/MetadataAccordion.js?v=2.8.0"></script>
-  <script src="frontend/src/components/LunarMapPreview.js?v=2.8.0"></script>
-  <script src="frontend/src/components/ExportPanel.js?v=2.8.0"></script>
-  <script src="frontend/src/components/ResultsEmptyState.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ResultsHeader.js?v=3.1.0"></script>
+  <script src="frontend/src/components/RegistrationSummary.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ComparisonToolbar.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ImageComparisonWorkspace.js?v=3.1.0"></script>
+  <script src="frontend/src/components/RegistrationMetrics.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MetadataAccordion.js?v=3.1.0"></script>
+  <script src="frontend/src/components/LunarMapPreview.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ExportPanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ResultsEmptyState.js?v=3.1.0"></script>
 
   <!-- Part 5: Analysis Tools Workspace Components -->
-  <script src="frontend/src/components/ImageInspector.js?v=2.8.0"></script>
-  <script src="frontend/src/components/LayerControlPanel.js?v=2.8.0"></script>
-  <script src="frontend/src/components/ComparisonViewer.js?v=2.8.0"></script>
-  <script src="frontend/src/components/MeasurementTools.js?v=2.8.0"></script>
-  <script src="frontend/src/components/TransformationPanel.js?v=2.8.0"></script>
-  <script src="frontend/src/components/ScientificMetrics.js?v=2.8.0"></script>
-  <script src="frontend/src/components/CoordinatePanel.js?v=2.8.0"></script>
-  <script src="frontend/src/components/AnalysisExportPanel.js?v=2.8.0"></script>
+  <script src="frontend/src/components/ImageInspector.js?v=3.1.0"></script>
+  <script src="frontend/src/components/LayerControlPanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ComparisonViewer.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MeasurementTools.js?v=3.1.0"></script>
+  <script src="frontend/src/components/TransformationPanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ScientificMetrics.js?v=3.1.0"></script>
+  <script src="frontend/src/components/CoordinatePanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/AnalysisExportPanel.js?v=3.1.0"></script>
 
   <!-- Part 6: Dataset Explorer Components -->
-  <script src="frontend/src/components/DatasetOverview.js?v=2.9.0"></script>
-  <script src="frontend/src/components/DatasetFilters.js?v=2.9.0"></script>
-  <script src="frontend/src/components/RegionTable.js?v=2.9.0"></script>
-  <script src="frontend/src/components/ProductDetailsDrawer.js?v=2.9.0"></script>
-  <script src="frontend/src/components/PairDetailsDrawer.js?v=2.9.0"></script>
-  <script src="frontend/src/components/RegionDetailsDrawer.js?v=2.9.0"></script>
-  <script src="frontend/src/components/FileMetadataPanel.js?v=2.9.0"></script>
-  <script src="frontend/src/components/DatasetEmptyState.js?v=2.9.0"></script>
+  <script src="frontend/src/components/DatasetOverview.js?v=3.1.0"></script>
+  <script src="frontend/src/components/DatasetFilters.js?v=3.1.0"></script>
+  <script src="frontend/src/components/RegionTable.js?v=3.1.0"></script>
+  <script src="frontend/src/components/ProductDetailsDrawer.js?v=3.1.0"></script>
+  <script src="frontend/src/components/PairDetailsDrawer.js?v=3.1.0"></script>
+  <script src="frontend/src/components/RegionDetailsDrawer.js?v=3.1.0"></script>
+  <script src="frontend/src/components/FileMetadataPanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/DatasetEmptyState.js?v=3.1.0"></script>
 
   <!-- Part 7: Lunar Map & GIS Explorer Components -->
-  <script src="frontend/src/components/LunarMapCanvas.js?v=3.0.0"></script>
-  <script src="frontend/src/components/MapToolbar.js?v=3.0.0"></script>
-  <script src="frontend/src/components/MapLayerPanel.js?v=3.0.0"></script>
-  <script src="frontend/src/components/MapLegend.js?v=3.0.0"></script>
-  <script src="frontend/src/components/MapSearch.js?v=3.0.0"></script>
-  <script src="frontend/src/components/FeatureInfoPanel.js?v=3.0.0"></script>
-  <script src="frontend/src/components/CoordinateDisplay.js?v=3.0.0"></script>
-  <script src="frontend/src/components/MapEmptyState.js?v=3.0.0"></script>
-  <script src="frontend/src/components/MapErrorState.js?v=3.0.0"></script>
+  <script src="frontend/src/components/LunarMapCanvas.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MapToolbar.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MapLayerPanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MapLegend.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MapSearch.js?v=3.1.0"></script>
+  <script src="frontend/src/components/FeatureInfoPanel.js?v=3.1.0"></script>
+  <script src="frontend/src/components/CoordinateDisplay.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MapEmptyState.js?v=3.1.0"></script>
+  <script src="frontend/src/components/MapErrorState.js?v=3.1.0"></script>
 
   <!-- Page Controllers -->
-  <script src="frontend/src/pages/DashboardPage.js?v=2.8.0"></script>
-  <script src="frontend/src/pages/ProductsPage.js?v=2.8.0"></script>
-  <script src="frontend/src/pages/PairsPage.js?v=2.8.0"></script>
-  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=2.8.0"></script>
-  <script src="frontend/src/pages/ResultsPage.js?v=2.8.0"></script>
-  <script src="frontend/src/pages/AnalysisToolsPage.js?v=2.8.0"></script>
-  <script src="frontend/src/pages/DatasetPage.js?v=2.9.0"></script>
-  <script src="frontend/src/pages/LunarMapPage.js?v=3.0.0"></script>
+  <script src="frontend/src/pages/DashboardPage.js?v=3.1.0"></script>
+  <script src="frontend/src/pages/ProductsPage.js?v=3.1.0"></script>
+  <script src="frontend/src/pages/PairsPage.js?v=3.1.0"></script>
+  <script src="frontend/src/pages/RegistrationPreparationPage.js?v=3.1.0"></script>
+  <script src="frontend/src/pages/ResultsPage.js?v=3.1.0"></script>
+  <script src="frontend/src/pages/AnalysisToolsPage.js?v=3.1.0"></script>
+  <script src="frontend/src/pages/DatasetPage.js?v=3.1.0"></script>
+  <script src="frontend/src/pages/LunarMapPage.js?v=3.1.0"></script>
 
   <!-- Main Application Controller -->
-  <script src="frontend/js/app.js?v=3.0.0"></script>
+  <script src="frontend/js/app.js?v=3.1.0"></script>
 </body>
 </html>

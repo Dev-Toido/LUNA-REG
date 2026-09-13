@@ -326,6 +326,7 @@
     try { checkInitialBackendHealth(); } catch(e) { console.warn('checkInitialBackendHealth:', e); }
     try { setupResultsViewer(); } catch(e) { console.warn('setupResultsViewer:', e); }
     try { setupHistoryEvents(); } catch(e) { console.warn('setupHistoryEvents:', e); }
+    try { setupGlobalHealthTelemetry(); } catch(e) { console.warn('setupGlobalHealthTelemetry:', e); }
 
     window.addEventListener('hashchange', handleRouteHash);
     if (window.location.hash && window.location.hash.length > 1) {
@@ -333,6 +334,9 @@
     } else {
       switchAppView('dashboard');
     }
+
+    // Dismiss initial global loading screen smoothly
+    dismissGlobalLoader();
   }
 
   function setupCanvases() {
@@ -1854,6 +1858,81 @@
     }
   }
 
+  function updateGlobalApiHealthUI(healthData) {
+    const pulseDot = document.getElementById('api-pulse-dot');
+    const labelEl = document.getElementById('api-status-label');
+    const latencyEl = document.getElementById('api-latency-pill');
+    const regDot = document.getElementById('api-status-dot');
+    const regUrl = document.getElementById('api-endpoint-url');
+    const sidebarDot = document.querySelector('.sidebar-footer .status-circle');
+    const sidebarText = document.querySelector('.sidebar-footer span:nth-child(2)');
+
+    const isOnline = !!(healthData && healthData.online);
+    const latency = (healthData && healthData.latencyMs !== null && healthData.latencyMs !== undefined)
+      ? `${healthData.latencyMs} ms`
+      : '-- ms';
+
+    if (pulseDot) {
+      pulseDot.className = 'api-pulse-dot ' + (isOnline ? 'online' : 'offline');
+    }
+    if (labelEl) {
+      labelEl.textContent = isOnline ? 'BACKEND: ONLINE' : 'BACKEND: OFFLINE';
+    }
+    if (latencyEl) {
+      latencyEl.textContent = latency;
+    }
+    if (regDot) {
+      regDot.className = `api-status-dot ${isOnline ? 'online' : 'offline'}`;
+    }
+    if (regUrl) {
+      const api = window.apiClient || window.apiService;
+      if (api) regUrl.textContent = api.getBaseUrl();
+    }
+    if (sidebarDot && sidebarText) {
+      if (isOnline) {
+        sidebarDot.style.background = 'var(--success)';
+        sidebarDot.style.boxShadow = '0 0 6px rgba(46, 213, 115, 0.4)';
+        sidebarText.textContent = 'BACKEND ONLINE';
+      } else {
+        sidebarDot.style.background = 'var(--error)';
+        sidebarDot.style.boxShadow = '0 0 6px rgba(255, 71, 87, 0.4)';
+        sidebarText.textContent = 'BACKEND OFFLINE';
+      }
+    }
+  }
+
+  function setupGlobalHealthTelemetry() {
+    if (window.systemService) {
+      // Subscribe to real-time health transitions
+      window.systemService.subscribe((statusObj) => {
+        updateGlobalApiHealthUI(statusObj);
+      });
+      // Start background polling every 30 seconds
+      window.systemService.startPolling(30000);
+    }
+
+    const healthBtn = document.getElementById('btn-api-health-status');
+    if (healthBtn && !healthBtn.dataset.bound) {
+      healthBtn.dataset.bound = 'true';
+      healthBtn.addEventListener('click', () => openModal('api-diagnostics'));
+    }
+  }
+
+  function dismissGlobalLoader() {
+    const loader = document.getElementById('global-app-loader');
+    const statusText = document.getElementById('global-loader-status');
+    const progressBar = document.getElementById('global-loader-bar');
+    if (!loader) return;
+    if (progressBar) progressBar.style.width = '100%';
+    if (statusText) statusText.textContent = 'WORKSTATION READY';
+    setTimeout(() => {
+      loader.classList.add('fading');
+      setTimeout(() => {
+        loader.style.display = 'none';
+      }, 400);
+    }, 450);
+  }
+
   function updateApiStatusBadge(status) {
     const dot = document.getElementById('api-status-dot');
     const urlEl = document.getElementById('api-endpoint-url');
@@ -1867,10 +1946,15 @@
 
   async function checkInitialBackendHealth() {
     updateApiStatusBadge('checking');
-    const api = window.LUNAR_API || window.apiService;
-    if (!api) return;
-    const res = await api.checkHealth(2500);
-    updateApiStatusBadge(res.online ? 'online' : 'offline');
+    if (window.systemService) {
+      const res = await window.systemService.getHealth({ timeoutMs: 2500 });
+      updateGlobalApiHealthUI(res);
+    } else {
+      const api = window.LUNAR_API || window.apiService;
+      if (!api) return;
+      const res = await api.checkHealth(2500);
+      updateApiStatusBadge(res.online ? 'online' : 'offline');
+    }
   }
 
   function setupDragAndDrop(zoneId, inputId, cardType) {
@@ -2996,7 +3080,8 @@
       'history': document.getElementById('view-registration-history'),
       'analysis': document.getElementById('view-analysis-tools'),
       'dataset': document.getElementById('view-dataset'),
-      'about': document.getElementById('view-about')
+      'about': document.getElementById('view-about'),
+      'not-found': document.getElementById('view-not-found')
     };
     const rightPanel = document.getElementById('right-info-panel');
 
@@ -3005,7 +3090,7 @@
     if (targetView === 'overview') targetView = 'dashboard';
     if (targetView === 'lunar-map') targetView = 'explorer';
     if (targetView === 'register') targetView = 'new-reg';
-    if (!views[targetView]) targetView = 'dashboard';
+    if (!views[targetView]) targetView = 'not-found';
 
     // Stop status polling if transitioning away from dedicated processing view
     if (targetView !== 'processing') {
@@ -3023,9 +3108,9 @@
       views[targetView].style.display = 'flex';
     }
 
-    // Right info panel visibility (only on map-workspace)
+    // Right info panel visibility
     if (rightPanel) {
-      rightPanel.style.display = (targetView === 'explorer') ? 'flex' : 'none';
+      rightPanel.style.display = 'none';
     }
 
     // Update Top Navigation Tabs & ARIA attributes
@@ -3084,6 +3169,8 @@
         targetHash = '#/dataset';
       } else if (targetView === 'about') {
         targetHash = '#/about';
+      } else if (targetView === 'not-found') {
+        targetHash = '#/not-found';
       }
       if (window.location.hash !== targetHash) {
         history.replaceState(null, '', targetHash);
@@ -3218,8 +3305,17 @@
     } else if (hash === '#/about') {
       switchAppView('about', false);
       return;
-    } else {
+    } else if (hash === '#/dashboard' || hash === '#/overview' || hash === '' || hash === '#') {
       switchAppView('dashboard', false);
+      if (window.dashboardPage && typeof window.dashboardPage.refreshTelemetry === 'function') {
+        window.dashboardPage.refreshTelemetry();
+      }
+      return;
+    } else {
+      switchAppView('not-found', false);
+      const routeEl = document.getElementById('notfound-attempted-route');
+      if (routeEl) routeEl.textContent = rawHash || hash;
+      return;
     }
   }
 
@@ -4364,132 +4460,173 @@ Analyze Image Pair -> Characterize Difficulty -> Prepare Representation
 Scientific Integrity Notice:
 All displayed coordinates, contours, and metrics are currently operating in CALIBRATION DEMO STATE for algorithm verification and testing. No simulated data is represented as genuine flight telemetry.</div>`;
     } else if (type === 'notifications') {
-      title.textContent = 'SYSTEM NOTIFICATIONS & TELEMETRY LOGS';
-      content.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <div style="padding:6px 10px; background:var(--bg-obsidian); border-left:3px solid var(--accent-gold);">
-            <div style="color:var(--accent-gold-light); font-weight:600;">[10:18 UTC] TMC-2 Ortho-mosaic Ingested</div>
-            <div style="color:var(--text-secondary); font-size:10px;">Calibration sample Tycho Nadir & Low-Sun stereo pair loaded.</div>
-          </div>
-          <div style="padding:6px 10px; background:var(--bg-obsidian); border-left:3px solid var(--success);">
-            <div style="color:var(--success); font-weight:600;">[10:14 UTC] Registration Convergence Achieved</div>
-            <div style="color:var(--text-secondary); font-size:10px;">Homography matrix estimated with 91.8% inliers (RMSE 0.318 px).</div>
-          </div>
-        </div>`;
-    } else if (type === 'profile') {
-      title.textContent = 'OPERATOR CREDENTIALS & MISSION SESSION';
-      content.innerHTML = `
-        <div class="code-block">
-Operator: Dr. Dev
-Role: Principal Investigator (PI) — Planetary Image Processing
-Affiliation: Space Applications Centre (SAC / ISRO)
-Hackathon Team: SIH26166 — LUNA-REG
-Session Protocol: TLS 1.3 | Geodetic Datum: D_MOON_2000
-Active GIS Workspace: Chandrayaan-2 TMC-2 Selene Station</div>`;
-    } else if (type === 'details') {
-      const roi = ROIs[state.activeROI];
-      const m = roi.metadata || {};
-      const latDir = roi.lat >= 0 ? 'N' : 'S';
-      const lonDir = roi.lon >= 0 ? 'E' : 'W';
-      const latStr = `${Math.abs(roi.lat).toFixed(4)}° ${latDir}`;
-      const lonStr = `${Math.abs(roi.lon).toFixed(4)}° ${lonDir}`;
-      const dateVal = m.acquisitionDate || 'Not available';
-      const orbitVal = m.orbitPass || 'Not available';
-      const sunVal = m.sunElevation || 'Not available';
-      const sourceVal = m.imageSource || 'Not available';
-      const resVal = m.imageResolution || 'Not available';
-      const typeVal = m.imageType || 'Not available';
-      const statusVal = m.registrationStatus || 'Not available';
-
-      title.textContent = `IMAGE TELEMETRY & METADATA — ${roi.name.toUpperCase()}`;
+      const logs = window.toastManager ? window.toastManager.getLogs() : [];
+      const health = window.systemService ? window.systemService.getStatus() : { online: false, status: 'Checking...' };
+      title.textContent = 'SYSTEM NOTIFICATIONS & SESSION TELEMETRY';
+      
       content.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:12px;">
-          <div style="display:flex; gap:14px; align-items:flex-start;">
-            <img src="${roi.baseImg === 'south_pole' ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg'}" 
-                 style="width:140px; height:105px; object-fit:cover; border:1px solid var(--border-dark); border-radius:var(--radius-xs);" 
-                 alt="${roi.name}">
-            <div style="flex:1; display:flex; flex-direction:column; gap:4px; font-family:var(--font-mono); font-size:10px;">
-              <div style="color:var(--accent-gold); font-weight:600; font-size:12px;">${m.imageTitle || roi.name}</div>
-              <div style="color:var(--text-secondary);">Spacecraft: <span style="color:var(--text-primary);">Chandrayaan-2 Orbiter (SAC / ISRO)</span></div>
-              <div style="color:var(--text-secondary);">Sensor: <span style="color:var(--text-primary);">${sourceVal}</span></div>
-              <div style="color:var(--text-secondary);">Orbit Track: <span style="color:var(--text-primary);">${orbitVal}</span></div>
-              <div style="color:var(--text-secondary);">Ground Resolution: <span style="color:var(--accent-gold-light);">${resVal}</span></div>
+          <!-- Telemetry Status Bar -->
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:var(--bg-charcoal); border:1px solid var(--border-dark); border-radius:var(--radius-xs); font-size:10px; font-family:var(--font-mono);">
+            <div>
+              <span style="color:var(--text-muted);">BUS TELEMETRY:</span>
+              <span style="color:${health.online ? 'var(--success)' : 'var(--error)'}; font-weight:600; margin-left:4px;">
+                ${health.online ? 'CONNECTED' : 'BACKEND OFFLINE'}
+              </span>
+              ${health.latencyMs !== null ? `<span style="color:var(--text-muted); margin-left:6px;">(${health.latencyMs} ms)</span>` : ''}
+            </div>
+            <div>
+              <span style="color:var(--text-muted);">DATUM:</span>
+              <span style="color:var(--accent-gold); margin-left:4px;">D_MOON_2000</span>
+            </div>
+            <button type="button" class="btn-tech-sm" id="btn-clear-session-logs" style="font-size:9px; padding:2px 8px;">CLEAR LOGS</button>
+          </div>
+
+          <!-- Log Event List -->
+          <div class="notification-log-list" id="modal-notif-log-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; padding-right:4px;">
+            ${logs.length === 0 ? `
+              <div style="padding:16px; background:var(--bg-obsidian); border:1px dashed var(--border-dark); text-align:center; color:var(--text-muted); font-size:11px; font-family:var(--font-mono);">
+                No abnormal system alerts recorded. Telemetry bus is operating normally.
+              </div>
+            ` : logs.map(l => `
+              <div style="padding:8px 12px; background:var(--bg-obsidian); border-left:3px solid ${l.type === 'error' ? 'var(--error)' : (l.type === 'warning' ? 'var(--accent-amber)' : 'var(--accent-gold)')}; border-top:1px solid var(--border-dark); border-right:1px solid var(--border-dark); border-bottom:1px solid var(--border-dark); border-radius:var(--radius-xs);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <span style="color:${l.type === 'error' ? 'var(--error)' : 'var(--accent-gold)'}; font-weight:600; font-size:11px; font-family:var(--font-mono);">[${l.timeStr}] ${l.title}</span>
+                  <span style="font-size:9px; padding:1px 6px; border-radius:2px; background:rgba(255,255,255,0.05); color:var(--text-muted); text-transform:uppercase;">${l.type}</span>
+                </div>
+                <div style="color:var(--text-secondary); font-size:11px; line-height:1.4;">${l.message}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      setTimeout(() => {
+        const clearBtn = document.getElementById('btn-clear-session-logs');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', () => {
+            if (window.toastManager) window.toastManager.clearLogs();
+            openModal('notifications');
+          });
+        }
+      }, 50);
+
+    } else if (type === 'api-diagnostics' || type === 'api-config') {
+      const client = window.apiClient || (window.apiService ? window.apiService.client : null);
+      const currentBaseUrl = client ? client.getBaseUrl() : 'http://127.0.0.1:8000/api/v1';
+      const currentBackendRoot = client ? client.getBackendRoot() : 'http://127.0.0.1:8000';
+      const status = window.systemService ? window.systemService.getStatus() : { online: false, status: 'Checking...', latencyMs: null, info: null };
+
+      title.textContent = 'FASTAPI BACKEND TELEMETRY & CONNECTION INSPECTOR';
+      content.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:14px; font-family:var(--font-mono);">
+          <!-- Live Telemetry Banner -->
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+            <div style="background:var(--bg-charcoal); border:1px solid var(--border-dark); padding:10px; border-radius:var(--radius-xs);">
+              <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px;">STATUS</div>
+              <div style="font-size:12px; font-weight:700; color:${status.online ? 'var(--success)' : 'var(--error)'};">
+                ${status.online ? 'ONLINE (HEALTHY)' : 'OFFLINE / UNREACHABLE'}
+              </div>
+            </div>
+            <div style="background:var(--bg-charcoal); border:1px solid var(--border-dark); padding:10px; border-radius:var(--radius-xs);">
+              <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px;">ROUND-TRIP LATENCY</div>
+              <div style="font-size:12px; font-weight:700; color:var(--accent-gold);" id="diag-latency-val">
+                ${status.latencyMs !== null ? `${status.latencyMs} ms` : '-- ms'}
+              </div>
+            </div>
+            <div style="background:var(--bg-charcoal); border:1px solid var(--border-dark); padding:10px; border-radius:var(--radius-xs);">
+              <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px;">ENVIRONMENT</div>
+              <div style="font-size:12px; font-weight:700; color:var(--text-primary);">
+                ${status.info ? (status.info.environment || 'development') : '--'}
+              </div>
             </div>
           </div>
 
+          <!-- Configuration Form -->
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label style="color:var(--text-muted); font-size:10px;">API BASE URL (VITE_API_BASE_URL):</label>
+            <input type="text" id="diag-api-base-url" value="${currentBaseUrl}" style="background:var(--bg-obsidian); border:1px solid var(--border-dark); padding:8px 10px; color:var(--accent-gold-light); font-family:var(--font-mono); font-size:11px; border-radius:var(--radius-xs);">
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label style="color:var(--text-muted); font-size:10px;">BACKEND ROOT URL (HEALTH & ASSETS):</label>
+            <input type="text" id="diag-backend-root" value="${currentBackendRoot}" style="background:var(--bg-obsidian); border:1px solid var(--border-dark); padding:8px 10px; color:var(--text-secondary); font-family:var(--font-mono); font-size:11px; border-radius:var(--radius-xs);">
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button type="button" class="btn-tech" id="diag-btn-ping">TEST CONNECTION NOW</button>
+            <button type="button" class="btn-tech primary" id="diag-btn-save">SAVE & APPLY</button>
+            <div id="diag-ping-result" style="font-size:10px; flex:1;"></div>
+          </div>
+
+          <!-- System Details -->
           <div class="code-block" style="font-size:10px; line-height:1.6;">
-[PDS4 GEODETIC & RADIOMETRIC RECORD]
-Target Body            : MOON (IAU / IAG 2000 Reference Frame)
-Reference Spheroid     : R = 1,737,400.0 m (Spherical Datum D_MOON_2000)
-Center Latitude        : ${latStr}
-Center Longitude       : ${lonStr}
-Center Elevation       : ${roi.elevation} m
-Acquisition Timestamp  : ${dateVal}
-Solar Elevation Angle  : ${sunVal}
-Incidence Angle        : Not available
-Emission Angle         : Not available
-Phase Angle            : Not available
-Radiometric Standard   : Level-2 Calibrated Radiance (ISRO ISSDC Archive)
-Homography Inlier Ratio: ${roi.inlierRatio || 'Not available'}
-Reprojection RMSE      : ${roi.rmse || 'Not available'}
-Registration State     : ${statusVal}
+[VERIFIED REST ENDPOINTS]
+GET  /health                         : Service heartbeat (returns {"status":"healthy"})
+GET  /api/info                       : Telemetry & versioning specification
+GET  /api/v1/regions                 : Target crater catalogue (Tycho, Shackleton, etc.)
+GET  /api/v1/products                : TMC-2 & OHRC orbital image index
+GET  /api/v1/products/{id}/files     : PDS4 raster files & storage metadata
+GET  /api/v1/pairs                   : Multi-modal overlapping image pairs
+GET  /api/v1/pairs/{id}/registration-input : Paired telemetry, GSD, and footprints
 
-[NOTICE]: Scientific Data Honesty Protocol active. Unsupplied instrument angles and calibration flags display as 'Not available'. No synthetic flight telemetry is fabricated.</div>
-    } else if (type === 'api-config') {
-      const api = window.LUNAR_API || window.apiService;
-      const currentUrl = api ? api.getBaseUrl() : 'http://localhost:8000';
-      title.textContent = 'REGISTRATION BACKEND CONFIGURATION (VITE_API_BASE_URL)';
-      content.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:14px;">
-          <p>Configure the backend server endpoint for lunar image registration (SIH26166):</p>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <label style="color:var(--text-muted); font-size:10px;">ENDPOINT BASE URL:</label>
-            <input type="text" id="cfg-api-url" value="${currentUrl}" style="background:var(--bg-obsidian); border:1px solid var(--border-dark); padding:8px 10px; color:var(--accent-gold-light); font-family:var(--font-mono); font-size:11px; border-radius:var(--radius-xs);">
-          </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn-tech" id="cfg-btn-test">TEST CONNECTION</button>
-            <button class="btn-tech primary" id="cfg-btn-save">SAVE & APPLY</button>
-          </div>
-          <div id="cfg-test-status" style="font-size:10px; font-family:var(--font-mono); min-height:18px;"></div>
-          <div class="code-block" style="font-size:10px;">
-Environment Variable: VITE_API_BASE_URL
-Default Endpoint:     http://localhost:8000
-Supported Endpoints:  POST /api/register (multipart/form-data)
-                      GET  /api/register/{job_id}/status
-
-[INTEGRITY PROTOCOL]: Real HTTP requests only. No fabricated responses or fake registration success.</div>
-        </div>`;
+[PENDING REGISTRATION ENDPOINTS]
+POST /api/register                   : Multi-modal sub-pixel registration runner
+GET  /api/register/{job_id}/status   : Asynchronous processing stage telemetry
+GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</div>
+        </div>
+      `;
 
       setTimeout(() => {
-        const testBtn = document.getElementById('cfg-btn-test');
-        const saveBtn = document.getElementById('cfg-btn-save');
-        const urlInput = document.getElementById('cfg-api-url');
-        const statusEl = document.getElementById('cfg-test-status');
+        const pingBtn = document.getElementById('diag-btn-ping');
+        const saveBtn = document.getElementById('diag-btn-save');
+        const baseInput = document.getElementById('diag-api-base-url');
+        const rootInput = document.getElementById('diag-backend-root');
+        const resultEl = document.getElementById('diag-ping-result');
+        const latencyVal = document.getElementById('diag-latency-val');
 
-        if (testBtn) {
-          testBtn.addEventListener('click', async () => {
-            statusEl.textContent = 'Testing connection...';
-            statusEl.style.color = 'var(--accent-gold)';
-            const testApi = new (window.RegistrationApiService || api.constructor)();
-            testApi.setBaseUrl(urlInput.value.trim());
-            const health = await testApi.checkHealth(3000);
-            if (health.online) {
-              statusEl.textContent = `✓ Backend online at ${testApi.getBaseUrl()} (HTTP ${health.status})`;
-              statusEl.style.color = 'var(--success)';
-            } else {
-              statusEl.textContent = `✗ Server unavailable at ${testApi.getBaseUrl()}. Connection refused.`;
-              statusEl.style.color = 'var(--error)';
+        if (pingBtn) {
+          pingBtn.addEventListener('click', async () => {
+            if (resultEl) {
+              resultEl.textContent = 'Pinging /health...';
+              resultEl.style.color = 'var(--accent-gold)';
+            }
+            if (window.systemService) {
+              const pingRes = await window.systemService.ping();
+              if (resultEl) {
+                if (pingRes.online) {
+                  resultEl.textContent = `✓ Connected (${pingRes.latencyMs} ms) — HTTP 200 OK`;
+                  resultEl.style.color = 'var(--success)';
+                } else {
+                  resultEl.textContent = `✗ Unreachable (${pingRes.error || 'Connection refused'})`;
+                  resultEl.style.color = 'var(--error)';
+                }
+              }
+              if (latencyVal && pingRes.latencyMs !== null) {
+                latencyVal.textContent = `${pingRes.latencyMs} ms`;
+              }
             }
           });
         }
 
         if (saveBtn) {
-          saveBtn.addEventListener('click', () => {
-            const newUrl = urlInput.value.trim();
-            if (api) api.setBaseUrl(newUrl);
-            updateApiStatusBadge('checking');
-            closeModal();
-            checkInitialBackendHealth();
+          saveBtn.addEventListener('click', async () => {
+            const newBase = baseInput.value.trim();
+            const newRoot = rootInput.value.trim();
+            if (window.apiClient) {
+              window.apiClient.setBaseUrl(newBase);
+              window.apiClient.setBackendRoot(newRoot);
+            }
+            if (window.showToast) {
+              window.showToast('success', 'CONFIGURATION SAVED', 'Backend base URL updated successfully.');
+            }
+            if (window.systemService) {
+              await window.systemService.ping();
+            }
+            if (window.dashboardPage) {
+              window.dashboardPage.refreshTelemetry();
+            }
           });
         }
       }, 50);
