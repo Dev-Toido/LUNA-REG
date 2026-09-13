@@ -13,6 +13,7 @@ class CoreClient(Protocol):
 	def submit_registration(
 		self,
 		pair_id: int,
+		registration_input: Mapping[str, Any],
 		options: Mapping[str, Any] | None = None,
 	) -> dict[str, Any]:
 		"""Submit a registration request without performing image processing."""
@@ -24,10 +25,15 @@ class MockCoreClient:
 	def submit_registration(
 		self,
 		pair_id: int,
+		registration_input: Mapping[str, Any],
 		options: Mapping[str, Any] | None = None,
 	) -> dict[str, Any]:
 		return {
-			"job_id": f"mock-{uuid4()}",
-			"pair_id": pair_id,
+			"core_job_id": f"mock-{uuid4()}",
 			"status": "QUEUED",
 		}
+
+
+def get_core_client() -> CoreClient:
+	"""Return the replaceable Core implementation for the current environment."""
+	return MockCoreClient()

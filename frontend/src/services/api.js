@@ -4,10 +4,9 @@
  * 
  * Production-ready API service layer connecting LUNA-REG frontend
  * to external multi-modal lunar registration backend services:
- * - POST /api/register
- * - GET  /api/register/{job_id}/status
- * - GET  /api/register/{job_id}/result
- * - GET  /api/register/history
+ * - GET  /api/v1/pairs
+ * - POST /api/v1/pairs/{pair_id}/registration-jobs
+ * - GET  /api/v1/registration-jobs/{job_id}
  * 
  * Honors VITE_API_BASE_URL (default: http://localhost:8000)
  * Strictly forbids fabricated results or fake processing states.
@@ -135,7 +134,7 @@ class RegistrationApiService {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const endpoints = ['/health', '/api/health', '/api/register/health', '/'];
+    const endpoints = ['/health', '/api/v1/health', '/'];
 
     for (const ep of endpoints) {
       try {
@@ -159,35 +158,62 @@ class RegistrationApiService {
   }
 
   /**
-   * Submit image pair to backend registration pipeline
-   * POST /api/register
-   * Content-Type: multipart/form-data
+   * Fetch list of available pairs from the backend
+   * GET /api/v1/pairs
+   */
+  async getPairs(timeoutMs = 5000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response;
+    try {
+      response = await fetch(`${this.baseUrl}/api/v1/pairs`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        throw new ApiError(`Fetching pairs timed out.`, 'TIMEOUT', 408);
+      }
+      throw new ApiError('Unable to reach backend API.', 'SERVER_UNAVAILABLE', 0, { originalError: err.message });
+    }
+
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      throw new ApiError('Failed to fetch pairs.', 'HTTP_ERROR', response.status);
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Submit pair to backend registration pipeline
+   * POST /api/v1/pairs/{pair_id}/registration-jobs
+   * Content-Type: application/json
    * 
-   * @param {File|Blob} referenceFile - Base image for alignment
-   * @param {File|Blob} targetFile - Image to align
+   * @param {string|number} pairId - Pair ID
    * @param {Object} [settings] - Settings: registration_mode, detector, outlier_filter, geometric_model, subpixel_refinement, clahe_normalization
    * @returns {Promise<{ job_id: string, status: string, message?: string, raw: Object }>}
    */
-  async registerImages(referenceFile, targetFile, settings = {}) {
-    if (!referenceFile) {
-      throw new ApiError('Please select a valid reference lunar image.', 'INVALID_INPUT', 400);
-    }
-    if (!targetFile) {
-      throw new ApiError('Please select a valid target lunar image.', 'INVALID_INPUT', 400);
+  async registerPair(pairId, settings = {}) {
+    if (!pairId) {
+      throw new ApiError('Please select a valid pair.', 'INVALID_INPUT', 400);
     }
 
-    // Do NOT manually set Content-Type header. Let browser calculate multipart boundary.
-    const formData = new FormData();
-    formData.append('reference_image', referenceFile, referenceFile.name || 'reference_image.png');
-    formData.append('target_image', targetFile, targetFile.name || 'target_image.png');
-    formData.append('registration_mode', settings.registration_mode || settings.mode || 'automatic');
-
-    if (settings.roi_name) formData.append('roi_name', settings.roi_name);
-    if (settings.detector) formData.append('detector', settings.detector);
-    if (settings.outlier_filter) formData.append('outlier_filter', settings.outlier_filter);
-    if (settings.geometric_model) formData.append('geometric_model', settings.geometric_model);
-    if (settings.subpixel_refinement !== undefined) formData.append('subpixel_refinement', String(settings.subpixel_refinement));
-    if (settings.clahe_normalization !== undefined) formData.append('clahe_normalization', String(settings.clahe_normalization));
+    const payload = {
+      options: {
+        registration_mode: settings.registration_mode || settings.mode || 'automatic',
+        ...(settings.roi_name && { roi_name: settings.roi_name }),
+        ...(settings.detector && { detector: settings.detector }),
+        ...(settings.outlier_filter && { outlier_filter: settings.outlier_filter }),
+        ...(settings.geometric_model && { geometric_model: settings.geometric_model }),
+        ...(settings.subpixel_refinement !== undefined && { subpixel_refinement: settings.subpixel_refinement }),
+        ...(settings.clahe_normalization !== undefined && { clahe_normalization: settings.clahe_normalization })
+      }
+    };
 
     const timeoutMs = settings.timeoutMs || 45000;
     const controller = new AbortController();
@@ -195,21 +221,25 @@ class RegistrationApiService {
 
     let response;
     try {
-      response = await fetch(`${this.baseUrl}/api/register`, {
+      response = await fetch(`${this.baseUrl}/api/v1/pairs/${encodeURIComponent(pairId)}/registration-jobs`, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload),
         signal: controller.signal
       });
     } catch (err) {
       clearTimeout(timer);
       if (err.name === 'AbortError') {
-        throw new ApiError(`Request timed out after ${timeoutMs / 1000}s while uploading lunar imagery.`, 'TIMEOUT', 408);
+        throw new ApiError(`Request timed out after ${timeoutMs / 1000}s while starting registration.`, 'TIMEOUT', 408);
       }
       throw new ApiError(
         'Registration service is currently unavailable. Please try again.',
         'SERVER_UNAVAILABLE',
         0,
-        { originalError: err.message, targetUrl: `${this.baseUrl}/api/register` }
+        { originalError: err.message, targetUrl: `${this.baseUrl}/api/v1/pairs/${pairId}/registration-jobs` }
       );
     }
 
@@ -240,31 +270,30 @@ class RegistrationApiService {
       throw new ApiError('Invalid response received from registration service.', 'INVALID_RESPONSE', response.status);
     }
 
-    // Validate response: must have valid job_id
-    if (!resultJson || !resultJson.job_id) {
+    if (!resultJson || !resultJson.id) {
       throw new ApiError('Invalid response: Backend did not return a valid Job ID.', 'INVALID_RESPONSE', response.status, resultJson);
     }
 
     return {
-      job_id: String(resultJson.job_id),
-      status: resultJson.status || 'processing',
-      message: resultJson.message || 'Registration started',
+      job_id: String(resultJson.id),
+      status: resultJson.status || 'QUEUED',
+      message: resultJson.error_message || 'Registration started',
       raw: resultJson
     };
   }
 
   // Alias for backward compatibility
-  async submitRegistration(referenceFile, targetFile, settings = {}) {
-    return this.registerImages(referenceFile, targetFile, settings);
+  async submitRegistration(pairId, _, settings = {}) {
+    return this.registerPair(pairId, settings);
   }
 
   /**
    * Poll backend job processing status
-   * GET /api/register/{job_id}/status
+   * GET /api/v1/registration-jobs/{job_id}
    * 
    * @param {string} jobId - Unique registration job identifier
    * @param {number} [timeoutMs] - Request timeout (default 8000ms)
-   * @returns {Promise<{ job_id: string, status: string, stage?: string, progress?: number, message?: string, raw: Object }>}
+   * @returns {Promise<{ job_id: string, status: string, message?: string, raw: Object }>}
    */
   async getRegistrationStatus(jobId, timeoutMs = 8000) {
     if (!jobId) {
@@ -276,7 +305,7 @@ class RegistrationApiService {
 
     let response;
     try {
-      response = await fetch(`${this.baseUrl}/api/register/${encodeURIComponent(jobId)}/status`, {
+      response = await fetch(`${this.baseUrl}/api/v1/registration-jobs/${encodeURIComponent(jobId)}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         signal: controller.signal
@@ -316,13 +345,10 @@ class RegistrationApiService {
     }
 
     return {
-      job_id: data.job_id || jobId,
+      job_id: data.id || jobId,
       status: String(data.status).toLowerCase(),
-      stage: data.stage ? String(data.stage).toLowerCase() : null,
-      progress: (typeof data.progress === 'number') ? data.progress : null,
-      message: data.message || null,
+      message: data.error_message || null,
       created_at: data.created_at || null,
-      elapsed_seconds: data.elapsed_seconds || null,
       raw: data
     };
   }
@@ -403,47 +429,10 @@ class RegistrationApiService {
   }
 
   /**
-   * Fetch registration history from backend
-   * GET /api/register/history or GET /api/jobs
-   * 
-   * @param {number} [timeoutMs]
-   * @returns {Promise<Array<Object>|null>} List of jobs or null if endpoint unavailable
+   * Fetch registration history from backend (currently un-implemented on canonical v1 API)
    */
   async getRegistrationHistory(timeoutMs = 5000) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    const endpoints = ['/api/register/history', '/api/jobs', '/api/register/jobs'];
-    for (const ep of endpoints) {
-      try {
-        const response = await fetch(`${this.baseUrl}${ep}`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          signal: controller.signal
-        });
-        if (response.ok) {
-          clearTimeout(timer);
-          const data = await response.json();
-          let list = null;
-          if (Array.isArray(data)) list = data;
-          else if (data && Array.isArray(data.jobs)) list = data.jobs;
-          else if (data && Array.isArray(data.history)) list = data.history;
-
-          if (list) {
-            return list.map(item => {
-              if (item.refThumb) item.refThumb = this.resolveAssetUrl(item.refThumb);
-              if (item.tgtThumb) item.tgtThumb = this.resolveAssetUrl(item.tgtThumb);
-              return item;
-            });
-          }
-        }
-      } catch (_) {
-        // Continue to next endpoint or timeout
-      }
-    }
-
-    clearTimeout(timer);
-    return null; // Endpoint unavailable on this backend server
+    return null;
   }
 
   /**

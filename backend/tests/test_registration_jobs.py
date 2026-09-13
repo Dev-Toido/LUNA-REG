@@ -16,10 +16,11 @@ class CapturingCoreClient:
         self.pair_id = None
         self.options = None
 
-    def submit_registration(self, pair_id, options=None):
+    def submit_registration(self, pair_id, registration_input, options=None):
         self.pair_id = pair_id
+        self.registration_input = registration_input
         self.options = options
-        return {"job_id": "core-job-1", "pair_id": pair_id, "status": "QUEUED"}
+        return {"core_job_id": "core-job-1", "pair_id": pair_id, "status": "QUEUED"}
 
 
 def _database(include_source=True, include_reference=True):
@@ -62,7 +63,7 @@ def _database(include_source=True, include_reference=True):
 def test_missing_pair_returns_404() -> None:
     db, _ = _database()
     try:
-        registration_jobs.submit_registration_job(999, None, db)
+        registration_jobs.submit_registration_job(999, None, db, CapturingCoreClient())
     except HTTPException as exc:
         assert exc.status_code == 404
     else:
@@ -74,7 +75,7 @@ def test_missing_source_or_reference_returns_409() -> None:
     for include_source, include_reference in ((False, True), (True, False)):
         db, pair_id = _database(include_source, include_reference)
         try:
-            registration_jobs.submit_registration_job(pair_id, None, db)
+            registration_jobs.submit_registration_job(pair_id, None, db, CapturingCoreClient())
         except HTTPException as exc:
             assert exc.status_code == 409
         else:
@@ -86,7 +87,7 @@ def test_successful_mock_submission_persists_and_retrieves_job() -> None:
     db, pair_id = _database()
     client = CapturingCoreClient()
     original = registration_jobs.create_registration_job
-    registration_jobs.create_registration_job = lambda db, pair_id, requested_options=None: original(
+    registration_jobs.create_registration_job = lambda db, pair_id, requested_options=None, core_client=None: original(
         db, pair_id, requested_options, client
     )
     try:
@@ -100,7 +101,7 @@ def test_successful_mock_submission_persists_and_retrieves_job() -> None:
     assert response.status == "QUEUED"
     assert response.core_job_id == "core-job-1"
     assert client.pair_id == pair_id
-    assert client.options["source_product"]["file"]["drive_file_id"] == "drive-source"
+    assert client.registration_input["source_product"]["files"][0]["drive_file_id"] == "drive-source"
     job = db.scalar(select(RegistrationJob).where(RegistrationJob.id == response.id))
     assert job is not None and job.status == "QUEUED"
     retrieved = registration_jobs.get_registration_job_endpoint(response.id, db)
@@ -119,9 +120,27 @@ def test_invalid_job_id_returns_404() -> None:
     db.close()
 
 
+def test_core_failure_persists_failed_job() -> None:
+    class FailingCoreClient:
+        def submit_registration(self, pair_id, registration_input, options=None):
+            raise RuntimeError("synthetic core failure")
+
+    db, pair_id = _database()
+    try:
+        registration_jobs.submit_registration_job(pair_id, None, db, FailingCoreClient())
+    except HTTPException as exc:
+        assert exc.status_code == 502
+    else:
+        raise AssertionError("Core failure was not surfaced")
+    job = db.scalar(select(RegistrationJob).order_by(RegistrationJob.id.desc()))
+    assert job is not None and job.status == "FAILED"
+    assert "synthetic core failure" in job.error_message
+    db.close()
+
+
 def test_mock_client_contract_and_legacy_routes() -> None:
-    result = MockCoreClient().submit_registration(1, {"x": 1})
-    assert result["pair_id"] == 1 and result["status"] == "QUEUED"
+    result = MockCoreClient().submit_registration(1, {"pair_id": 1}, {"x": 1})
+    assert result["core_job_id"].startswith("mock-") and result["status"] == "QUEUED"
     paths = app.openapi()["paths"]
     assert "/datasets" in paths and "/auth/google/login" in paths and "/storage/drive/status" in paths
     assert read_root() == {"project": "LUNA-REG", "status": "running"}

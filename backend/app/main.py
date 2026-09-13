@@ -37,6 +37,7 @@ app.include_router(canonical_router)
 app.include_router(canonical_router, prefix="/api/v1")
 app.include_router(canonical_write_router)
 app.include_router(registration_jobs_router)
+app.include_router(registration_jobs_router, prefix="/api/v1")
 app.include_router(auth_router)
 app.include_router(storage_router)
 

@@ -800,222 +800,30 @@
         <div class="reg-content-scroll">
           
           <!-- Image Upload Cards Grid -->
-          <div class="reg-cards-grid">
+          <div class="reg-cards-grid" style="display: block;">
+              <!-- PAIR SELECTION CARD -->
+              <div class="reg-image-card" id="card-pair" style="display: flex; flex-direction: column; align-items: center; max-width: 800px; margin: 0 auto; width: 100%;">
+                <div class="card-corner-bracket top-left"></div>
+                <div class="card-corner-bracket top-right"></div>
+                <div class="card-corner-bracket bottom-left"></div>
+                <div class="card-corner-bracket bottom-right"></div>
+  
+                <div class="reg-card-header" style="width: 100%;">
+                  <div class="card-title-group">
+                    <h3 class="reg-card-label">SELECT IMAGE PAIR</h3>
+                    <p class="reg-card-desc">Choose a pre-registered image pair</p>
+                  </div>
+                </div>
+  
+                <div class="drop-zone" style="padding: 2rem; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                  <select id="pair-select" style="padding: 0.5rem; background: rgba(0,0,0,0.5); color: #00f0ff; border: 1px solid #00f0ff; width: 100%; font-family: monospace; font-size: 1.1rem; outline: none; cursor: pointer;">
+                    <option value="">Loading pairs...</option>
+                  </select>
+                </div>
+              </div>
+            </div>
             
-            <!-- REFERENCE IMAGE CARD -->
-            <div class="reg-image-card" id="card-ref">
-              <div class="card-corner-bracket top-left"></div>
-              <div class="card-corner-bracket top-right"></div>
-              <div class="card-corner-bracket bottom-left"></div>
-              <div class="card-corner-bracket bottom-right"></div>
-
-              <div class="reg-card-header">
-                <div class="card-title-group">
-                  <div class="card-badge-row">
-                    <span class="reg-card-badge">BASE ORBIT PASS</span>
-                    <span class="format-badge" id="ref-format-badge">GEOTIFF 16-BIT</span>
-                  </div>
-                  <h3 class="reg-card-label">REFERENCE IMAGE</h3>
-                  <p class="reg-card-desc">Base image for alignment</p>
-                </div>
-                <button class="btn-sample-preset" id="btn-load-sample-ref" title="Load demo Chandrayaan-2 TMC-2 Nadir Pass">LOAD TMC-2 NADIR SAMPLE</button>
-              </div>
-
-              <!-- Drag & Drop Zone -->
-              <div class="drop-zone" id="dropzone-ref" tabindex="0" role="button" aria-label="Reference Image Drop Zone. Drag and drop file or press Enter to browse files.">
-                <input type="file" id="file-input-ref" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
-                <div class="drop-zone-error" id="ref-drop-error" style="display: none;"></div>
-                <div class="drop-zone-idle" id="drop-ref-idle">
-                  <div class="drop-zone-icon">
-                    <svg viewBox="0 0 24 24">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                      <polyline points="21 15 16 10 5 21"></polyline>
-                    </svg>
-                  </div>
-                  <div class="drop-prompt">
-                    <span class="drop-text-primary">Drag &amp; drop your reference image here</span>
-                    <span class="drop-text-secondary">or</span>
-                    <button type="button" class="btn-browse-files" id="btn-browse-ref">BROWSE FILES</button>
-                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
-                  </div>
-                </div>
-
-                <!-- Active Upload File State Box -->
-                <div class="drop-zone-active-file" id="drop-ref-active" style="display: none;">
-                  <div class="active-file-header-row">
-                    <div class="active-file-preview-wrap">
-                      <img id="ref-thumb-img" class="active-file-thumb" src="" alt="Reference Image Preview">
-                      <div class="active-file-thumb-fallback" id="ref-thumb-fallback" style="display: none;">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                          <polyline points="14 2 14 8 20 8"></polyline>
-                          <line x1="16" y1="13" x2="8" y2="13"></line>
-                          <line x1="16" y1="17" x2="8" y2="17"></line>
-                        </svg>
-                        <span>TIFF</span>
-                      </div>
-                      <button class="btn-remove-image" id="btn-remove-ref" title="Remove reference image" aria-label="Remove Image">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
-                      <button type="button" class="btn-replace-overlay" id="btn-replace-ref" title="Replace reference file with another file from your computer">REPLACE</button>
-                    </div>
-
-                    <div class="active-file-meta-list">
-                      <div class="file-meta-row">
-                        <span class="meta-label">File Name:</span>
-                        <span class="meta-value" id="ref-file-name">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">File Size:</span>
-                        <span class="meta-value" id="ref-file-size">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Dimensions:</span>
-                        <span class="meta-value" id="ref-file-dims">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">File Type:</span>
-                        <span class="meta-value" id="ref-file-type">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Ground Footprint:</span>
-                        <span class="meta-value" id="ref-footprint">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Upload Status:</span>
-                        <span class="meta-value success" id="ref-file-status">READY FOR REGISTRATION ✓</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="card-tiff-notice" id="ref-card-tiff-notice" style="display: none;">
-                    TIFF preview is not available in this browser. The file is ready for registration.
-                  </div>
-
-                  <!-- Live Radiance Histogram Strip -->
-                  <div class="card-histogram-section">
-                    <div class="histogram-header">
-                      <span class="hist-label">RADIANCE HISTOGRAM (DN)</span>
-                      <span class="hist-spread" id="ref-hist-spread">Range: -- DN</span>
-                    </div>
-                    <canvas id="ref-mini-hist" class="mini-hist-canvas" width="280" height="46"></canvas>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- TARGET IMAGE CARD -->
-            <div class="reg-image-card" id="card-tgt">
-              <div class="card-corner-bracket top-left"></div>
-              <div class="card-corner-bracket top-right"></div>
-              <div class="card-corner-bracket bottom-left"></div>
-              <div class="card-corner-bracket bottom-right"></div>
-
-              <div class="reg-card-header">
-                <div class="card-title-group">
-                  <div class="card-badge-row">
-                    <span class="reg-card-badge">UNALIGNED PASS</span>
-                    <span class="format-badge" id="tgt-format-badge">PNG 8-BIT</span>
-                  </div>
-                  <h3 class="reg-card-label">TARGET IMAGE</h3>
-                  <p class="reg-card-desc">Image to be aligned / registered</p>
-                </div>
-                <button class="btn-sample-preset" id="btn-load-sample-tgt" title="Load demo Chandrayaan-2 TMC-2 Low-Sun Pass">LOAD TMC-2 LOW-SUN SAMPLE</button>
-              </div>
-
-              <!-- Drag & Drop Zone -->
-              <div class="drop-zone" id="dropzone-tgt" tabindex="0" role="button" aria-label="Target Image Drop Zone. Drag and drop file or press Enter to browse files.">
-                <input type="file" id="file-input-tgt" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
-                <div class="drop-zone-error" id="tgt-drop-error" style="display: none;"></div>
-                <div class="drop-zone-idle" id="drop-tgt-idle">
-                  <div class="drop-zone-icon">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path>
-                      <circle cx="12" cy="12" r="7"></circle>
-                    </svg>
-                  </div>
-                  <div class="drop-prompt">
-                    <span class="drop-text-primary">Drag &amp; drop your target image here</span>
-                    <span class="drop-text-secondary">or</span>
-                    <button type="button" class="btn-browse-files" id="btn-browse-tgt">BROWSE FILES</button>
-                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
-                  </div>
-                </div>
-
-                <!-- Active Upload File State Box -->
-                <div class="drop-zone-active-file" id="drop-tgt-active" style="display: none;">
-                  <div class="active-file-header-row">
-                    <div class="active-file-preview-wrap">
-                      <img id="tgt-thumb-img" class="active-file-thumb" src="" alt="Target Image Preview">
-                      <div class="active-file-thumb-fallback" id="tgt-thumb-fallback" style="display: none;">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                          <polyline points="14 2 14 8 20 8"></polyline>
-                          <line x1="16" y1="13" x2="8" y2="13"></line>
-                          <line x1="16" y1="17" x2="8" y2="17"></line>
-                        </svg>
-                        <span>TIFF</span>
-                      </div>
-                      <button class="btn-remove-image" id="btn-remove-tgt" title="Remove target image" aria-label="Remove Image">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
-                      <button type="button" class="btn-replace-overlay" id="btn-replace-tgt" title="Replace target file with another file from your computer">REPLACE</button>
-                    </div>
-
-                    <div class="active-file-meta-list">
-                      <div class="file-meta-row">
-                        <span class="meta-label">File Name:</span>
-                        <span class="meta-value" id="tgt-file-name">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">File Size:</span>
-                        <span class="meta-value" id="tgt-file-size">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Dimensions:</span>
-                        <span class="meta-value" id="tgt-file-dims">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">File Type:</span>
-                        <span class="meta-value" id="tgt-file-type">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Ground Footprint:</span>
-                        <span class="meta-value" id="tgt-footprint">--</span>
-                      </div>
-                      <div class="file-meta-row">
-                        <span class="meta-label">Upload Status:</span>
-                        <span class="meta-value success" id="tgt-file-status">READY FOR REGISTRATION ✓</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="card-tiff-notice" id="tgt-card-tiff-notice" style="display: none;">
-                    TIFF preview is not available in this browser. The file is ready for registration.
-                  </div>
-
-                  <!-- Live Radiance Histogram Strip -->
-                  <div class="card-histogram-section">
-                    <div class="histogram-header">
-                      <span class="hist-label">RADIANCE HISTOGRAM (DN)</span>
-                      <span class="hist-spread" id="tgt-hist-spread">Range: -- DN</span>
-                    </div>
-                    <canvas id="tgt-mini-hist" class="mini-hist-canvas" width="280" height="46"></canvas>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- COMPACT REGISTRATION SETTINGS -->
+            <!-- COMPACT REGISTRATION SETTINGS -->
           <div class="reg-settings-compact-panel" id="reg-settings-compact-panel">
             <div class="reg-settings-compact-header">
               <div class="settings-title-group">

@@ -301,7 +301,24 @@
   // --- INITIALIZATION ---
   let canvas, ctx, histCanvas, histCtx;
 
-  function init() {
+  async function init() {
+  const api = window.LUNAR_API || window.apiService;
+  const pairSelect = document.getElementById('pair-select');
+  if (pairSelect && api) {
+    try {
+      const pairs = await api.getPairs();
+      pairSelect.innerHTML = '<option value="">-- Select an existing Pair --</option>';
+      pairs.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `Pair #${p.id}: ${p.source_instrument} + ${p.reference_instrument} (${p.overlap_status})`;
+        pairSelect.appendChild(opt);
+      });
+    } catch (err) {
+      pairSelect.innerHTML = '<option value="">Failed to load pairs</option>';
+    }
+  }
+
     setupCanvases();
     generateMatchPoints();
     loadAssets();
@@ -1545,7 +1562,11 @@
 
     try {
       // 4. Submit to backend API POST /api/register
-      const submission = await api.registerImages(refFile, tgtFile, settings);
+      
+      const pairId = document.getElementById('pair-select').value;
+      if (!pairId) throw new Error('Please select an image pair first.');
+      const submission = await api.registerPair(pairId, settings);
+
 
       if (!submission || !submission.job_id) {
         throw new Error('Backend did not return a valid Job ID.');

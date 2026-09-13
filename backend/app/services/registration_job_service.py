@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core_client.client import CoreClient, MockCoreClient
+from app.core_client.client import CoreClient, get_core_client
 from app.db.models import Pair, Product, ProductFile, RegistrationJob
 
 
@@ -19,6 +19,10 @@ class PairNotFoundError(Exception):
 
 class RegistrationInputsMissingError(Exception):
 	"""Raised when canonical raw registration files are incomplete or ambiguous."""
+
+
+class RegistrationProductMissingError(Exception):
+	"""Raised when a Pair references a missing source or reference Product."""
 
 
 class CoreSubmissionError(Exception):
@@ -42,38 +46,40 @@ def _required_raw_file(db: Session, product_id: int, role: str) -> ProductFile:
 	return files[0]
 
 
-def _core_options(
+def _registration_input(
 	pair: Pair,
 	source: Product,
 	reference: Product,
 	source_file: ProductFile,
 	reference_file: ProductFile,
-	requested_options: dict[str, Any],
 ) -> dict[str, Any]:
 	return {
-		"requested_options": requested_options,
+		"pair_id": pair.id,
 		"source_product": {
-			"id": source.id,
 			"product_id": source.product_id,
 			"instrument": source.instrument,
-			"file": {
-				"id": source_file.id,
-				"file_name": source_file.file_name,
-				"drive_file_id": source_file.drive_file_id,
-				"drive_folder_id": source_file.drive_folder_id,
-			},
+			"resolution": source.resolution,
+			"files": [_file_reference(source_file)],
 		},
 		"reference_product": {
-			"id": reference.id,
 			"product_id": reference.product_id,
 			"instrument": reference.instrument,
-			"file": {
-				"id": reference_file.id,
-				"file_name": reference_file.file_name,
-				"drive_file_id": reference_file.drive_file_id,
-				"drive_folder_id": reference_file.drive_folder_id,
-			},
+			"resolution": reference.resolution,
+			"files": [_file_reference(reference_file)],
 		},
+		"overlap_status": pair.overlap_status,
+	}
+
+
+def _file_reference(product_file: ProductFile) -> dict[str, Any]:
+	return {
+		"id": product_file.id,
+		"file_name": product_file.file_name,
+		"file_type": product_file.file_type,
+		"drive_file_id": product_file.drive_file_id,
+		"drive_folder_id": product_file.drive_folder_id,
+		"file_size_bytes": product_file.file_size_bytes,
+		"mime_type": product_file.mime_type,
 	}
 
 
@@ -88,28 +94,39 @@ def create_registration_job(
 		raise PairNotFoundError
 	source = db.get(Product, pair.source_product_id)
 	reference = db.get(Product, pair.reference_product_id)
-	if source is None or reference is None:
-		raise RegistrationInputsMissingError("Pair products are not available.")
+	if source is None:
+		raise RegistrationProductMissingError("Source product not found")
+	if reference is None:
+		raise RegistrationProductMissingError("Reference product not found")
 	source_file = _required_raw_file(db, source.id, "source_raw")
 	reference_file = _required_raw_file(db, reference.id, "reference_raw")
 	options = requested_options or {}
-	client = core_client or MockCoreClient()
-	try:
-		submission = client.submit_registration(
-			pair.id,
-			_core_options(pair, source, reference, source_file, reference_file, options),
-		)
-	except Exception as exc:
-		raise CoreSubmissionError("Core registration job submission failed.") from exc
-
+	client = core_client or get_core_client()
+	registration_input = _registration_input(pair, source, reference, source_file, reference_file)
 	job = RegistrationJob(
 		pair_id=pair.id,
-		status=submission.get("status", "QUEUED"),
+		status="QUEUED",
 		requested_options_json=json.dumps(options, sort_keys=True),
-		core_job_id=submission["job_id"],
+		core_job_id="",
 		created_at=datetime.utcnow(),
 	)
 	db.add(job)
+	db.flush()
+	try:
+		submission = client.submit_registration(
+			pair.id,
+			registration_input,
+			options,
+		)
+	except Exception as exc:
+		job.status = "FAILED"
+		job.error_message = str(exc)
+		db.commit()
+		db.refresh(job)
+		raise CoreSubmissionError("Core registration job submission failed.") from exc
+
+	job.status = submission.get("status", "QUEUED")
+	job.core_job_id = submission["core_job_id"]
 	db.commit()
 	db.refresh(job)
 	return job

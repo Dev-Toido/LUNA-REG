@@ -8,11 +8,11 @@ from pydantic import BaseModel
 JobStatus = Literal["QUEUED", "RUNNING", "SUCCEEDED", "FAILED"]
 
 
-class CoreJobCreate(BaseModel):
+class RegistrationJobCreate(BaseModel):
 	options: dict[str, Any] | None = None
 
 
-class CoreJobResponse(BaseModel):
+class RegistrationJobResponse(BaseModel):
 	id: int
 	pair_id: int
 	status: JobStatus
@@ -22,3 +22,7 @@ class CoreJobResponse(BaseModel):
 	started_at: datetime | None
 	completed_at: datetime | None
 	error_message: str | None
+
+
+CoreJobCreate = RegistrationJobCreate
+CoreJobResponse = RegistrationJobResponse
