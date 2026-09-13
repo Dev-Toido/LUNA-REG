@@ -1,71 +1,101 @@
-﻿/**
+/**
  * LUNA-REG: System Service
- * Root Backend Health & API Diagnostics
+ * Backend Health & API Information
  * 
- * Interacts with non-versioned root endpoints on VITE_BACKEND_ROOT:
+ * Interacts with root FastAPI endpoints:
  * - GET /health
  * - GET /api/info
- * - GET /
  */
 
 class SystemService {
-  constructor(api = null) {
-    this.api = api || (typeof window !== 'undefined' ? window.apiService : null);
+  constructor(client = null) {
+    this.client = client || (typeof window !== 'undefined' ? window.apiClient : null);
   }
 
-  getApi() {
-    if (!this.api && typeof window !== 'undefined') {
-      this.api = window.apiService;
+  getClient() {
+    if (!this.client && typeof window !== 'undefined') {
+      this.client = window.apiClient || window.apiService;
     }
-    return this.api;
+    return this.client;
   }
 
   /**
-   * Check backend health status
-   * @param {number} [timeoutMs]
+   * Check system health: GET /health
+   * @param {Object} [options]
    * @returns {Promise<{ status: string, online: boolean }>}
    */
-  async checkHealth(timeoutMs = 3000) {
-    const api = this.getApi();
-    if (!api) return { status: 'error', online: false };
+  async getHealth(options = {}) {
+    const client = this.getClient();
+    if (!client) {
+      return { status: 'Backend unavailable', online: false };
+    }
     try {
-      const data = await api.getRoot('/health', null, { timeoutMs });
-      return { status: (data && data.status) || 'ok', online: true, data };
+      const data = await client.getRoot('/health', null, Object.assign({ timeoutMs: 3000 }, options));
+      const statusText = (data && data.status === 'ok') ? 'Connected' : (data && data.status) || 'Connected';
+      return { status: statusText, online: true, raw: data };
     } catch (err) {
-      return { status: 'offline', online: false, error: err.message };
+      return { status: 'Backend unavailable', online: false, error: err.message };
     }
   }
 
   /**
-   * Get API information (version, environment)
-   * @param {number} [timeoutMs]
-   * @returns {Promise<Object>}
+   * Compatibility alias for getHealth()
    */
-  async getApiInfo(timeoutMs = 3000) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    return await api.getRoot('/api/info', null, { timeoutMs });
+  async checkHealth(timeoutMs = 3000) {
+    return await this.getHealth({ timeoutMs });
   }
 
   /**
-   * Get root project information
-   * @param {number} [timeoutMs]
+   * Get API and environment info: GET /api/info
+   * Returns: { name, version, api_version, environment }
+   * @param {Object} [options]
    * @returns {Promise<Object>}
    */
-  async getRoot(timeoutMs = 3000) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    return await api.getRoot('/', null, { timeoutMs });
+  async getApiInfo(options = {}) {
+    const client = this.getClient();
+    if (!client) {
+      throw new Error('API client unavailable.');
+    }
+    try {
+      const data = await client.getRoot('/api/info', null, Object.assign({ timeoutMs: 3000 }, options));
+      return {
+        name: data.name || 'LUNA-REG',
+        version: data.version || '0.1.0',
+        api_version: data.api_version || 'v1',
+        environment: data.environment || 'development'
+      };
+    } catch (err) {
+      return {
+        name: 'LUNA-REG',
+        version: 'Unavailable',
+        api_version: 'Unavailable',
+        environment: 'Unavailable',
+        error: err.message
+      };
+    }
   }
 }
 
 const systemService = new SystemService();
 
+// Reusable standalone function exports
+async function getHealth(options = {}) {
+  return await systemService.getHealth(options);
+}
+
+async function getApiInfo(options = {}) {
+  return await systemService.getApiInfo(options);
+}
+
 if (typeof exports !== 'undefined') {
   exports.SystemService = SystemService;
   exports.systemService = systemService;
+  exports.getHealth = getHealth;
+  exports.getApiInfo = getApiInfo;
 }
 if (typeof window !== 'undefined') {
   window.SystemService = SystemService;
   window.systemService = systemService;
+  window.getHealth = getHealth;
+  window.getApiInfo = getApiInfo;
 }

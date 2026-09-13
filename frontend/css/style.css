@@ -7124,3 +7124,173 @@ canvas#results-canvas {
   50% { opacity: 1; }
   100% { opacity: 0.4; }
 }
+
+/* System Status Area (FastAPI Telemetry & Diagnostics) */
+.dash-system-status-area {
+  background: var(--bg-charcoal);
+  border: 1px solid var(--border-dark);
+  border-left: 3px solid var(--accent-gold);
+  border-radius: var(--radius-xs);
+  padding: 14px 18px;
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+.sys-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 8px;
+}
+
+.sys-status-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sys-status-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: var(--accent-gold-muted);
+  color: var(--accent-gold);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.sys-status-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.sys-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .sys-status-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.sys-status-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sys-cell-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sys-cell-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Products Page Specific Enhancements */
+.products-header-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+.products-view-title {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent-gold);
+  margin-bottom: 2px;
+}
+
+.products-view-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.telemetry-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-dark);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+}
+
+.telemetry-pill strong {
+  color: var(--accent-gold);
+}
+
+.filter-active-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  background: var(--accent-gold-muted);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  margin-left: 8px;
+}
+
+.prod-badge-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.product-type-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border-radius: var(--radius-xs);
+}
+
+.product-type-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border-radius: var(--radius-xs);
+}
+
+.region-assigned {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.region-unassigned {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.region-tag-assigned {
+  color: var(--text-primary);
+}
+
+.region-tag-unassigned {
+  color: var(--text-muted);
+  font-style: italic;
+}

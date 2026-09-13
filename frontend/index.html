@@ -309,6 +309,38 @@
             </div>
           </div>
 
+          <!-- SYSTEM STATUS AREA -->
+          <div class="dash-system-status-area" id="dash-system-status-area">
+            <div class="sys-status-header">
+              <div class="sys-status-header-left">
+                <span class="sys-status-badge">SYSTEM STATUS</span>
+                <span class="sys-status-title">FastAPI Backend Telemetry &bull; SIH26166</span>
+              </div>
+              <button type="button" class="btn-tech-sm" id="btn-refresh-telemetry" title="Query /health and /api/info">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                <span>REFRESH TELEMETRY</span>
+              </button>
+            </div>
+            <div class="sys-status-grid">
+              <div class="sys-status-cell">
+                <span class="sys-cell-label">Backend Status</span>
+                <span class="sys-cell-val" id="sys-status-backend">Checking...</span>
+              </div>
+              <div class="sys-status-cell">
+                <span class="sys-cell-label">API Version</span>
+                <span class="sys-cell-val col-mono" id="sys-status-api-ver">--</span>
+              </div>
+              <div class="sys-status-cell">
+                <span class="sys-cell-label">Backend Version</span>
+                <span class="sys-cell-val col-mono" id="sys-status-backend-ver">--</span>
+              </div>
+              <div class="sys-status-cell">
+                <span class="sys-cell-label">Environment</span>
+                <span class="sys-cell-val col-mono" id="sys-status-env">--</span>
+              </div>
+            </div>
+          </div>
+
           <!-- Quick Navigation Cards Grid -->
           <div class="dash-section-header">
             <h3>PLATFORM WORKSPACES</h3>

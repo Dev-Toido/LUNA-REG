@@ -2699,6 +2699,9 @@
       switchAppView('dataset');
       activateDatasetTab('pairs');
     });
+    bindClick('btn-refresh-telemetry', () => {
+      if (window.dashboardPage) window.dashboardPage.refreshTelemetry();
+    });
 
     bindClick('btn-analysis-open-map', () => switchAppView('explorer'));
     bindClick('btn-analysis-start-reg', () => switchAppView('new-reg'));

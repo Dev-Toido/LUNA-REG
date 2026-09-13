@@ -1,45 +1,49 @@
-﻿/**
- * LUNA-REG: Planetary Image Registration API Service Layer
+/**
+ * LUNA-REG: Centralized API Client
+ * Planetary Image Registration API Client
  * Smart India Hackathon 2026 — SIH26166
  * 
- * Production-ready API service layer connecting LUNA-REG frontend
- * to the real canonical LUNA-REG FastAPI backend services:
- * - Versioned API: http://127.0.0.1:8000/api/v1
- * - Backend Root:  http://127.0.0.1:8000
- * 
- * Endpoints:
- * - GET  /api/v1/regions
- * - GET  /api/v1/regions/{region_id}
- * - GET  /api/v1/products
- * - GET  /api/v1/products/{product_id}
- * - GET  /api/v1/products/{product_id}/files
- * - GET  /api/v1/pairs
- * - GET  /api/v1/pairs/{pair_id}
- * - GET  /api/v1/pairs/{pair_id}/registration-input
- * - POST /api/v1/pairs/{pair_id}/registration-jobs
- * - GET  /api/v1/registration-jobs/{job_id}
- * - GET  /health (Root)
- * - GET  /api/info (Root)
+ * Supports:
+ * - import.meta.env.VITE_API_BASE_URL (with window/localStorage/defaults fallback)
+ * - JSON request/response handling
+ * - Clean query parameter serialization
+ * - AbortController request cancellation & timeouts
+ * - Normalized, user-friendly error objects (no raw stack traces exposed to user)
  */
 
 class ApiError extends Error {
   constructor(message, type = 'API_ERROR', status = 0, details = null) {
     super(message);
     this.name = 'ApiError';
-    this.type = type; // 'NETWORK_FAILURE' | 'SERVER_UNAVAILABLE' | 'TIMEOUT' | 'INVALID_RESPONSE' | 'HTTP_ERROR'
+    this.type = type; // 'NETWORK_FAILURE' | 'SERVER_UNAVAILABLE' | 'TIMEOUT' | 'HTTP_ERROR' | 'ABORTED'
     this.status = status;
     this.details = details;
     this.timestamp = new Date().toISOString();
   }
+
+  /**
+   * User-facing safe summary without raw stack traces
+   */
+  getUserMessage() {
+    return this.message || 'An unexpected API error occurred.';
+  }
 }
 
-class RegistrationApiService {
+class ApiClient {
   constructor() {
     this.baseUrl = this.resolveBaseUrl();
     this.backendRoot = this.resolveBackendRoot();
   }
 
   resolveBaseUrl() {
+    // 1. import.meta.env.VITE_API_BASE_URL
+    try {
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+        return this.sanitizeUrl(import.meta.env.VITE_API_BASE_URL);
+      }
+    } catch (_) {}
+
+    // 2. Local storage override (for testing/runtime configuration)
     try {
       if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('LUNA_REG_VITE_API_BASE_URL');
@@ -47,20 +51,27 @@ class RegistrationApiService {
       }
     } catch (_) {}
 
-    if (typeof window !== 'undefined' && window.VITE_API_BASE_URL) {
-      return this.sanitizeUrl(window.VITE_API_BASE_URL);
+    // 3. Window global configuration
+    if (typeof window !== 'undefined') {
+      if (window.__ENV__ && window.__ENV__.VITE_API_BASE_URL) {
+        return this.sanitizeUrl(window.__ENV__.VITE_API_BASE_URL);
+      }
+      if (window.VITE_API_BASE_URL) {
+        return this.sanitizeUrl(window.VITE_API_BASE_URL);
+      }
     }
 
-    try {
-      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
-        return this.sanitizeUrl(import.meta.env.VITE_API_BASE_URL);
-      }
-    } catch (_) {}
-
+    // 4. Default canonical base URL
     return 'http://127.0.0.1:8000/api/v1';
   }
 
   resolveBackendRoot() {
+    try {
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_ROOT) {
+        return this.sanitizeUrl(import.meta.env.VITE_BACKEND_ROOT);
+      }
+    } catch (_) {}
+
     try {
       if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('LUNA_REG_VITE_BACKEND_ROOT');
@@ -68,21 +79,21 @@ class RegistrationApiService {
       }
     } catch (_) {}
 
-    if (typeof window !== 'undefined' && window.VITE_BACKEND_ROOT) {
-      return this.sanitizeUrl(window.VITE_BACKEND_ROOT);
-    }
-
-    try {
-      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_ROOT) {
-        return this.sanitizeUrl(import.meta.env.VITE_BACKEND_ROOT);
+    if (typeof window !== 'undefined') {
+      if (window.__ENV__ && window.__ENV__.VITE_BACKEND_ROOT) {
+        return this.sanitizeUrl(window.__ENV__.VITE_BACKEND_ROOT);
       }
-    } catch (_) {}
+      if (window.VITE_BACKEND_ROOT) {
+        return this.sanitizeUrl(window.VITE_BACKEND_ROOT);
+      }
+    }
 
     return 'http://127.0.0.1:8000';
   }
 
   sanitizeUrl(url) {
-    return url ? url.replace(/\/+$/, '') : 'http://127.0.0.1:8000/api/v1';
+    if (!url || typeof url !== 'string') return '';
+    return url.trim().replace(/\/+$/, '');
   }
 
   getBaseUrl() {
@@ -94,7 +105,7 @@ class RegistrationApiService {
   }
 
   setBaseUrl(url) {
-    this.baseUrl = this.sanitizeUrl(url);
+    this.baseUrl = this.sanitizeUrl(url) || 'http://127.0.0.1:8000/api/v1';
     if (typeof window !== 'undefined') {
       window.VITE_API_BASE_URL = this.baseUrl;
       try {
@@ -104,7 +115,7 @@ class RegistrationApiService {
   }
 
   setBackendRoot(url) {
-    this.backendRoot = this.sanitizeUrl(url);
+    this.backendRoot = this.sanitizeUrl(url) || 'http://127.0.0.1:8000';
     if (typeof window !== 'undefined') {
       window.VITE_BACKEND_ROOT = this.backendRoot;
       try {
@@ -118,18 +129,21 @@ class RegistrationApiService {
     if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    const cleanPath = url.startsWith('/') ? url : /;
-    return ${this.backendRoot};
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${this.backendRoot}${cleanPath}`;
   }
 
+  /**
+   * Normalizes HTTP errors into meaningful, user-friendly messages
+   */
   mapHttpStatusError(status, serverMessage = null) {
     if (serverMessage && typeof serverMessage === 'string' && serverMessage.trim().length > 0) {
-      return serverMessage;
+      return serverMessage.trim();
     }
 
     switch (status) {
       case 400:
-        return 'Invalid request parameters.';
+        return 'Invalid request parameters. Please verify input fields.';
       case 401:
         return 'Authorization required to access planetary data.';
       case 403:
@@ -137,21 +151,25 @@ class RegistrationApiService {
       case 404:
         return 'The requested resource was not found on the backend.';
       case 409:
-        return 'Conflict: Registration inputs or product files are incomplete.';
+        return 'Conflict: Resource already exists or inputs are incomplete.';
       case 413:
-        return 'File size exceeds allowed limits.';
+        return 'File size exceeds maximum allowed limit (50 MB).';
       case 422:
-        return 'Unprocessable entity: payload validation failed on backend.';
+        return 'Validation error: Input data does not match the expected scientific format.';
       case 500:
+        return 'Internal server error occurred in planetary processing engine.';
       case 502:
       case 503:
       case 504:
-        return 'Backend service unavailable. Please ensure the server at http://127.0.0.1:8000 is running.';
+        return 'Backend service unavailable. Please ensure the FastAPI server is running.';
       default:
-        return Backend returned HTTP .;
+        return `Backend returned HTTP status ${status}.`;
     }
   }
 
+  /**
+   * Core request dispatcher with timeout, AbortController, and normalized error handling
+   */
   async request(endpoint, options = {}) {
     const {
       method = 'GET',
@@ -159,12 +177,14 @@ class RegistrationApiService {
       body = null,
       headers = {},
       timeoutMs = 12000,
-      isRoot = false
+      isRoot = false,
+      signal: externalSignal = null
     } = options;
 
     const base = isRoot ? this.backendRoot : this.baseUrl;
-    let path = endpoint.startsWith('/') ? endpoint : /;
+    let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
+    // Dynamic Query Parameter Serialization
     if (params && typeof params === 'object') {
       const qp = new URLSearchParams();
       Object.entries(params).forEach(([k, v]) => {
@@ -178,9 +198,26 @@ class RegistrationApiService {
       }
     }
 
-    const fullUrl = ${base};
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const fullUrl = `${base}${path}`;
+
+    // AbortController handling (integrating external signal + internal timeout)
+    const internalController = new AbortController();
+    let isTimedOut = false;
+    const timer = setTimeout(() => {
+      isTimedOut = true;
+      internalController.abort();
+    }, timeoutMs);
+
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        clearTimeout(timer);
+        throw new ApiError('Request was cancelled.', 'ABORTED', 0);
+      }
+      externalSignal.addEventListener('abort', () => {
+        clearTimeout(timer);
+        internalController.abort();
+      });
+    }
 
     const requestHeaders = Object.assign({
       'Accept': 'application/json'
@@ -189,7 +226,7 @@ class RegistrationApiService {
     const fetchConfig = {
       method,
       headers: requestHeaders,
-      signal: controller.signal
+      signal: internalController.signal
     };
 
     if (body !== null && body !== undefined) {
@@ -212,7 +249,10 @@ class RegistrationApiService {
         } catch (_) {}
 
         const serverMsg = errorData && (errorData.detail || errorData.message || errorData.error);
-        const mapped = this.mapHttpStatusError(response.status, typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg));
+        const mapped = this.mapHttpStatusError(
+          response.status, 
+          typeof serverMsg === 'string' ? serverMsg : (serverMsg ? JSON.stringify(serverMsg) : null)
+        );
         throw new ApiError(mapped, 'HTTP_ERROR', response.status, errorData);
       }
 
@@ -224,15 +264,24 @@ class RegistrationApiService {
 
     } catch (err) {
       clearTimeout(timer);
-      if (err instanceof ApiError) throw err;
-      if (err.name === 'AbortError') {
-        throw new ApiError(Request timed out after s., 'TIMEOUT', 408, { url: fullUrl });
+
+      if (err instanceof ApiError) {
+        throw err;
       }
+
+      if (err.name === 'AbortError') {
+        if (isTimedOut) {
+          throw new ApiError(`Request timed out after ${timeoutMs / 1000}s.`, 'TIMEOUT', 408, { url: fullUrl });
+        }
+        throw new ApiError('Request was aborted.', 'ABORTED', 0, { url: fullUrl });
+      }
+
+      // Network failures (e.g. server offline, CORS blocked, DNS failure)
       throw new ApiError(
-        Failed to communicate with backend at . Please ensure backend is running.,
+        `Backend service unavailable at ${base}. Please verify that the FastAPI backend server is running.`,
         'SERVER_UNAVAILABLE',
         0,
-        { originalError: err.message, url: fullUrl }
+        { url: fullUrl, originalMessage: err.message }
       );
     }
   }
@@ -249,50 +298,25 @@ class RegistrationApiService {
     return this.request(endpoint, Object.assign({}, options, { method: 'GET', params, isRoot: true }));
   }
 
-  // --- COMPATIBILITY HEALTH & REGISTRATION METHODS ---
-  async checkHealth(timeoutMs = 3000) {
-    try {
-      const data = await this.getRoot('/health', null, { timeoutMs });
-      return { online: true, data };
-    } catch (_) {
-      try {
-        const rootData = await this.getRoot('/', null, { timeoutMs });
-        return { online: true, data: rootData };
-      } catch (err) {
-        return { online: false, error: err.message };
-      }
-    }
-  }
-
-  async getApiInfo(timeoutMs = 3000) {
-    return await this.getRoot('/api/info', null, { timeoutMs });
-  }
-
-  async getRegistrationStatus(jobId, timeoutMs = 8000) {
-    return await this.get(/registration-jobs/, null, { timeoutMs });
-  }
-
-  async getRegistrationResult(jobId, timeoutMs = 10000) {
-    return await this.get(/registration-jobs/, null, { timeoutMs });
-  }
-
-  async getRegistrationHistory(timeoutMs = 5000) {
-    return null;
+  createAbortController() {
+    return new AbortController();
   }
 }
 
-// Global Singleton
-const apiService = new RegistrationApiService();
+// Global Singleton instance
+const apiClient = new ApiClient();
+const apiService = apiClient;
 
-// Universal export
 if (typeof exports !== 'undefined') {
   exports.ApiError = ApiError;
-  exports.RegistrationApiService = RegistrationApiService;
+  exports.ApiClient = ApiClient;
+  exports.apiClient = apiClient;
   exports.apiService = apiService;
 }
 if (typeof window !== 'undefined') {
-  window.RegistrationApiService = RegistrationApiService;
   window.ApiError = ApiError;
+  window.ApiClient = ApiClient;
+  window.apiClient = apiClient;
   window.apiService = apiService;
-  window.LUNAR_API = apiService;
+  window.LUNAR_API = apiClient;
 }

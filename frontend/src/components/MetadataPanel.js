@@ -133,12 +133,36 @@ function renderProductMetadataPanel(data) {
   const product = data.product || data;
   const files = data.files || [];
 
+  const rawTime = product.acquisition_time || product.start_time;
+  const timeStr = rawTime ? new Date(rawTime).toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC'
+  }) + ' UTC' : '—';
+
+  const resVal = product.resolution !== undefined && product.resolution !== null 
+    ? product.resolution 
+    : product.resolution_m_per_px;
+  const resStr = (resVal !== undefined && resVal !== null) ? `${resVal} m/px` : '—';
+
+  const calibStatus = product.calibration_status || product.processing_level || 'Calibrated';
+  const prodType = product.product_type || 'IMG';
+
+  let regionLabel = 'Not assigned';
+  if (product.region_id !== null && product.region_id !== undefined && product.region_id !== '') {
+    if (window.regionService && typeof window.regionService.formatRegionName === 'function') {
+      regionLabel = window.regionService.formatRegionName(product.region_id);
+    } else {
+      regionLabel = `Region #${product.region_id}`;
+    }
+  }
+
+  const hasFootprint = product.footprint_lat_min !== null && product.footprint_lat_min !== undefined;
+
   return `
     <div class="canonical-metadata-panel">
       <div class="meta-section">
         <div class="meta-section-header">
           <span class="meta-section-title">LUNAR PRODUCT METADATA</span>
-          ${typeof renderStatusBadge === 'function' ? renderStatusBadge(product.processing_level || 'Calibrated') : ''}
+          ${typeof renderStatusBadge === 'function' ? renderStatusBadge(calibStatus) : ''}
         </div>
         <div class="meta-grid-2">
           <div class="meta-field-item">
@@ -147,7 +171,7 @@ function renderProductMetadataPanel(data) {
           </div>
           <div class="meta-field-item">
             <span class="meta-field-label">CANONICAL PRODUCT ID</span>
-            <span class="meta-field-val">${product.product_id || '—'}</span>
+            <span class="meta-field-val highlight">${product.product_id || '—'}</span>
           </div>
           <div class="meta-field-item">
             <span class="meta-field-label">MISSION</span>
@@ -158,13 +182,26 @@ function renderProductMetadataPanel(data) {
             <span class="meta-field-val">${product.instrument || '—'}</span>
           </div>
           <div class="meta-field-item">
+            <span class="meta-field-label">PRODUCT TYPE</span>
+            <span class="meta-field-val">${prodType}</span>
+          </div>
+          <div class="meta-field-item">
             <span class="meta-field-label">SPATIAL RESOLUTION</span>
-            <span class="meta-field-val">${product.resolution_m_per_px ? `${product.resolution_m_per_px} m/px` : '—'}</span>
+            <span class="meta-field-val">${resStr}</span>
+          </div>
+          <div class="meta-field-item">
+            <span class="meta-field-label">ACQUISITION TIME</span>
+            <span class="meta-field-val col-mono">${timeStr}</span>
           </div>
           <div class="meta-field-item">
             <span class="meta-field-label">REGION</span>
-            <span class="meta-field-val">${product.region_id ? `Region #${product.region_id}` : 'Global'}</span>
+            <span class="meta-field-val ${product.region_id ? '' : 'region-unassigned'}">${regionLabel}</span>
           </div>
+          ${hasFootprint ? `
+          <div class="meta-field-item" style="grid-column: span 2;">
+            <span class="meta-field-label">FOOTPRINT BOUNDS (LAT/LON)</span>
+            <span class="meta-field-val col-mono">[${product.footprint_lat_min.toFixed(4)}°, ${product.footprint_lon_min.toFixed(4)}°] to [${product.footprint_lat_max.toFixed(4)}°, ${product.footprint_lon_max.toFixed(4)}°]</span>
+          </div>` : ''}
         </div>
       </div>
 

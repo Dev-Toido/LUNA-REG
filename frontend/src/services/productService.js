@@ -1,68 +1,112 @@
 /**
  * LUNA-REG: Product Service
- * Canonical Products & Product Files Service
- * 
- * Interacts with:
- * - GET /api/v1/products (with optional query: instrument, mission, region_id)
+ * Interfaces with canonical lunar products and files:
+ * - GET /api/v1/products (filters: instrument, mission, region_id)
  * - GET /api/v1/products/{product_id}
  * - GET /api/v1/products/{product_id}/files
+ * 
+ * Product Model:
+ * id, region_id (nullable), instrument, mission, product_id, acquisition_time,
+ * resolution, product_type, calibration_status, created_at,
+ * footprint_json, footprint_lat_min, footprint_lat_max, footprint_lon_min, footprint_lon_max
  */
 
 class ProductService {
-  constructor(api = null) {
-    this.api = api || (typeof window !== 'undefined' ? window.apiService : null);
+  constructor(client = null) {
+    this.client = client || (typeof window !== 'undefined' ? window.apiClient : null);
   }
 
-  getApi() {
-    if (!this.api && typeof window !== 'undefined') {
-      this.api = window.apiService;
+  getClient() {
+    if (!this.client && typeof window !== 'undefined') {
+      this.client = window.apiClient || window.apiService;
     }
-    return this.api;
+    return this.client;
   }
 
   /**
-   * List all canonical lunar products with optional filters
+   * Fetch all canonical products with optional dynamic filters: GET /api/v1/products
    * @param {Object} [filters] - { instrument, mission, region_id }
+   * @param {Object} [options] - Additional request options (e.g. signal, timeoutMs)
    * @returns {Promise<Array<Object>>}
    */
-  async listProducts(filters = {}) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
-    return await api.get('/products', filters);
+  async getProducts(filters = {}, options = {}) {
+    const client = this.getClient();
+    if (!client) throw new Error('API client unavailable.');
+
+    const queryParams = {};
+    if (filters) {
+      if (filters.instrument) queryParams.instrument = filters.instrument;
+      if (filters.mission) queryParams.mission = filters.mission;
+      if (filters.region_id !== undefined && filters.region_id !== null && filters.region_id !== '') {
+        queryParams.region_id = filters.region_id;
+      }
+    }
+
+    return await client.get('/products', queryParams, options);
   }
 
   /**
-   * Get single product by integer ID
+   * Fetch a single product by ID: GET /api/v1/products/{product_id}
    * @param {number|string} productId
+   * @param {Object} [options]
    * @returns {Promise<Object>}
    */
-  async getProduct(productId) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
+  async getProductById(productId, options = {}) {
+    const client = this.getClient();
+    if (!client) throw new Error('API client unavailable.');
     if (!productId) throw new Error('Product ID required.');
-    return await api.get(`/products/${productId}`);
+    return await client.get(`/products/${productId}`, null, options);
   }
 
   /**
-   * Get files associated with a product
+   * Fetch files associated with a product: GET /api/v1/products/{product_id}/files
    * @param {number|string} productId
+   * @param {Object} [options]
    * @returns {Promise<Array<Object>>}
    */
-  async getProductFiles(productId) {
-    const api = this.getApi();
-    if (!api) throw new Error('API service unavailable.');
+  async getProductFiles(productId, options = {}) {
+    const client = this.getClient();
+    if (!client) throw new Error('API client unavailable.');
     if (!productId) throw new Error('Product ID required.');
-    return await api.get(`/products/${productId}/files`);
+    return await client.get(`/products/${productId}/files`, null, options);
+  }
+
+  // Compatibility aliases
+  async listProducts(filters = {}, options = {}) {
+    return await this.getProducts(filters, options);
+  }
+
+  async getProduct(productId, options = {}) {
+    return await this.getProductById(productId, options);
   }
 }
 
 const productService = new ProductService();
 
+// Standalone reusable functions
+async function getProducts(filters = {}, options = {}) {
+  return await productService.getProducts(filters, options);
+}
+
+async function getProductById(productId, options = {}) {
+  return await productService.getProductById(productId, options);
+}
+
+async function getProductFiles(productId, options = {}) {
+  return await productService.getProductFiles(productId, options);
+}
+
 if (typeof exports !== 'undefined') {
   exports.ProductService = ProductService;
   exports.productService = productService;
+  exports.getProducts = getProducts;
+  exports.getProductById = getProductById;
+  exports.getProductFiles = getProductFiles;
 }
 if (typeof window !== 'undefined') {
   window.ProductService = ProductService;
   window.productService = productService;
+  window.getProducts = getProducts;
+  window.getProductById = getProductById;
+  window.getProductFiles = getProductFiles;
 }
