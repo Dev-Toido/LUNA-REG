@@ -1986,109 +1986,31 @@
            DATASET VIEW (Lunar Satellite Data Catalog & Canonical Database)
            ======================================================================== -->
       <section class="page-dataset" id="view-dataset" aria-label="Lunar Satellite Datasets" style="display: none;">
-        <div class="reg-page-header">
-          <div>
-            <div class="reg-page-breadcrumb"><span class="breadcrumb-link" id="dataset-bc-dashboard" role="button" tabindex="0">Dashboard</span> &gt; <span class="active">Datasets &amp; Catalog</span></div>
-            <h1 class="reg-page-title">LUNAR DATASETS &amp; CANONICAL CATALOG</h1>
-            <p class="reg-page-subtitle">Canonical image pairs and products indexed from Chandrayaan-2 TMC-2, OHRC, and mission sensors.</p>
-          </div>
-          <div class="history-header-actions">
-            <button type="button" class="btn-tech primary" id="btn-refresh-catalog" title="Refresh SQLite database catalog from FastAPI backend">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-              <span>SYNC CATALOG</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="placeholder-page-body">
-          <!-- Catalog Mode Sub-Tabs -->
-          <div class="dataset-subtabs-bar">
-            <button class="dataset-tab-btn active" id="tab-btn-pairs" data-subtab="pairs">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              <span>CANONICAL PAIRS</span>
-            </button>
-            <button class="dataset-tab-btn" id="tab-btn-products" data-subtab="products">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-              <span>PRODUCTS ARCHIVE</span>
-            </button>
-            <button class="dataset-tab-btn" id="tab-btn-sensors" data-subtab="sensors">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-              <span>MISSION SENSORS</span>
-            </button>
-          </div>
-
-          <!-- TAB 1: CANONICAL PAIRS CONTAINER -->
-          <div id="dataset-pairs-container" class="dataset-tab-panel active">
-            <!-- Dynamically populated by pairsPage.init() -->
-          </div>
-
-          <!-- TAB 2: PRODUCTS ARCHIVE CONTAINER -->
-          <div id="dataset-products-container" class="dataset-tab-panel" style="display: none;">
-            <!-- Dynamically populated by productsPage.init() -->
-          </div>
-
-          <!-- TAB 3: MISSION SENSORS REFERENCE -->
-          <div id="dataset-sensors-container" class="dataset-tab-panel" style="display: none;">
-            <div class="dataset-catalog-grid">
-              <div class="dataset-card">
-                <div class="dataset-card-header">
-                  <span class="dataset-badge isro">ISRO &bull; TMC-2</span>
-                  <span class="dataset-format">GeoTIFF / PDS4</span>
-                </div>
-                <h3 class="dataset-card-title">Terrain Mapping Camera-2 (TMC-2)</h3>
-                <p class="dataset-card-desc">High-resolution panchromatic stereoscopic camera providing 5.0m spatial resolution across Nadir, Fore, and Aft viewing tracks.</p>
-                <div class="dataset-meta-list">
-                  <div class="dataset-meta-row"><span>GSD:</span> <strong>5.0 m / px</strong></div>
-                  <div class="dataset-meta-row"><span>Spectral Range:</span> <strong>0.5 – 0.85 &micro;m</strong></div>
-                  <div class="dataset-meta-row"><span>Primary Calibration:</span> <strong>Tycho, Clavius, Shackleton</strong></div>
-                </div>
-                <button class="btn-tech" id="btn-dataset-sample-ref"><span>LOAD SAMPLE PRESET</span></button>
+        <div class="dataset-page-container">
+          <div class="dataset-page-header">
+            <div class="header-left">
+              <div class="header-breadcrumb">
+                <a href="#/dashboard">LUNA-REG</a>
+                <span class="crumb-separator">/</span>
+                <span class="crumb-current">DATASET EXPLORER</span>
               </div>
-
-              <div class="dataset-card">
-                <div class="dataset-card-header">
-                  <span class="dataset-badge isro">ISRO &bull; OHRC</span>
-                  <span class="dataset-format">GeoTIFF / RAW</span>
-                </div>
-                <h3 class="dataset-card-title">Orbiter High Resolution Camera (OHRC)</h3>
-                <p class="dataset-card-desc">Ultra-high resolution camera with 0.25m spatial resolution for detailed hazard detection, surface roughness, and boulder characterization.</p>
-                <div class="dataset-meta-list">
-                  <div class="dataset-meta-row"><span>GSD:</span> <strong>0.25 m / px</strong></div>
-                  <div class="dataset-meta-row"><span>Spectral Range:</span> <strong>0.45 – 0.90 &micro;m</strong></div>
-                  <div class="dataset-meta-row"><span>Primary Calibration:</span> <strong>Lunar South Pole PSRs</strong></div>
-                </div>
-                <button class="btn-tech" id="btn-dataset-sample-tgt"><span>LOAD SAMPLE PRESET</span></button>
+              <h1 class="page-title text-gold">PLANETARY CATALOG &amp; DATASET EXPLORER</h1>
+              <p class="page-subtitle">Multi-sensor lunar telemetry, geographic bounds, and verified registration pairs ledger</p>
+            </div>
+            <div class="header-right-telemetry">
+              <div class="telemetry-chip">
+                <span class="chip-dot"></span>
+                <span class="chip-text">SYNCHRONIZING</span>
               </div>
-
-              <div class="dataset-card">
-                <div class="dataset-card-header">
-                  <span class="dataset-badge nasa">NASA &bull; LROC</span>
-                  <span class="dataset-format">WMTS / PNG</span>
-                </div>
-                <h3 class="dataset-card-title">LROC WAC Global Morphologic Mosaic</h3>
-                <p class="dataset-card-desc">Lunar Reconnaissance Orbiter Wide Angle Camera global basemap mosaic tiled at 100m/px resolution for macro-geological cartography.</p>
-                <div class="dataset-meta-list">
-                  <div class="dataset-meta-row"><span>GSD:</span> <strong>100 m / px</strong></div>
-                  <div class="dataset-meta-row"><span>Coverage:</span> <strong>Global (360&deg; &times; 180&deg;)</strong></div>
-                  <div class="dataset-meta-row"><span>Provider:</span> <strong>USGS / NASA Trek (Tile-Ready)</strong></div>
-                </div>
-                <button class="btn-tech" id="btn-dataset-view-map"><span>VIEW ON MAP</span></button>
-              </div>
-
-              <div class="dataset-card">
-                <div class="dataset-card-header">
-                  <span class="dataset-badge nasa">NASA / JAXA</span>
-                  <span class="dataset-format">DEM / GRID</span>
-                </div>
-                <h3 class="dataset-card-title">LOLA / SLDEM2015 Elevation Model</h3>
-                <p class="dataset-card-desc">Co-registered digital elevation model combining Lunar Orbiter Laser Altimeter and SELENE/Kaguya stereo-derived height models.</p>
-                <div class="dataset-meta-list">
-                  <div class="dataset-meta-row"><span>Vertical Res:</span> <strong>1.0 m precision</strong></div>
-                  <div class="dataset-meta-row"><span>Datum:</span> <strong>Mean Lunar Sphere (1737.4 km)</strong></div>
-                  <div class="dataset-meta-row"><span>Status:</span> <strong>Contour Overlay Ready</strong></div>
-                </div>
-                <button class="btn-tech" id="btn-dataset-view-dem"><span>VIEW ELEVATION TILES</span></button>
-              </div>
+            </div>
+          </div>
+          <div class="dataset-radar-loading-container" style="padding:60px 20px; text-align:center;">
+            <div class="radar-spinner" style="margin:0 auto 20px;"></div>
+            <div style="font-family:var(--font-mono); font-size:14px; color:var(--accent-gold); letter-spacing:1px; margin-bottom:8px;">
+              SYNCHRONIZING PLANETARY ARCHIVE...
+            </div>
+            <div style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted); max-width:500px; margin:0 auto;">
+              Connecting to canonical REST APIs (/products, /pairs, /regions) to load mission data.
             </div>
           </div>
         </div>
