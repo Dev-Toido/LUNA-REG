@@ -22,21 +22,33 @@ function renderRegionDetailsDrawer(options = {}) {
     return '';
   }
 
-  const latStr = (region.center_latitude !== null && region.center_latitude !== undefined) 
-    ? `${Number(region.center_latitude).toFixed(4)}°` 
+  const minLat = region.lat_min ?? region.min_latitude;
+  const maxLat = region.lat_max ?? region.max_latitude;
+  const minLon = region.lon_min ?? region.min_longitude;
+  const maxLon = region.lon_max ?? region.max_longitude;
+
+  const centerLat = (typeof minLat === 'number' && typeof maxLat === 'number')
+    ? (minLat + maxLat) / 2
+    : (region.center_latitude ?? null);
+  const centerLon = (typeof minLon === 'number' && typeof maxLon === 'number')
+    ? (minLon + maxLon) / 2
+    : (region.center_longitude ?? null);
+
+  const latStr = (centerLat !== null && centerLat !== undefined) 
+    ? `${Number(centerLat).toFixed(4)}°` 
     : '—';
-  const lonStr = (region.center_longitude !== null && region.center_longitude !== undefined) 
-    ? `${Number(region.center_longitude).toFixed(4)}°` 
+  const lonStr = (centerLon !== null && centerLon !== undefined) 
+    ? `${Number(centerLon).toFixed(4)}°` 
     : '—';
 
   let boundsStr = 'Not available';
-  if (region.min_latitude !== undefined && region.max_latitude !== undefined && region.min_longitude !== undefined && region.max_longitude !== undefined) {
-    boundsStr = `Lat: [${Number(region.min_latitude).toFixed(2)}° to ${Number(region.max_latitude).toFixed(2)}°] • Lon: [${Number(region.min_longitude).toFixed(2)}° to ${Number(region.max_longitude).toFixed(2)}°]`;
+  if (minLat !== undefined && maxLat !== undefined && minLon !== undefined && maxLon !== undefined) {
+    boundsStr = `Lat: [${Number(minLat).toFixed(2)}° to ${Number(maxLat).toFixed(2)}°] • Lon: [${Number(minLon).toFixed(2)}° to ${Number(maxLon).toFixed(2)}°]`;
   } else if (region.bounding_box) {
     boundsStr = typeof region.bounding_box === 'string' ? region.bounding_box : JSON.stringify(region.bounding_box);
   }
 
-  const featureType = region.feature_type || region.classification || 'Lunar Surface Feature';
+  const featureType = region.region_type || region.feature_type || region.classification || 'Lunar Study Region';
   const regionProducts = Array.isArray(products) 
     ? products.filter(p => String(p.region_id) === String(region.id)) 
     : [];

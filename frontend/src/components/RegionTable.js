@@ -65,22 +65,34 @@ function renderRegionTable(options = {}) {
         </thead>
         <tbody>
           ${regions.map(r => {
-            const latStr = (r.center_latitude !== null && r.center_latitude !== undefined) 
-              ? `${Number(r.center_latitude).toFixed(4)}°` 
+            const minLat = r.lat_min ?? r.min_latitude;
+            const maxLat = r.lat_max ?? r.max_latitude;
+            const minLon = r.lon_min ?? r.min_longitude;
+            const maxLon = r.lon_max ?? r.max_longitude;
+
+            const centerLat = (typeof minLat === 'number' && typeof maxLat === 'number')
+              ? (minLat + maxLat) / 2
+              : (r.center_latitude ?? null);
+            const centerLon = (typeof minLon === 'number' && typeof maxLon === 'number')
+              ? (minLon + maxLon) / 2
+              : (r.center_longitude ?? null);
+
+            const latStr = (centerLat !== null && centerLat !== undefined) 
+              ? `${Number(centerLat).toFixed(4)}°` 
               : '—';
-            const lonStr = (r.center_longitude !== null && r.center_longitude !== undefined) 
-              ? `${Number(r.center_longitude).toFixed(4)}°` 
+            const lonStr = (centerLon !== null && centerLon !== undefined) 
+              ? `${Number(centerLon).toFixed(4)}°` 
               : '—';
 
             let boundsStr = '—';
-            if (r.min_latitude !== undefined && r.max_latitude !== undefined && r.min_longitude !== undefined && r.max_longitude !== undefined) {
-              boundsStr = `[${Number(r.min_latitude).toFixed(2)}°..${Number(r.max_latitude).toFixed(2)}°, ${Number(r.min_longitude).toFixed(2)}°..${Number(r.max_longitude).toFixed(2)}°]`;
+            if (minLat !== undefined && maxLat !== undefined && minLon !== undefined && maxLon !== undefined) {
+              boundsStr = `[${Number(minLat).toFixed(2)}°..${Number(maxLat).toFixed(2)}°, ${Number(minLon).toFixed(2)}°..${Number(maxLon).toFixed(2)}°]`;
             } else if (r.bounding_box) {
               boundsStr = typeof r.bounding_box === 'string' ? r.bounding_box : JSON.stringify(r.bounding_box);
             }
 
             const pCount = productCountMap[String(r.id)] || r.products_count || 0;
-            const featureType = r.feature_type || r.classification || 'Lunar Surface Feature';
+            const featureType = r.region_type || r.feature_type || r.classification || 'Lunar Study Region';
 
             return `
               <tr data-region-id="${r.id}">

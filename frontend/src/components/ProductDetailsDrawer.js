@@ -41,12 +41,16 @@ function renderProductDetailsDrawer(options = {}) {
   const regionName = region ? (region.name || `Region #${region.id}`) : (product.region_name || 'Not assigned');
 
   // Footprint coordinates
-  const minLat = product.min_latitude ?? product.footprint_min_lat ?? '—';
-  const maxLat = product.max_latitude ?? product.footprint_max_lat ?? '—';
-  const minLon = product.min_longitude ?? product.footprint_min_lon ?? '—';
-  const maxLon = product.max_longitude ?? product.footprint_max_lon ?? '—';
-  const centerLat = product.center_latitude ?? '—';
-  const centerLon = product.center_longitude ?? '—';
+  const minLat = product.footprint_lat_min ?? product.min_latitude ?? product.footprint_min_lat ?? '—';
+  const maxLat = product.footprint_lat_max ?? product.max_latitude ?? product.footprint_max_lat ?? '—';
+  const minLon = product.footprint_lon_min ?? product.min_longitude ?? product.footprint_min_lon ?? '—';
+  const maxLon = product.footprint_lon_max ?? product.max_longitude ?? product.footprint_lon_max ?? '—';
+  const centerLat = (typeof minLat === 'number' && typeof maxLat === 'number') 
+    ? ((minLat + maxLat) / 2).toFixed(4) + '°'
+    : (product.center_latitude ?? '—');
+  const centerLon = (typeof minLon === 'number' && typeof maxLon === 'number')
+    ? ((minLon + maxLon) / 2).toFixed(4) + '°'
+    : (product.center_longitude ?? '—');
 
   // Solar and incidence angles
   const solarElevation = product.solar_elevation ?? product.sun_elevation_deg ?? '—';
