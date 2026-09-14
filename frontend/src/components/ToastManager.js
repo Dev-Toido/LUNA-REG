@@ -96,6 +96,12 @@ class ToastManager {
     // Log event into system session history
     this.addLog(type, title, message);
 
+    // Limit concurrent visible toasts to max 4 to avoid screen clutter
+    const existingToasts = this.container.querySelectorAll('.toast-item:not(.toast-fading)');
+    if (existingToasts.length >= 4) {
+      existingToasts[0].remove();
+    }
+
     const toast = document.createElement('div');
     toast.className = `toast-item toast-${type}`;
     toast.setAttribute('role', type === 'error' ? 'alert' : 'status');

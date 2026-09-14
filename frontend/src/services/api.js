@@ -33,6 +33,7 @@ class ApiClient {
   constructor() {
     this.baseUrl = this.resolveBaseUrl();
     this.backendRoot = this.resolveBackendRoot();
+    this.inFlightRequests = new Map();
   }
 
   resolveBaseUrl() {
@@ -200,90 +201,108 @@ class ApiClient {
 
     const fullUrl = `${base}${path}`;
 
-    // AbortController handling (integrating external signal + internal timeout)
-    const internalController = new AbortController();
-    let isTimedOut = false;
-    const timer = setTimeout(() => {
-      isTimedOut = true;
-      internalController.abort();
-    }, timeoutMs);
+    // Deduplicate in-flight concurrent GET requests
+    if (method === 'GET' && !externalSignal && this.inFlightRequests && this.inFlightRequests.has(fullUrl)) {
+      return this.inFlightRequests.get(fullUrl);
+    }
 
-    if (externalSignal) {
-      if (externalSignal.aborted) {
-        clearTimeout(timer);
-        throw new ApiError('Request was cancelled.', 'ABORTED', 0);
-      }
-      externalSignal.addEventListener('abort', () => {
-        clearTimeout(timer);
+    const execRequest = async () => {
+      // AbortController handling (integrating external signal + internal timeout)
+      const internalController = new AbortController();
+      let isTimedOut = false;
+      const timer = setTimeout(() => {
+        isTimedOut = true;
         internalController.abort();
+      }, timeoutMs);
+
+      if (externalSignal) {
+        if (externalSignal.aborted) {
+          clearTimeout(timer);
+          throw new ApiError('Request was cancelled.', 'ABORTED', 0);
+        }
+        externalSignal.addEventListener('abort', () => {
+          clearTimeout(timer);
+          internalController.abort();
+        });
+      }
+
+      const requestHeaders = Object.assign({
+        'Accept': 'application/json'
+      }, headers);
+
+      const fetchConfig = {
+        method,
+        headers: requestHeaders,
+        signal: internalController.signal
+      };
+
+      if (body !== null && body !== undefined) {
+        if (body instanceof FormData) {
+          fetchConfig.body = body;
+        } else {
+          requestHeaders['Content-Type'] = 'application/json';
+          fetchConfig.body = JSON.stringify(body);
+        }
+      }
+
+      try {
+        const response = await fetch(fullUrl, fetchConfig);
+        clearTimeout(timer);
+
+        if (!response.ok) {
+          let errorData = null;
+          try {
+            errorData = await response.json();
+          } catch (_) {}
+
+          const serverMsg = errorData && (errorData.detail || errorData.message || errorData.error);
+          const mapped = this.mapHttpStatusError(
+            response.status, 
+            typeof serverMsg === 'string' ? serverMsg : (serverMsg ? JSON.stringify(serverMsg) : null)
+          );
+          throw new ApiError(mapped, 'HTTP_ERROR', response.status, errorData);
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          return await response.json();
+        }
+        return await response.text();
+
+      } catch (err) {
+        clearTimeout(timer);
+
+        if (err instanceof ApiError) {
+          throw err;
+        }
+
+        if (err.name === 'AbortError') {
+          if (isTimedOut) {
+            throw new ApiError(`Request timed out after ${timeoutMs / 1000}s.`, 'TIMEOUT', 408, { url: fullUrl });
+          }
+          throw new ApiError('Request was aborted.', 'ABORTED', 0, { url: fullUrl });
+        }
+
+        // Network failures (e.g. server offline, CORS blocked, DNS failure)
+        throw new ApiError(
+          `Backend service unavailable at ${base}. Please verify that the FastAPI backend server is running.`,
+          'SERVER_UNAVAILABLE',
+          0,
+          { url: fullUrl, originalMessage: err.message }
+        );
+      }
+    };
+
+    const reqPromise = execRequest();
+
+    if (method === 'GET' && !externalSignal && this.inFlightRequests) {
+      this.inFlightRequests.set(fullUrl, reqPromise);
+      reqPromise.finally(() => {
+        this.inFlightRequests.delete(fullUrl);
       });
     }
 
-    const requestHeaders = Object.assign({
-      'Accept': 'application/json'
-    }, headers);
-
-    const fetchConfig = {
-      method,
-      headers: requestHeaders,
-      signal: internalController.signal
-    };
-
-    if (body !== null && body !== undefined) {
-      if (body instanceof FormData) {
-        fetchConfig.body = body;
-      } else {
-        requestHeaders['Content-Type'] = 'application/json';
-        fetchConfig.body = JSON.stringify(body);
-      }
-    }
-
-    try {
-      const response = await fetch(fullUrl, fetchConfig);
-      clearTimeout(timer);
-
-      if (!response.ok) {
-        let errorData = null;
-        try {
-          errorData = await response.json();
-        } catch (_) {}
-
-        const serverMsg = errorData && (errorData.detail || errorData.message || errorData.error);
-        const mapped = this.mapHttpStatusError(
-          response.status, 
-          typeof serverMsg === 'string' ? serverMsg : (serverMsg ? JSON.stringify(serverMsg) : null)
-        );
-        throw new ApiError(mapped, 'HTTP_ERROR', response.status, errorData);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        return await response.json();
-      }
-      return await response.text();
-
-    } catch (err) {
-      clearTimeout(timer);
-
-      if (err instanceof ApiError) {
-        throw err;
-      }
-
-      if (err.name === 'AbortError') {
-        if (isTimedOut) {
-          throw new ApiError(`Request timed out after ${timeoutMs / 1000}s.`, 'TIMEOUT', 408, { url: fullUrl });
-        }
-        throw new ApiError('Request was aborted.', 'ABORTED', 0, { url: fullUrl });
-      }
-
-      // Network failures (e.g. server offline, CORS blocked, DNS failure)
-      throw new ApiError(
-        `Backend service unavailable at ${base}. Please verify that the FastAPI backend server is running.`,
-        'SERVER_UNAVAILABLE',
-        0,
-        { url: fullUrl, originalMessage: err.message }
-      );
-    }
+    return reqPromise;
   }
 
   get(endpoint, params = null, options = {}) {
