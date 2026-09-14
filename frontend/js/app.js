@@ -341,23 +341,27 @@
 
   function setupCanvases() {
     canvas = document.getElementById('gis-canvas');
-    ctx = canvas.getContext('2d');
+    if (canvas) ctx = canvas.getContext('2d');
 
     histCanvas = document.getElementById('hist-canvas');
-    histCtx = histCanvas.getContext('2d');
+    if (histCanvas) histCtx = histCanvas.getContext('2d');
 
-    resizeCanvases();
-    window.addEventListener('resize', () => {
+    if (canvas) {
       resizeCanvases();
-      draw();
-      renderHistogram();
-    });
+      window.addEventListener('resize', () => {
+        resizeCanvases();
+        draw();
+        renderHistogram();
+      });
+    }
   }
 
   function resizeCanvases() {
-    const container = canvas.parentElement;
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
+    if (canvas && canvas.parentElement) {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
 
     if (histCanvas && histCanvas.parentElement) {
       histCanvas.width = histCanvas.parentElement.clientWidth - 16;
@@ -2252,7 +2256,6 @@
     }
 
     // 8. LAYER CONTROL
-    const layerControlBtn = document.getElementById('tool-layer-control');
     if (layerControlBtn && layerDropdown) {
       layerControlBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2568,17 +2571,17 @@
     const sampleTgtBtn = document.getElementById('btn-load-sample-tgt');
     if (sampleTgtBtn) sampleTgtBtn.addEventListener('click', () => loadSamplePreset('tgt'));
 
-    const fitBtn = document.getElementById('btn-preview-fit');
-    if (fitBtn) fitBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
+    const previewFitBtn = document.getElementById('btn-preview-fit');
+    if (previewFitBtn) previewFitBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
 
-    const zoomInBtn = document.getElementById('btn-preview-zoomin');
-    if (zoomInBtn) zoomInBtn.addEventListener('click', () => setPreviewZoom(1.25));
+    const previewZoomInBtn = document.getElementById('btn-preview-zoomin');
+    if (previewZoomInBtn) previewZoomInBtn.addEventListener('click', () => setPreviewZoom(1.25));
 
-    const zoomOutBtn = document.getElementById('btn-preview-zoomout');
-    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => setPreviewZoom(0.8));
+    const previewZoomOutBtn = document.getElementById('btn-preview-zoomout');
+    if (previewZoomOutBtn) previewZoomOutBtn.addEventListener('click', () => setPreviewZoom(0.8));
 
-    const resetBtn = document.getElementById('btn-preview-reset');
-    if (resetBtn) resetBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
+    const previewResetBtn = document.getElementById('btn-preview-reset');
+    if (previewResetBtn) previewResetBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
 
     setupViewportPanning();
 

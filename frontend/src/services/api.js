@@ -37,10 +37,11 @@ class ApiClient {
   }
 
   resolveBaseUrl() {
-    // 1. import.meta.env.VITE_API_BASE_URL
+    // 1. Dynamic import.meta.env check (safe in both ES module and classic script)
     try {
-      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
-        return this.sanitizeUrl(import.meta.env.VITE_API_BASE_URL);
+      const meta = new Function("try { return import.meta; } catch(e) { return null; }")();
+      if (meta && meta.env && meta.env.VITE_API_BASE_URL) {
+        return this.sanitizeUrl(meta.env.VITE_API_BASE_URL);
       }
     } catch (_) {}
 
@@ -68,8 +69,9 @@ class ApiClient {
 
   resolveBackendRoot() {
     try {
-      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_ROOT) {
-        return this.sanitizeUrl(import.meta.env.VITE_BACKEND_ROOT);
+      const meta = new Function("try { return import.meta; } catch(e) { return null; }")();
+      if (meta && meta.env && meta.env.VITE_BACKEND_ROOT) {
+        return this.sanitizeUrl(meta.env.VITE_BACKEND_ROOT);
       }
     } catch (_) {}
 

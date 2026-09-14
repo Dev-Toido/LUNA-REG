@@ -140,25 +140,22 @@ class LunarMapPreview {
 
     canvas.width = Math.max(260, w) * dpr;
     canvas.height = Math.max(160, h) * dpr;
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
+    const displayW = canvas.width / dpr;
+    const displayH = canvas.height / dpr;
 
     ctx.save();
     ctx.scale(dpr, dpr);
 
     // Deep Charcoal Background
     ctx.fillStyle = '#0a0b0d';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, 0, displayW, displayH);
 
-    const cx = w / 2;
-    const cy = h / 2;
-    const baseRadius = Math.min(w, h) * 0.42 * this.zoom;
+    const cx = displayW / 2;
+    const cy = displayH / 2;
+    const baseRadius = Math.min(displayW, displayH) * 0.42 * this.zoom;
 
     // Lunar Sphere Disk
     const grad = ctx.createRadialGradient(cx, cy, baseRadius * 0.1, cx, cy, baseRadius);

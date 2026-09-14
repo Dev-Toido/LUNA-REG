@@ -51,8 +51,6 @@ class DatasetPage {
 
     // Bind methods
     this.handleTabSwitch = this.handleTabSwitch.bind(this);
-    this.handleFilterChange = this.handleFilterChange.bind(this);
-    this.handleSortChange = this.handleSortChange.bind(this);
     this.handleClearFilters = this.handleClearFilters.bind(this);
     this.handleRefresh = this.handleRefresh.bind(this);
     this.closeDrawer = this.closeDrawer.bind(this);

@@ -180,6 +180,20 @@
       <div class="loader-status-text" id="global-loader-status">INITIALIZING WORKSTATION TELEMETRY...</div>
     </div>
   </div>
+  <script>
+    // Fail-safe auto-dismiss: ensure loading screen NEVER blocks the UI
+    (function() {
+      function hideLoader() {
+        var l = document.getElementById('global-app-loader');
+        if (l && !l.classList.contains('fading')) {
+          l.classList.add('fading');
+          setTimeout(function() { if (l && l.parentNode) l.style.display = 'none'; }, 400);
+        }
+      }
+      window.addEventListener('load', function() { setTimeout(hideLoader, 350); });
+      setTimeout(hideLoader, 1200);
+    })();
+  </script>
 
   <!-- Accessible Skip Navigation Link for Screen Readers and Keyboard Traversal -->
   <a href="#map-workspace" class="skip-to-main">Skip to lunar map workspace</a>
