@@ -66,6 +66,11 @@ class LunarMapCanvas {
     this.handleWheel = this.handleWheel.bind(this);
     this.handleClick = this.handleClick.bind(this);
     this.handleResize = this.handleResize.bind(this);
+
+    // Auto-mount if container element is provided
+    if (this.container) {
+      this.mount(this.container);
+    }
   }
 
   /**

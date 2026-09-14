@@ -75,10 +75,16 @@ class LunarMapPage {
       this.renderLayout(container);
       this.initCanvas();
       this.initialized = true;
+    } else if (!this.mapCanvas || !document.querySelector('.gis-map-canvas')) {
+      this.initCanvas();
     }
 
     this.renderSubcomponents();
     this.attachEventListeners();
+
+    if (this.mapCanvas) {
+      this.mapCanvas.handleResize();
+    }
 
     // Fetch data from real backend REST APIs
     await this.syncFromBackend();
@@ -169,6 +175,7 @@ class LunarMapPage {
       onCoordinateHover: this.handleCoordinateHover,
       onZoomChange: this.handleZoomChange
     });
+    this.mapCanvas.mount(canvasMount);
   }
 
   async syncFromBackend() {
@@ -236,6 +243,11 @@ class LunarMapPage {
     } finally {
       this.isLoading = false;
       this.renderSubcomponents();
+      this.renderOverlayState();
+      this.attachEventListeners();
+      if (this.mapCanvas) {
+        this.mapCanvas.handleResize();
+      }
     }
   }
 
@@ -485,6 +497,15 @@ class LunarMapPage {
     const btnRetry = document.getElementById('btn-retry-map-sync');
     if (btnRetry) {
       btnRetry.onclick = () => this.handleRetry();
+    }
+
+    const btnDismissErr = document.getElementById('btn-dismiss-map-error');
+    if (btnDismissErr) {
+      btnDismissErr.onclick = () => {
+        const overlayMount = document.getElementById('map-mount-overlay');
+        if (overlayMount) overlayMount.style.display = 'none';
+        if (this.mapCanvas) this.mapCanvas.handleResize();
+      };
     }
   }
 

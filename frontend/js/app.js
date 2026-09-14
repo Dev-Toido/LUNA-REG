@@ -3182,8 +3182,12 @@
 
     // View-specific initialization
     if (targetView === 'explorer') {
-      resizeCanvases();
-      draw();
+      if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
+        window.lunarMapPage.init();
+      } else {
+        resizeCanvases();
+        draw();
+      }
     } else if (targetView === 'results') {
       if (window.resultsPage && typeof window.resultsPage.init === 'function') {
         window.resultsPage.init();

@@ -24,13 +24,18 @@ function renderMapErrorState(options = {}) {
         </div>
         <h4 class="state-card-title text-gold">${title}</h4>
         <p class="state-card-desc">${message}</p>
-        <button type="button" class="btn-tech primary" id="btn-retry-map-sync">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="1 4 1 10 7 10"></polyline>
-            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-          </svg>
-          <span>${actionText}</span>
-        </button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+          <button type="button" class="btn-tech primary" id="btn-retry-map-sync">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10"></polyline>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+            <span>${actionText}</span>
+          </button>
+          <button type="button" class="btn-tech secondary" id="btn-dismiss-map-error">
+            <span>EXPLORE BASEMAP</span>
+          </button>
+        </div>
       </div>
     </div>
   `;
