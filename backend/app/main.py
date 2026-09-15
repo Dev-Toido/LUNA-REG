@@ -1,9 +1,19 @@
 """Application entry point for the LUNA-REG backend."""
 
+import os
+import sys
+
+# Ensure the backend directory is in the Python path so 'app' imports work correctly
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
 from app.api.canonical import router as canonical_router
@@ -23,7 +33,20 @@ async def lifespan(_: FastAPI):
 	yield
 
 
-app = FastAPI(title="LUNA-REG Backend", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="LUNA-REG Backend", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+	return get_swagger_ui_html(
+		openapi_url=app.openapi_url,
+		title=app.title + " - Swagger UI",
+		oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+		swagger_js_url="/static/swagger-ui-bundle.js",
+		swagger_css_url="/static/swagger-ui.css",
+	)
 app.add_middleware(
 	CORSMiddleware,
 	allow_origins=settings.frontend_origins,
