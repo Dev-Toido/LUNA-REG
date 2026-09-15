@@ -301,32 +301,32 @@
   // --- INITIALIZATION ---
   let canvas, ctx, histCanvas, histCtx;
 
-  async function init() {
-  const api = window.LUNAR_API || window.apiService;
-  const pairSelect = document.getElementById('pair-select');
-  if (pairSelect && api) {
-    try {
-      const pairs = await api.getPairs();
-      pairSelect.innerHTML = '<option value="">-- Select an existing Pair --</option>';
-      pairs.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = `Pair #${p.id}: ${p.source_instrument} + ${p.reference_instrument} (${p.overlap_status})`;
-        pairSelect.appendChild(opt);
+  function init() {
+    const api = window.LUNAR_API || window.apiService;
+    const pairSelect = document.getElementById('pair-select');
+    if (pairSelect && api) {
+      api.getPairs().then(pairs => {
+        pairSelect.innerHTML = '<option value="">-- Select an existing Pair --</option>';
+        (pairs || []).forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `Pair #${p.id}: ${p.source_instrument} + ${p.reference_instrument} (${p.overlap_status})`;
+          pairSelect.appendChild(opt);
+        });
+      }).catch(() => {
+        pairSelect.innerHTML = '<option value="">Failed to load pairs</option>';
       });
-    } catch (err) {
-      pairSelect.innerHTML = '<option value="">Failed to load pairs</option>';
     }
-  }
 
-    setupCanvases();
-    generateMatchPoints();
-    loadAssets();
-    setupEvents();
-    renderHistogram();
-    checkInitialBackendHealth();
-    setupResultsViewer();
-    setupHistoryEvents();
+    try { setupCanvases(); } catch(e) { console.warn('setupCanvases:', e); }
+    try { generateMatchPoints(); } catch(e) { console.warn('generateMatchPoints:', e); }
+    try { loadAssets(); } catch(e) { console.warn('loadAssets:', e); }
+    try { setupEvents(); } catch(e) { console.warn('setupEvents:', e); }
+    try { renderHistogram(); } catch(e) { console.warn('renderHistogram:', e); }
+    try { checkInitialBackendHealth(); } catch(e) { console.warn('checkInitialBackendHealth:', e); }
+    try { setupResultsViewer(); } catch(e) { console.warn('setupResultsViewer:', e); }
+    try { setupHistoryEvents(); } catch(e) { console.warn('setupHistoryEvents:', e); }
+    try { setupGlobalHealthTelemetry(); } catch(e) { console.warn('setupGlobalHealthTelemetry:', e); }
 
     window.addEventListener('hashchange', handleRouteHash);
     if (window.location.hash && window.location.hash.length > 1) {
@@ -334,27 +334,34 @@
     } else {
       switchAppView('dashboard');
     }
+
+    // Dismiss initial global loading screen smoothly
+    dismissGlobalLoader();
   }
 
   function setupCanvases() {
     canvas = document.getElementById('gis-canvas');
-    ctx = canvas.getContext('2d');
+    if (canvas) ctx = canvas.getContext('2d');
 
     histCanvas = document.getElementById('hist-canvas');
-    histCtx = histCanvas.getContext('2d');
+    if (histCanvas) histCtx = histCanvas.getContext('2d');
 
-    resizeCanvases();
-    window.addEventListener('resize', () => {
+    if (canvas) {
       resizeCanvases();
-      draw();
-      renderHistogram();
-    });
+      window.addEventListener('resize', () => {
+        resizeCanvases();
+        draw();
+        renderHistogram();
+      });
+    }
   }
 
   function resizeCanvases() {
-    const container = canvas.parentElement;
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
+    if (canvas && canvas.parentElement) {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
 
     if (histCanvas && histCanvas.parentElement) {
       histCanvas.width = histCanvas.parentElement.clientWidth - 16;
@@ -372,17 +379,23 @@
       }
     };
 
-    state.referenceImage = new Image();
-    state.referenceImage.src = 'assets/lunar_nadir.jpg';
-    state.referenceImage.onload = checkLoaded;
+    const attachSafeImage = (prop, filename) => {
+      const img = new Image();
+      state[prop] = img;
+      img.onload = checkLoaded;
+      img.onerror = () => {
+        if (!img.src.includes('frontend/assets/')) {
+          img.src = 'frontend/assets/' + filename;
+        } else {
+          checkLoaded();
+        }
+      };
+      img.src = 'assets/' + filename;
+    };
 
-    state.targetImage = new Image();
-    state.targetImage.src = 'assets/lunar_low_sun.jpg';
-    state.targetImage.onload = checkLoaded;
-
-    state.southPoleImage = new Image();
-    state.southPoleImage.src = 'assets/lunar_south_pole.jpg';
-    state.southPoleImage.onload = checkLoaded;
+    attachSafeImage('referenceImage', 'lunar_nadir.jpg');
+    attachSafeImage('targetImage', 'lunar_low_sun.jpg');
+    attachSafeImage('southPoleImage', 'lunar_south_pole.jpg');
   }
 
   // =========================================================================
@@ -1220,9 +1233,10 @@
     const runBtn = document.getElementById('btn-execute-registration');
     const ctaTip = document.getElementById('reg-cta-tip');
 
-    const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
-    const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
-    const bothReady = isRefValid && isTgtValid;
+    const isPairStaged = window.registrationPreparationPage && (!!window.registrationPreparationPage.selectedPairId || !!window.registrationPreparationPage.stagedPairId);
+    const isRefValid = (!!regWorkflowState.refFile && !regWorkflowState.refError) || isPairStaged;
+    const isTgtValid = (!!regWorkflowState.tgtFile && !regWorkflowState.tgtError) || isPairStaged;
+    const bothReady = isPairStaged || (isRefValid && isTgtValid);
 
     // Update Settings displays
     const refNameDisplay = document.getElementById('settings-ref-name');
@@ -1278,9 +1292,13 @@
     updatePreflightValidation();
 
     if (bothReady) {
-      if (runBtn) runBtn.disabled = false;
+      if (runBtn) {
+        runBtn.disabled = false;
+        const btnSpan = runBtn.querySelector('span');
+        if (btnSpan) btnSpan.textContent = 'PREPARE REGISTRATION →';
+      }
       if (ctaTip) {
-        ctaTip.textContent = 'Both images are ready for registration.';
+        ctaTip.textContent = 'Images are ready. Registration processing API is not connected yet.';
         ctaTip.className = 'reg-cta-tip ready';
       }
       updateWorkflowStepper(4); // Stage 4: Validate files completed
@@ -1495,6 +1513,13 @@
   async function executeRegistrationWorkflow() {
     if (regWorkflowState.isSubmitting || regWorkflowState.isProcessing) return;
 
+    // 1. If in Database Pair mode, delegate to RegistrationPreparationPage
+    if (window.registrationPreparationPage && window.registrationPreparationPage.sourceMode === 'db-pair') {
+      window.registrationPreparationPage.handlePrepareRegistrationSubmit();
+      return;
+    }
+
+    // 2. Manual Upload Mode: Validate files
     const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
     const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
     const ctaTip = document.getElementById('reg-cta-tip');
@@ -1508,121 +1533,32 @@
       return;
     }
 
-    // 1. Prepare genuine files / blobs
-    let refFile = regWorkflowState.refFile;
-    let tgtFile = regWorkflowState.tgtFile;
-
-    if (!(refFile instanceof Blob) && regWorkflowState.refUrl) {
-      try {
-        const blob = await fetch(regWorkflowState.refUrl).then(r => r.blob());
-        refFile = new File([blob], regWorkflowState.refMeta ? regWorkflowState.refMeta.name : 'ref.png', { type: blob.type || 'image/png' });
-        regWorkflowState.refFile = refFile;
-      } catch (_) {}
-    }
-
-    if (!(tgtFile instanceof Blob) && regWorkflowState.tgtUrl) {
-      try {
-        const blob = await fetch(regWorkflowState.tgtUrl).then(r => r.blob());
-        tgtFile = new File([blob], regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : 'tgt.png', { type: blob.type || 'image/png' });
-        regWorkflowState.tgtFile = tgtFile;
-      } catch (_) {}
-    }
-
-    // 2. Read settings
-    const mode = (regWorkflowState.regSettings && regWorkflowState.regSettings.mode) ? regWorkflowState.regSettings.mode : 'automatic';
-    const detectorEl = document.getElementById('reg-param-detector');
-    const outlierEl = document.getElementById('reg-param-outlier');
-    const modelEl = document.getElementById('reg-param-model');
-    const subpixelEl = document.getElementById('reg-param-subpixel');
-    const claheEl = document.getElementById('reg-param-clahe');
-
-    const settings = {
-      mode: mode,
-      detector: detectorEl ? detectorEl.value : 'FAST+SIFT',
-      outlier_filter: outlierEl ? outlierEl.value : 'RANSAC',
-      geometric_model: modelEl ? modelEl.value : 'Homography',
-      subpixel_refinement: subpixelEl ? subpixelEl.checked : true,
-      clahe_normalization: claheEl ? claheEl.checked : true
-    };
-
-    // 3. Display submission loading state
-    regWorkflowState.isSubmitting = true;
-    const overlay = document.getElementById('reg-submitting-overlay');
-    if (overlay) overlay.style.display = 'flex';
-    if (runBtn) {
-      runBtn.disabled = true;
-      runBtn.textContent = 'TRANSMITTING TO BACKEND...';
-    }
+    // Inform the operator that images are ready and processing API is pending
     if (ctaTip) {
-      ctaTip.textContent = 'Transmitting images and parameters to backend registration service...';
-      ctaTip.className = 'reg-cta-tip notice';
+      ctaTip.textContent = 'Images are ready. Registration processing API is not connected yet.';
+      ctaTip.className = 'reg-cta-tip ready';
     }
 
-    const api = window.LUNAR_API || window.apiService;
-
-    try {
-      // 4. Submit to backend API POST /api/register
-      
-      const pairId = document.getElementById('pair-select').value;
-      if (!pairId) throw new Error('Please select an image pair first.');
-      const submission = await api.registerPair(pairId, settings);
-
-
-      if (!submission || !submission.job_id) {
-        throw new Error('Backend did not return a valid Job ID.');
-      }
-
-      const jobId = submission.job_id;
-
-      // 5. Hide submitting overlay and show Job Created Banner
-      if (overlay) overlay.style.display = 'none';
-      const banner = document.getElementById('reg-created-banner');
-      const bannerJobId = document.getElementById('reg-created-job-id');
-      if (banner) banner.style.display = 'flex';
-      if (bannerJobId) bannerJobId.textContent = jobId;
-
-      // 6. Save job to history as Processing
-      saveJobToHistory({
-        id: jobId,
-        refName: regWorkflowState.refMeta ? regWorkflowState.refMeta.name : (refFile.name || 'reference.tif'),
-        refThumb: regWorkflowState.refMeta ? regWorkflowState.refMeta.url : null,
-        tgtName: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : (tgtFile.name || 'target.tif'),
-        tgtThumb: regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.url : null,
-        status: 'Processing',
-        date: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-        timestamp: Date.now(),
-        processingTime: '--',
-        metrics: null
-      });
-
-      updateApiStatusBadge('online');
-
-      // 7. Transition to dedicated processing page
-      setTimeout(() => {
-        if (banner) banner.style.display = 'none';
-        if (runBtn) {
-          runBtn.disabled = false;
-          runBtn.textContent = 'RUN REGISTRATION →';
-        }
-        regWorkflowState.isSubmitting = false;
-        openProcessingPage(jobId);
-      }, 900);
-
-    } catch (err) {
-      if (overlay) overlay.style.display = 'none';
-      if (runBtn) {
-        runBtn.disabled = false;
-        runBtn.textContent = 'RUN REGISTRATION →';
-      }
-      regWorkflowState.isSubmitting = false;
-      updateApiStatusBadge('offline');
-
-      if (ctaTip) {
-        ctaTip.textContent = err.message || 'Registration could not be started. Backend server is unreachable.';
-        ctaTip.className = 'reg-cta-tip error';
-      }
-      console.error('[LUNA-REG] Registration submission error:', err);
-    }
+    openModal('MANUAL REGISTRATION PREPARATION', `
+      <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+        <div style="color:var(--accent-gold); font-size:13px; font-weight:700; margin-bottom:10px;">
+          PREPARATION COMPLETE — IMAGES VALIDATED
+        </div>
+        <p style="margin-bottom:6px;">Reference: <strong style="color:var(--text-primary);">${regWorkflowState.refMeta ? regWorkflowState.refMeta.name : (regWorkflowState.refFile?.name || 'Validated')}</strong></p>
+        <p style="margin-bottom:6px;">Target: <strong style="color:var(--text-primary);">${regWorkflowState.tgtMeta ? regWorkflowState.tgtMeta.name : (regWorkflowState.tgtFile?.name || 'Validated')}</strong></p>
+        <div class="readiness-notice-amber" style="margin: 14px 0;">
+          <span>Images are ready. Registration processing API is not connected yet.</span>
+        </div>
+        <p style="font-size:11px; color:var(--text-muted); margin-bottom:14px;">
+          Both lunar rasters are stored in session memory and validated for alignment. When the backend registration processing endpoint is deployed, jobs can be directly dispatched.
+        </p>
+        <div style="display:flex; justify-content:flex-end;">
+          <button type="button" class="btn-tech" onclick="document.getElementById('modal-close').click();">
+            <span>CLOSE</span>
+          </button>
+        </div>
+      </div>
+    `);
   }
 
   // --- DEDICATED PROCESSING PAGE ORCHESTRATOR ---
@@ -1926,6 +1862,81 @@
     }
   }
 
+  function updateGlobalApiHealthUI(healthData) {
+    const pulseDot = document.getElementById('api-pulse-dot');
+    const labelEl = document.getElementById('api-status-label');
+    const latencyEl = document.getElementById('api-latency-pill');
+    const regDot = document.getElementById('api-status-dot');
+    const regUrl = document.getElementById('api-endpoint-url');
+    const sidebarDot = document.querySelector('.sidebar-footer .status-circle');
+    const sidebarText = document.querySelector('.sidebar-footer span:nth-child(2)');
+
+    const isOnline = !!(healthData && healthData.online);
+    const latency = (healthData && healthData.latencyMs !== null && healthData.latencyMs !== undefined)
+      ? `${healthData.latencyMs} ms`
+      : '-- ms';
+
+    if (pulseDot) {
+      pulseDot.className = 'api-pulse-dot ' + (isOnline ? 'online' : 'offline');
+    }
+    if (labelEl) {
+      labelEl.textContent = isOnline ? 'BACKEND: ONLINE' : 'BACKEND: OFFLINE';
+    }
+    if (latencyEl) {
+      latencyEl.textContent = latency;
+    }
+    if (regDot) {
+      regDot.className = `api-status-dot ${isOnline ? 'online' : 'offline'}`;
+    }
+    if (regUrl) {
+      const api = window.apiClient || window.apiService;
+      if (api) regUrl.textContent = api.getBaseUrl();
+    }
+    if (sidebarDot && sidebarText) {
+      if (isOnline) {
+        sidebarDot.style.background = 'var(--success)';
+        sidebarDot.style.boxShadow = '0 0 6px rgba(46, 213, 115, 0.4)';
+        sidebarText.textContent = 'BACKEND ONLINE';
+      } else {
+        sidebarDot.style.background = 'var(--error)';
+        sidebarDot.style.boxShadow = '0 0 6px rgba(255, 71, 87, 0.4)';
+        sidebarText.textContent = 'BACKEND OFFLINE';
+      }
+    }
+  }
+
+  function setupGlobalHealthTelemetry() {
+    if (window.systemService) {
+      // Subscribe to real-time health transitions
+      window.systemService.subscribe((statusObj) => {
+        updateGlobalApiHealthUI(statusObj);
+      });
+      // Start background polling every 30 seconds
+      window.systemService.startPolling(30000);
+    }
+
+    const healthBtn = document.getElementById('btn-api-health-status');
+    if (healthBtn && !healthBtn.dataset.bound) {
+      healthBtn.dataset.bound = 'true';
+      healthBtn.addEventListener('click', () => openModal('api-diagnostics'));
+    }
+  }
+
+  function dismissGlobalLoader() {
+    const loader = document.getElementById('global-app-loader');
+    const statusText = document.getElementById('global-loader-status');
+    const progressBar = document.getElementById('global-loader-bar');
+    if (!loader) return;
+    if (progressBar) progressBar.style.width = '100%';
+    if (statusText) statusText.textContent = 'WORKSTATION READY';
+    setTimeout(() => {
+      loader.classList.add('fading');
+      setTimeout(() => {
+        loader.style.display = 'none';
+      }, 400);
+    }, 450);
+  }
+
   function updateApiStatusBadge(status) {
     const dot = document.getElementById('api-status-dot');
     const urlEl = document.getElementById('api-endpoint-url');
@@ -1939,10 +1950,15 @@
 
   async function checkInitialBackendHealth() {
     updateApiStatusBadge('checking');
-    const api = window.LUNAR_API || window.apiService;
-    if (!api) return;
-    const res = await api.checkHealth(2500);
-    updateApiStatusBadge(res.online ? 'online' : 'offline');
+    if (window.systemService) {
+      const res = await window.systemService.getHealth({ timeoutMs: 2500 });
+      updateGlobalApiHealthUI(res);
+    } else {
+      const api = window.LUNAR_API || window.apiService;
+      if (!api) return;
+      const res = await api.checkHealth(2500);
+      updateApiStatusBadge(res.online ? 'online' : 'offline');
+    }
   }
 
   function setupDragAndDrop(zoneId, inputId, cardType) {
@@ -1994,38 +2010,46 @@
 
   // --- EVENT SETUP ---
   function setupEvents() {
-    const container = canvas.parentElement;
+    const container = canvas ? canvas.parentElement : null;
 
     // 1. Sidebar Collapse/Expand Toggle
     const sidebar = document.getElementById('left-sidebar');
     const sidebarToggle = document.getElementById('sidebar-toggle-btn');
     const toggleIcon = document.getElementById('sidebar-toggle-icon');
 
-    sidebarToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('collapsed');
-      const isCollapsed = sidebar.classList.contains('collapsed');
-      toggleIcon.innerHTML = isCollapsed
-        ? '<polyline points="9 18 15 12 9 6"></polyline>'
-        : '<polyline points="15 18 9 12 15 6"></polyline>';
-      setTimeout(() => {
-        resizeCanvases();
-        draw();
-      }, 260);
-    });
+    if (sidebarToggle && sidebar) {
+      sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (toggleIcon) {
+          toggleIcon.innerHTML = isCollapsed
+            ? '<polyline points="9 18 15 12 9 6"></polyline>'
+            : '<polyline points="15 18 9 12 15 6"></polyline>';
+        }
+        setTimeout(() => {
+          resizeCanvases();
+          draw();
+        }, 260);
+      });
+    }
 
     // 2. Mobile Drawer Toggle
     const mobileBtn = document.getElementById('mobile-menu-toggle');
     const backdrop = document.getElementById('mobile-backdrop');
 
-    mobileBtn.addEventListener('click', () => {
-      sidebar.classList.add('mobile-open');
-      backdrop.classList.add('open');
-    });
+    if (mobileBtn && sidebar) {
+      mobileBtn.addEventListener('click', () => {
+        sidebar.classList.add('mobile-open');
+        if (backdrop) backdrop.classList.add('open');
+      });
+    }
 
-    backdrop.addEventListener('click', () => {
-      sidebar.classList.remove('mobile-open');
-      backdrop.classList.remove('open');
-    });
+    if (backdrop && sidebar) {
+      backdrop.addEventListener('click', () => {
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('open');
+      });
+    }
 
     // 3. Right Info Panel Collapse/Expand Toggle
     const rightPanel = document.getElementById('right-info-panel');
@@ -2049,9 +2073,9 @@
         document.querySelectorAll('.sidebar-nav-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        if (sidebar.classList.contains('mobile-open')) {
+        if (sidebar && sidebar.classList.contains('mobile-open')) {
           sidebar.classList.remove('mobile-open');
-          backdrop.classList.remove('open');
+          if (backdrop) backdrop.classList.remove('open');
         }
 
         handleSidebarAction(btn.getAttribute('data-target'));
@@ -2060,7 +2084,8 @@
 
     // 5. Top Center Navigation Tabs (EXPLORE, REGISTER, ANALYZE, DATASET)
     document.querySelectorAll('.nav-link-btn').forEach(tab => {
-      tab.addEventListener('click', () => {
+      tab.addEventListener('click', (e) => {
+        e.preventDefault();
         document.querySelectorAll('.nav-link-btn').forEach(t => {
           t.classList.remove('active');
           t.setAttribute('aria-selected', 'false');
@@ -2073,12 +2098,14 @@
 
     // 6. Search Bar
     const searchInput = document.getElementById('search-crater-input');
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const query = searchInput.value.trim().toLowerCase();
-        handleSearch(query);
-      }
-    });
+    if (searchInput) {
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const query = searchInput.value.trim().toLowerCase();
+          handleSearch(query);
+        }
+      });
+    }
 
     // 7. Map Style Select Control
     const styleSelect = document.getElementById('map-style-select');
@@ -2229,7 +2256,6 @@
     }
 
     // 8. LAYER CONTROL
-    const layerControlBtn = document.getElementById('tool-layer-control');
     if (layerControlBtn && layerDropdown) {
       layerControlBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2269,23 +2295,26 @@
     if (exportTiepointsBtn) exportTiepointsBtn.addEventListener('click', () => openModal('tiepoints'));
 
     // Canvas Mouse Click & Drag
-    container.addEventListener('mousedown', (e) => {
-      if (e.button === 0) {
-        if (state.activeTool === 'select') {
-          handleSelectLocationClick(e);
-        } else if (state.activeTool === 'measure') {
-          handleMeasureClick(e);
-        } else if (state.activeTool === 'probe') {
-          handleProbeClick(e);
-        } else {
-          state.isDragging = true;
-          state.dragStartX = e.clientX - state.panX;
-          state.dragStartY = e.clientY - state.panY;
+    if (container) {
+      container.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+          if (state.activeTool === 'select') {
+            handleSelectLocationClick(e);
+          } else if (state.activeTool === 'measure') {
+            handleMeasureClick(e);
+          } else if (state.activeTool === 'probe') {
+            handleProbeClick(e);
+          } else {
+            state.isDragging = true;
+            state.dragStartX = e.clientX - state.panX;
+            state.dragStartY = e.clientY - state.panY;
+          }
         }
-      }
-    });
+      });
+    }
 
     window.addEventListener('mousemove', (e) => {
+      if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -2315,76 +2344,81 @@
     });
 
     // Wheel Zoom
-    container.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-
-      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-      const newZoom = Math.max(0.6, Math.min(8.0, state.zoom * zoomFactor));
-
-      state.panX = mouseX - (mouseX - state.panX) * (newZoom / state.zoom);
-      state.panY = mouseY - (mouseY - state.panY) * (newZoom / state.zoom);
-      state.zoom = newZoom;
-
-      updateScaleBar();
-      draw();
-    }, { passive: false });
-
-    // Touch Events for Mobile / Tablet (Single-Finger Pan & Two-Finger Pinch Zoom)
-    let touchStartDist = 0;
-    let initialTouchZoom = 1.0;
-
-    container.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        const t = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-        updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
-        state.isDragging = true;
-        state.dragStartX = t.clientX - state.panX;
-        state.dragStartY = t.clientY - state.panY;
-      } else if (e.touches.length === 2) {
-        state.isDragging = false;
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        touchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        initialTouchZoom = state.zoom;
-      }
-    }, { passive: false });
-
-    container.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 1 && state.isDragging) {
+    if (container) {
+      container.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const t = e.touches[0];
-        state.panX = t.clientX - state.dragStartX;
-        state.panY = t.clientY - state.dragStartY;
+        if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
-        updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
-        draw();
-      } else if (e.touches.length === 2 && touchStartDist > 0) {
-        e.preventDefault();
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        const curDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        state.zoom = Math.max(0.6, Math.min(8.0, initialTouchZoom * (curDist / touchStartDist)));
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+        const newZoom = Math.max(0.6, Math.min(8.0, state.zoom * zoomFactor));
+
+        state.panX = mouseX - (mouseX - state.panX) * (newZoom / state.zoom);
+        state.panY = mouseY - (mouseY - state.panY) * (newZoom / state.zoom);
+        state.zoom = newZoom;
+
         updateScaleBar();
         draw();
-      }
-    }, { passive: false });
+      }, { passive: false });
 
-    container.addEventListener('touchend', (e) => {
-      if (e.touches.length === 0) {
-        state.isDragging = false;
-        touchStartDist = 0;
-      } else if (e.touches.length === 1) {
-        const t = e.touches[0];
-        state.isDragging = true;
-        state.dragStartX = t.clientX - state.panX;
-        state.dragStartY = t.clientY - state.panY;
-        touchStartDist = 0;
-      }
-    });
+      // Touch Events for Mobile / Tablet (Single-Finger Pan & Two-Finger Pinch Zoom)
+      let touchStartDist = 0;
+      let initialTouchZoom = 1.0;
+
+      container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          const t = e.touches[0];
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
+          state.isDragging = true;
+          state.dragStartX = t.clientX - state.panX;
+          state.dragStartY = t.clientY - state.panY;
+        } else if (e.touches.length === 2) {
+          state.isDragging = false;
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          touchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          initialTouchZoom = state.zoom;
+        }
+      }, { passive: false });
+
+      container.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && state.isDragging) {
+          e.preventDefault();
+          const t = e.touches[0];
+          state.panX = t.clientX - state.dragStartX;
+          state.panY = t.clientY - state.dragStartY;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          updateCoordinates(t.clientX - rect.left, t.clientY - rect.top);
+          draw();
+        } else if (e.touches.length === 2 && touchStartDist > 0) {
+          e.preventDefault();
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          const curDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          state.zoom = Math.max(0.6, Math.min(8.0, initialTouchZoom * (curDist / touchStartDist)));
+          updateScaleBar();
+          draw();
+        }
+      }, { passive: false });
+
+      container.addEventListener('touchend', (e) => {
+        if (e.touches.length === 0) {
+          state.isDragging = false;
+          touchStartDist = 0;
+        } else if (e.touches.length === 1) {
+          const t = e.touches[0];
+          state.isDragging = true;
+          state.dragStartX = t.clientX - state.panX;
+          state.dragStartY = t.clientY - state.panY;
+          touchStartDist = 0;
+        }
+      });
+    }
 
     // Split Line Mouse & Touch Dragging
     const splitLine = document.getElementById('split-line');
@@ -2537,17 +2571,17 @@
     const sampleTgtBtn = document.getElementById('btn-load-sample-tgt');
     if (sampleTgtBtn) sampleTgtBtn.addEventListener('click', () => loadSamplePreset('tgt'));
 
-    const fitBtn = document.getElementById('btn-preview-fit');
-    if (fitBtn) fitBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
+    const previewFitBtn = document.getElementById('btn-preview-fit');
+    if (previewFitBtn) previewFitBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
 
-    const zoomInBtn = document.getElementById('btn-preview-zoomin');
-    if (zoomInBtn) zoomInBtn.addEventListener('click', () => setPreviewZoom(1.25));
+    const previewZoomInBtn = document.getElementById('btn-preview-zoomin');
+    if (previewZoomInBtn) previewZoomInBtn.addEventListener('click', () => setPreviewZoom(1.25));
 
-    const zoomOutBtn = document.getElementById('btn-preview-zoomout');
-    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => setPreviewZoom(0.8));
+    const previewZoomOutBtn = document.getElementById('btn-preview-zoomout');
+    if (previewZoomOutBtn) previewZoomOutBtn.addEventListener('click', () => setPreviewZoom(0.8));
 
-    const resetBtn = document.getElementById('btn-preview-reset');
-    if (resetBtn) resetBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
+    const previewResetBtn = document.getElementById('btn-preview-reset');
+    if (previewResetBtn) previewResetBtn.addEventListener('click', () => setPreviewZoom(1.0, true));
 
     setupViewportPanning();
 
@@ -2685,13 +2719,116 @@
     bindClick('dash-tile-history', () => switchAppView('history'));
     bindClick('dash-tile-analysis', () => switchAppView('analysis'));
     bindClick('dash-tile-dataset', () => switchAppView('dataset'));
+    bindClick('dash-card-products', () => {
+      switchAppView('dataset');
+      activateDatasetTab('products');
+    });
+    bindClick('dash-card-pairs', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+    });
+    bindClick('dash-card-regions', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+    });
+    bindClick('dash-card-unverified', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+      if (window.pairsPage) {
+        window.pairsPage.filters.overlap_status = 'UNVERIFIED';
+        window.pairsPage.applyFilters();
+      }
+    });
+    bindClick('btn-dash-view-all-pairs', () => {
+      switchAppView('dataset');
+      activateDatasetTab('pairs');
+    });
+    bindClick('btn-refresh-telemetry', () => {
+      if (window.dashboardPage) window.dashboardPage.refreshTelemetry();
+    });
+
+    // Breadcrumb Navigation links
+    bindClick('res-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('res-bc-map', () => switchAppView('explorer'));
+    bindClick('hist-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('analysis-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('dataset-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('about-bc-dashboard', () => switchAppView('dashboard'));
+    bindClick('dash-bc-luna', () => switchAppView('dashboard'));
 
     bindClick('btn-analysis-open-map', () => switchAppView('explorer'));
     bindClick('btn-analysis-start-reg', () => switchAppView('new-reg'));
     bindClick('btn-analysis-jump-map', () => switchAppView('explorer'));
 
+    // Analysis Tool Module Cards Interaction
+    document.querySelectorAll('.tool-catalog-card').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const name = card.querySelector('.tool-card-name')?.textContent || 'Analytical Tool';
+        const desc = card.querySelector('.tool-card-desc')?.textContent || '';
+        openModal(name.toUpperCase(), `
+          <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+            <p style="color:var(--text-primary); margin-bottom:10px;">${desc}</p>
+            <div class="readiness-notice-amber" style="margin: 12px 0;">
+              <span>Analytical module is configured. Dedicated remote computation API is pending backend deployment.</span>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:14px;">
+              <button class="btn-tech primary" onclick="window.switchView('explorer'); document.getElementById('modal-close').click();"><span>SELECT REGION ON MAP</span></button>
+              <button class="btn-tech" onclick="window.switchView('new-reg'); document.getElementById('modal-close').click();"><span>STAGE REGISTRATION PAIR</span></button>
+            </div>
+          </div>
+        `);
+      });
+    });
+
+    // Download buttons feedback on results page
+    const dlImgBtn = document.getElementById('btn-download-registered-img');
+    if (dlImgBtn) {
+      dlImgBtn.addEventListener('click', (e) => {
+        if (!dlImgBtn.disabled && dlImgBtn.onclick) return;
+        openModal('IMAGE DOWNLOAD PENDING', `
+          <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+            <div style="color:var(--accent-gold); font-size:13px; font-weight:700; margin-bottom:8px;">
+              Registered Raster Asset
+            </div>
+            <p>Full-resolution warped GeoTIFF raster download will be enabled once the backend registration pipeline is integrated.</p>
+            <div class="readiness-notice-amber" style="margin: 12px 0;">
+              <span>Registration processing and raster download API is pending backend deployment.</span>
+            </div>
+          </div>
+        `);
+      });
+    }
+
+    const dlReportBtn = document.getElementById('btn-download-report');
+    if (dlReportBtn) {
+      dlReportBtn.addEventListener('click', (e) => {
+        if (!dlReportBtn.disabled && dlReportBtn.onclick) return;
+        openModal('ALIGNMENT REPORT PENDING', `
+          <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+            <div style="color:var(--accent-gold); font-size:13px; font-weight:700; margin-bottom:8px;">
+              Scientific Alignment Report
+            </div>
+            <p>PDF/JSON geometric verification report download will be available upon backend processing integration.</p>
+            <div class="readiness-notice-amber" style="margin: 12px 0;">
+              <span>Report generation API is pending backend deployment.</span>
+            </div>
+          </div>
+        `);
+      });
+    }
+
+    // Modal-based Raster Ingestion
     bindClick('btn-dataset-import', () => {
-      alert('Raster Import: Select GeoTIFF or PDS4 orbital image file to import into local catalog.');
+      openModal('RASTER IMPORT & CATALOG INGESTION', `
+        <div style="font-family:var(--font-mono); font-size:12px; line-height:1.6; color:var(--text-secondary);">
+          <p style="color:var(--text-primary); margin-bottom:10px;">Select GeoTIFF or PDS4 orbital image files to import into the local planetary catalog.</p>
+          <div class="readiness-notice-amber" style="margin: 12px 0;">
+            <span>Raster file upload and SQLite catalog write API is pending backend deployment.</span>
+          </div>
+          <p style="font-size:11px; color:var(--text-muted);">In the current stage, all available canonical products and image pairs are loaded directly via <code>GET /api/v1/products</code> and <code>GET /api/v1/pairs</code>.</p>
+        </div>
+      `);
     });
     bindClick('btn-dataset-sample-ref', () => {
       loadSamplePreset('ref');
@@ -2717,6 +2854,14 @@
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target.id === 'modal-overlay') closeModal();
     });
+
+    // Initialize modular page controllers
+    if (window.dashboardPage) {
+      window.dashboardPage.init();
+    }
+    if (window.registrationPreparationPage) {
+      window.registrationPreparationPage.init();
+    }
 
     // 9. WCAG Modal Focus Trapping
     const modalOverlay = document.getElementById('modal-overlay');
@@ -2938,7 +3083,8 @@
       'history': document.getElementById('view-registration-history'),
       'analysis': document.getElementById('view-analysis-tools'),
       'dataset': document.getElementById('view-dataset'),
-      'about': document.getElementById('view-about')
+      'about': document.getElementById('view-about'),
+      'not-found': document.getElementById('view-not-found')
     };
     const rightPanel = document.getElementById('right-info-panel');
 
@@ -2947,7 +3093,7 @@
     if (targetView === 'overview') targetView = 'dashboard';
     if (targetView === 'lunar-map') targetView = 'explorer';
     if (targetView === 'register') targetView = 'new-reg';
-    if (!views[targetView]) targetView = 'dashboard';
+    if (!views[targetView]) targetView = 'not-found';
 
     // Stop status polling if transitioning away from dedicated processing view
     if (targetView !== 'processing') {
@@ -2965,9 +3111,9 @@
       views[targetView].style.display = 'flex';
     }
 
-    // Right info panel visibility (only on map-workspace)
+    // Right info panel visibility
     if (rightPanel) {
-      rightPanel.style.display = (targetView === 'explorer') ? 'flex' : 'none';
+      rightPanel.style.display = 'none';
     }
 
     // Update Top Navigation Tabs & ARIA attributes
@@ -3005,19 +3151,29 @@
       if (targetView === 'processing') {
         targetHash = regWorkflowState.activeJobId ? `#/processing/${regWorkflowState.activeJobId}` : '#/processing';
       } else if (targetView === 'results') {
-        targetHash = regWorkflowState.activeJobId ? `#/results/${regWorkflowState.activeJobId}` : '#/results';
+        if (window.location.hash.startsWith('#/results')) {
+          targetHash = window.location.hash;
+        } else {
+          targetHash = regWorkflowState.activeJobId ? `#/results/${regWorkflowState.activeJobId}` : '#/results';
+        }
       } else if (targetView === 'new-reg') {
         targetHash = '#/new-registration';
       } else if (targetView === 'history') {
         targetHash = '#/history';
       } else if (targetView === 'explorer') {
-        targetHash = '#/explorer';
+        targetHash = '#/lunar-map';
       } else if (targetView === 'analysis') {
-        targetHash = '#/analysis';
+        if (window.location.hash.startsWith('#/analysis-tools') || window.location.hash.startsWith('#/analysis')) {
+          targetHash = window.location.hash;
+        } else {
+          targetHash = '#/analysis-tools';
+        }
       } else if (targetView === 'dataset') {
         targetHash = '#/dataset';
       } else if (targetView === 'about') {
         targetHash = '#/about';
+      } else if (targetView === 'not-found') {
+        targetHash = '#/not-found';
       }
       if (window.location.hash !== targetHash) {
         history.replaceState(null, '', targetHash);
@@ -3026,20 +3182,39 @@
 
     // View-specific initialization
     if (targetView === 'explorer') {
-      resizeCanvases();
-      draw();
+      if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
+        window.lunarMapPage.init();
+      } else {
+        resizeCanvases();
+        draw();
+      }
     } else if (targetView === 'results') {
-      syncResultsImagery();
-      resizeResultsCanvas();
-      drawResultsCanvas();
+      if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+        window.resultsPage.init();
+      }
+    } else if (targetView === 'analysis') {
+      if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+        window.analysisToolsPage.init();
+      }
     } else if (targetView === 'history') {
       loadRegistrationHistory();
+    } else if (targetView === 'dashboard') {
+      if (window.dashboardPage) window.dashboardPage.refreshTelemetry();
+    } else if (targetView === 'dataset') {
+      if (window.datasetPage && typeof window.datasetPage.init === 'function') {
+        window.datasetPage.init();
+      } else {
+        initDatasetCatalogView();
+      }
+    } else if (targetView === 'new-reg') {
+      if (window.registrationPreparationPage) window.registrationPreparationPage.init();
     }
 
     // Synchronize Mobile Bottom Navigation active pill
     document.querySelectorAll('.mob-nav-btn').forEach(b => {
       const match = ((targetView === 'new-reg' || targetView === 'processing') && b.id === 'mob-btn-new-reg') ||
                     (targetView === 'results' && b.id === 'mob-btn-results') ||
+                    (targetView === 'dataset' && b.id === 'mob-btn-dataset') ||
                     (targetView === 'history' && b.id === 'mob-btn-history') ||
                     (targetView === 'explorer' && b.id === 'mob-btn-explorer') ||
                     (targetView === 'dashboard' && b.id === 'mob-btn-explorer');
@@ -3047,8 +3222,50 @@
     });
   }
 
+  // Globally expose view switcher early & connect transition hook
+  window.switchView = switchAppView;
+  window.__appOnViewSwitch = function(targetView) {
+    try {
+      if (targetView === 'explorer') {
+        if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
+          window.lunarMapPage.init();
+        } else {
+          resizeCanvases();
+          draw();
+        }
+      } else if (targetView === 'results') {
+        if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+          window.resultsPage.init();
+        }
+      } else if (targetView === 'analysis') {
+        if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+          window.analysisToolsPage.init();
+        }
+      } else if (targetView === 'history') {
+        loadRegistrationHistory();
+      } else if (targetView === 'dashboard') {
+        if (window.dashboardPage && typeof window.dashboardPage.refreshTelemetry === 'function') {
+          window.dashboardPage.refreshTelemetry();
+        }
+      } else if (targetView === 'dataset') {
+        if (window.datasetPage && typeof window.datasetPage.init === 'function') {
+          window.datasetPage.init();
+        } else {
+          initDatasetCatalogView();
+        }
+      } else if (targetView === 'new-reg') {
+        if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
+          window.registrationPreparationPage.init();
+        }
+      }
+    } catch(e) {
+      console.warn('__appOnViewSwitch error:', e);
+    }
+  };
+
   function handleRouteHash() {
-    const hash = window.location.hash || '';
+    const rawHash = window.location.hash || '';
+    const hash = rawHash.split('?')[0].replace(/\/$/, '');
     if (hash.startsWith('#/processing/')) {
       const jobId = hash.replace('#/processing/', '').trim();
       if (jobId) {
@@ -3062,38 +3279,114 @@
         switchAppView('new-reg', false);
       }
       return;
-    } else if (hash.startsWith('#/results/')) {
-      const jobId = hash.replace('#/results/', '').trim();
-      if (jobId) {
-        loadJobResultsIntoViewer(jobId, false);
-        return;
-      }
-    } else if (hash === '#/results') {
+    } else if (hash.startsWith('#/results')) {
       switchAppView('results', false);
+      if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+        window.resultsPage.init();
+      }
       return;
     } else if (hash === '#/new-registration' || hash === '#/new-reg' || hash === '#/register') {
       switchAppView('new-reg', false);
       return;
+    } else if (hash.startsWith('#/dataset') || hash === '#/pairs' || hash === '#/products' || hash === '#/regions') {
+      switchAppView('dataset', false);
+      if (window.datasetPage && typeof window.datasetPage.init === 'function') {
+        window.datasetPage.init();
+      }
+      return;
     } else if (hash === '#/history') {
       switchAppView('history', false);
       return;
-    } else if (hash === '#/explorer' || hash === '#/lunar-map') {
+    } else if (hash.startsWith('#/lunar-map') || hash === '#/explorer' || hash === '#/map') {
       switchAppView('explorer', false);
+      if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
+        window.lunarMapPage.init();
+      }
       return;
-    } else if (hash === '#/dashboard' || hash === '#/overview' || hash === '') {
-      switchAppView('dashboard', false);
-      return;
-    } else if (hash === '#/analysis') {
+    } else if (hash.startsWith('#/analysis-tools') || hash.startsWith('#/analysis')) {
       switchAppView('analysis', false);
-      return;
-    } else if (hash === '#/dataset') {
-      switchAppView('dataset', false);
+      if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+        window.analysisToolsPage.init();
+      }
       return;
     } else if (hash === '#/about') {
       switchAppView('about', false);
       return;
+    } else if (hash === '#/dashboard' || hash === '#/overview' || hash === '' || hash === '#') {
+      switchAppView('dashboard', false);
+      if (window.dashboardPage && typeof window.dashboardPage.refreshTelemetry === 'function') {
+        window.dashboardPage.refreshTelemetry();
+      }
+      return;
+    } else {
+      switchAppView('not-found', false);
+      const routeEl = document.getElementById('notfound-attempted-route');
+      if (routeEl) routeEl.textContent = rawHash || hash;
+      return;
     }
-    switchAppView('dashboard', false);
+  }
+
+  // --- DATASET CATALOG VIEW CONTROLLER ---
+  function initDatasetCatalogView() {
+    bindDatasetSubtabs();
+    // Default to pairs if nothing active
+    const activeTab = document.querySelector('.dataset-tab-btn.active')?.dataset.subtab || 'pairs';
+    activateDatasetTab(activeTab);
+  }
+
+  function bindDatasetSubtabs() {
+    const tabPairs = document.getElementById('tab-btn-pairs');
+    const tabProducts = document.getElementById('tab-btn-products');
+    const tabSensors = document.getElementById('tab-btn-sensors');
+    const refreshBtn = document.getElementById('btn-refresh-catalog');
+
+    if (tabPairs && !tabPairs.dataset.bound) {
+      tabPairs.dataset.bound = 'true';
+      tabPairs.addEventListener('click', () => activateDatasetTab('pairs'));
+    }
+    if (tabProducts && !tabProducts.dataset.bound) {
+      tabProducts.dataset.bound = 'true';
+      tabProducts.addEventListener('click', () => activateDatasetTab('products'));
+    }
+    if (tabSensors && !tabSensors.dataset.bound) {
+      tabSensors.dataset.bound = 'true';
+      tabSensors.addEventListener('click', () => activateDatasetTab('sensors'));
+    }
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+      refreshBtn.dataset.bound = 'true';
+      refreshBtn.addEventListener('click', async () => {
+        const activeTab = document.querySelector('.dataset-tab-btn.active')?.dataset.subtab || 'pairs';
+        if (activeTab === 'pairs' && window.pairsPage) {
+          await window.pairsPage.loadData();
+        } else if (activeTab === 'products' && window.productsPage) {
+          await window.productsPage.loadData();
+        }
+      });
+    }
+  }
+
+  function activateDatasetTab(tabKey) {
+    const pairsPanel = document.getElementById('dataset-pairs-container');
+    const prodsPanel = document.getElementById('dataset-products-container');
+    const sensorsPanel = document.getElementById('dataset-sensors-container');
+
+    const tabPairs = document.getElementById('tab-btn-pairs');
+    const tabProducts = document.getElementById('tab-btn-products');
+    const tabSensors = document.getElementById('tab-btn-sensors');
+
+    if (tabPairs) tabPairs.classList.toggle('active', tabKey === 'pairs');
+    if (tabProducts) tabProducts.classList.toggle('active', tabKey === 'products');
+    if (tabSensors) tabSensors.classList.toggle('active', tabKey === 'sensors');
+
+    if (pairsPanel) pairsPanel.style.display = (tabKey === 'pairs') ? 'block' : 'none';
+    if (prodsPanel) prodsPanel.style.display = (tabKey === 'products') ? 'block' : 'none';
+    if (sensorsPanel) sensorsPanel.style.display = (tabKey === 'sensors') ? 'block' : 'none';
+
+    if (tabKey === 'pairs' && window.pairsPage && pairsPanel) {
+      window.pairsPage.init(pairsPanel);
+    } else if (tabKey === 'products' && window.productsPage && prodsPanel) {
+      window.productsPage.init(prodsPanel);
+    }
   }
 
   // --- NAVIGATION ACTION HANDLERS ---
@@ -4097,7 +4390,7 @@
   // --- MODAL DIALOGS ---
   let lastFocusedElement = null;
 
-  function openModal(type) {
+  function openModal(type, customHtml) {
     lastFocusedElement = document.activeElement;
     const overlay = document.getElementById('modal-overlay');
     const title = document.getElementById('modal-title');
@@ -4105,6 +4398,12 @@
     const closeBtn = document.getElementById('modal-close');
     overlay.classList.add('open');
     if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
+
+    if (customHtml) {
+      title.textContent = type;
+      content.innerHTML = customHtml;
+      return;
+    }
 
     if (type === 'geotiff') {
       title.textContent = 'EXPORT GEOTIFF METADATA / REGISTRATION HEADER';
@@ -4168,132 +4467,173 @@ Analyze Image Pair -> Characterize Difficulty -> Prepare Representation
 Scientific Integrity Notice:
 All displayed coordinates, contours, and metrics are currently operating in CALIBRATION DEMO STATE for algorithm verification and testing. No simulated data is represented as genuine flight telemetry.</div>`;
     } else if (type === 'notifications') {
-      title.textContent = 'SYSTEM NOTIFICATIONS & TELEMETRY LOGS';
-      content.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <div style="padding:6px 10px; background:var(--bg-obsidian); border-left:3px solid var(--accent-gold);">
-            <div style="color:var(--accent-gold-light); font-weight:600;">[10:18 UTC] TMC-2 Ortho-mosaic Ingested</div>
-            <div style="color:var(--text-secondary); font-size:10px;">Calibration sample Tycho Nadir & Low-Sun stereo pair loaded.</div>
-          </div>
-          <div style="padding:6px 10px; background:var(--bg-obsidian); border-left:3px solid var(--success);">
-            <div style="color:var(--success); font-weight:600;">[10:14 UTC] Registration Convergence Achieved</div>
-            <div style="color:var(--text-secondary); font-size:10px;">Homography matrix estimated with 91.8% inliers (RMSE 0.318 px).</div>
-          </div>
-        </div>`;
-    } else if (type === 'profile') {
-      title.textContent = 'OPERATOR CREDENTIALS & MISSION SESSION';
-      content.innerHTML = `
-        <div class="code-block">
-Operator: Dr. Dev
-Role: Principal Investigator (PI) — Planetary Image Processing
-Affiliation: Space Applications Centre (SAC / ISRO)
-Hackathon Team: SIH26166 — LUNA-REG
-Session Protocol: TLS 1.3 | Geodetic Datum: D_MOON_2000
-Active GIS Workspace: Chandrayaan-2 TMC-2 Selene Station</div>`;
-    } else if (type === 'details') {
-      const roi = ROIs[state.activeROI];
-      const m = roi.metadata || {};
-      const latDir = roi.lat >= 0 ? 'N' : 'S';
-      const lonDir = roi.lon >= 0 ? 'E' : 'W';
-      const latStr = `${Math.abs(roi.lat).toFixed(4)}° ${latDir}`;
-      const lonStr = `${Math.abs(roi.lon).toFixed(4)}° ${lonDir}`;
-      const dateVal = m.acquisitionDate || 'Not available';
-      const orbitVal = m.orbitPass || 'Not available';
-      const sunVal = m.sunElevation || 'Not available';
-      const sourceVal = m.imageSource || 'Not available';
-      const resVal = m.imageResolution || 'Not available';
-      const typeVal = m.imageType || 'Not available';
-      const statusVal = m.registrationStatus || 'Not available';
-
-      title.textContent = `IMAGE TELEMETRY & METADATA — ${roi.name.toUpperCase()}`;
+      const logs = window.toastManager ? window.toastManager.getLogs() : [];
+      const health = window.systemService ? window.systemService.getStatus() : { online: false, status: 'Checking...' };
+      title.textContent = 'SYSTEM NOTIFICATIONS & SESSION TELEMETRY';
+      
       content.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:12px;">
-          <div style="display:flex; gap:14px; align-items:flex-start;">
-            <img src="${roi.baseImg === 'south_pole' ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg'}" 
-                 style="width:140px; height:105px; object-fit:cover; border:1px solid var(--border-dark); border-radius:var(--radius-xs);" 
-                 alt="${roi.name}">
-            <div style="flex:1; display:flex; flex-direction:column; gap:4px; font-family:var(--font-mono); font-size:10px;">
-              <div style="color:var(--accent-gold); font-weight:600; font-size:12px;">${m.imageTitle || roi.name}</div>
-              <div style="color:var(--text-secondary);">Spacecraft: <span style="color:var(--text-primary);">Chandrayaan-2 Orbiter (SAC / ISRO)</span></div>
-              <div style="color:var(--text-secondary);">Sensor: <span style="color:var(--text-primary);">${sourceVal}</span></div>
-              <div style="color:var(--text-secondary);">Orbit Track: <span style="color:var(--text-primary);">${orbitVal}</span></div>
-              <div style="color:var(--text-secondary);">Ground Resolution: <span style="color:var(--accent-gold-light);">${resVal}</span></div>
+          <!-- Telemetry Status Bar -->
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:var(--bg-charcoal); border:1px solid var(--border-dark); border-radius:var(--radius-xs); font-size:10px; font-family:var(--font-mono);">
+            <div>
+              <span style="color:var(--text-muted);">BUS TELEMETRY:</span>
+              <span style="color:${health.online ? 'var(--success)' : 'var(--error)'}; font-weight:600; margin-left:4px;">
+                ${health.online ? 'CONNECTED' : 'BACKEND OFFLINE'}
+              </span>
+              ${health.latencyMs !== null ? `<span style="color:var(--text-muted); margin-left:6px;">(${health.latencyMs} ms)</span>` : ''}
+            </div>
+            <div>
+              <span style="color:var(--text-muted);">DATUM:</span>
+              <span style="color:var(--accent-gold); margin-left:4px;">D_MOON_2000</span>
+            </div>
+            <button type="button" class="btn-tech-sm" id="btn-clear-session-logs" style="font-size:9px; padding:2px 8px;">CLEAR LOGS</button>
+          </div>
+
+          <!-- Log Event List -->
+          <div class="notification-log-list" id="modal-notif-log-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; padding-right:4px;">
+            ${logs.length === 0 ? `
+              <div style="padding:16px; background:var(--bg-obsidian); border:1px dashed var(--border-dark); text-align:center; color:var(--text-muted); font-size:11px; font-family:var(--font-mono);">
+                No abnormal system alerts recorded. Telemetry bus is operating normally.
+              </div>
+            ` : logs.map(l => `
+              <div style="padding:8px 12px; background:var(--bg-obsidian); border-left:3px solid ${l.type === 'error' ? 'var(--error)' : (l.type === 'warning' ? 'var(--accent-amber)' : 'var(--accent-gold)')}; border-top:1px solid var(--border-dark); border-right:1px solid var(--border-dark); border-bottom:1px solid var(--border-dark); border-radius:var(--radius-xs);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <span style="color:${l.type === 'error' ? 'var(--error)' : 'var(--accent-gold)'}; font-weight:600; font-size:11px; font-family:var(--font-mono);">[${l.timeStr}] ${l.title}</span>
+                  <span style="font-size:9px; padding:1px 6px; border-radius:2px; background:rgba(255,255,255,0.05); color:var(--text-muted); text-transform:uppercase;">${l.type}</span>
+                </div>
+                <div style="color:var(--text-secondary); font-size:11px; line-height:1.4;">${l.message}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      setTimeout(() => {
+        const clearBtn = document.getElementById('btn-clear-session-logs');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', () => {
+            if (window.toastManager) window.toastManager.clearLogs();
+            openModal('notifications');
+          });
+        }
+      }, 50);
+
+    } else if (type === 'api-diagnostics' || type === 'api-config') {
+      const client = window.apiClient || (window.apiService ? window.apiService.client : null);
+      const currentBaseUrl = client ? client.getBaseUrl() : 'http://127.0.0.1:8000/api/v1';
+      const currentBackendRoot = client ? client.getBackendRoot() : 'http://127.0.0.1:8000';
+      const status = window.systemService ? window.systemService.getStatus() : { online: false, status: 'Checking...', latencyMs: null, info: null };
+
+      title.textContent = 'FASTAPI BACKEND TELEMETRY & CONNECTION INSPECTOR';
+      content.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:14px; font-family:var(--font-mono);">
+          <!-- Live Telemetry Banner -->
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+            <div style="background:var(--bg-charcoal); border:1px solid var(--border-dark); padding:10px; border-radius:var(--radius-xs);">
+              <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px;">STATUS</div>
+              <div style="font-size:12px; font-weight:700; color:${status.online ? 'var(--success)' : 'var(--error)'};">
+                ${status.online ? 'ONLINE (HEALTHY)' : 'OFFLINE / UNREACHABLE'}
+              </div>
+            </div>
+            <div style="background:var(--bg-charcoal); border:1px solid var(--border-dark); padding:10px; border-radius:var(--radius-xs);">
+              <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px;">ROUND-TRIP LATENCY</div>
+              <div style="font-size:12px; font-weight:700; color:var(--accent-gold);" id="diag-latency-val">
+                ${status.latencyMs !== null ? `${status.latencyMs} ms` : '-- ms'}
+              </div>
+            </div>
+            <div style="background:var(--bg-charcoal); border:1px solid var(--border-dark); padding:10px; border-radius:var(--radius-xs);">
+              <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px;">ENVIRONMENT</div>
+              <div style="font-size:12px; font-weight:700; color:var(--text-primary);">
+                ${status.info ? (status.info.environment || 'development') : '--'}
+              </div>
             </div>
           </div>
 
+          <!-- Configuration Form -->
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label style="color:var(--text-muted); font-size:10px;">API BASE URL (VITE_API_BASE_URL):</label>
+            <input type="text" id="diag-api-base-url" value="${currentBaseUrl}" style="background:var(--bg-obsidian); border:1px solid var(--border-dark); padding:8px 10px; color:var(--accent-gold-light); font-family:var(--font-mono); font-size:11px; border-radius:var(--radius-xs);">
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label style="color:var(--text-muted); font-size:10px;">BACKEND ROOT URL (HEALTH & ASSETS):</label>
+            <input type="text" id="diag-backend-root" value="${currentBackendRoot}" style="background:var(--bg-obsidian); border:1px solid var(--border-dark); padding:8px 10px; color:var(--text-secondary); font-family:var(--font-mono); font-size:11px; border-radius:var(--radius-xs);">
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button type="button" class="btn-tech" id="diag-btn-ping">TEST CONNECTION NOW</button>
+            <button type="button" class="btn-tech primary" id="diag-btn-save">SAVE & APPLY</button>
+            <div id="diag-ping-result" style="font-size:10px; flex:1;"></div>
+          </div>
+
+          <!-- System Details -->
           <div class="code-block" style="font-size:10px; line-height:1.6;">
-[PDS4 GEODETIC & RADIOMETRIC RECORD]
-Target Body            : MOON (IAU / IAG 2000 Reference Frame)
-Reference Spheroid     : R = 1,737,400.0 m (Spherical Datum D_MOON_2000)
-Center Latitude        : ${latStr}
-Center Longitude       : ${lonStr}
-Center Elevation       : ${roi.elevation} m
-Acquisition Timestamp  : ${dateVal}
-Solar Elevation Angle  : ${sunVal}
-Incidence Angle        : Not available
-Emission Angle         : Not available
-Phase Angle            : Not available
-Radiometric Standard   : Level-2 Calibrated Radiance (ISRO ISSDC Archive)
-Homography Inlier Ratio: ${roi.inlierRatio || 'Not available'}
-Reprojection RMSE      : ${roi.rmse || 'Not available'}
-Registration State     : ${statusVal}
+[VERIFIED REST ENDPOINTS]
+GET  /health                         : Service heartbeat (returns {"status":"healthy"})
+GET  /api/info                       : Telemetry & versioning specification
+GET  /api/v1/regions                 : Target crater catalogue (Tycho, Shackleton, etc.)
+GET  /api/v1/products                : TMC-2 & OHRC orbital image index
+GET  /api/v1/products/{id}/files     : PDS4 raster files & storage metadata
+GET  /api/v1/pairs                   : Multi-modal overlapping image pairs
+GET  /api/v1/pairs/{id}/registration-input : Paired telemetry, GSD, and footprints
 
-[NOTICE]: Scientific Data Honesty Protocol active. Unsupplied instrument angles and calibration flags display as 'Not available'. No synthetic flight telemetry is fabricated.</div>
-    } else if (type === 'api-config') {
-      const api = window.LUNAR_API || window.apiService;
-      const currentUrl = api ? api.getBaseUrl() : 'http://localhost:8000';
-      title.textContent = 'REGISTRATION BACKEND CONFIGURATION (VITE_API_BASE_URL)';
-      content.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:14px;">
-          <p>Configure the backend server endpoint for lunar image registration (SIH26166):</p>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <label style="color:var(--text-muted); font-size:10px;">ENDPOINT BASE URL:</label>
-            <input type="text" id="cfg-api-url" value="${currentUrl}" style="background:var(--bg-obsidian); border:1px solid var(--border-dark); padding:8px 10px; color:var(--accent-gold-light); font-family:var(--font-mono); font-size:11px; border-radius:var(--radius-xs);">
-          </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn-tech" id="cfg-btn-test">TEST CONNECTION</button>
-            <button class="btn-tech primary" id="cfg-btn-save">SAVE & APPLY</button>
-          </div>
-          <div id="cfg-test-status" style="font-size:10px; font-family:var(--font-mono); min-height:18px;"></div>
-          <div class="code-block" style="font-size:10px;">
-Environment Variable: VITE_API_BASE_URL
-Default Endpoint:     http://localhost:8000
-Supported Endpoints:  POST /api/register (multipart/form-data)
-                      GET  /api/register/{job_id}/status
-
-[INTEGRITY PROTOCOL]: Real HTTP requests only. No fabricated responses or fake registration success.</div>
-        </div>`;
+[PENDING REGISTRATION ENDPOINTS]
+POST /api/register                   : Multi-modal sub-pixel registration runner
+GET  /api/register/{job_id}/status   : Asynchronous processing stage telemetry
+GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</div>
+        </div>
+      `;
 
       setTimeout(() => {
-        const testBtn = document.getElementById('cfg-btn-test');
-        const saveBtn = document.getElementById('cfg-btn-save');
-        const urlInput = document.getElementById('cfg-api-url');
-        const statusEl = document.getElementById('cfg-test-status');
+        const pingBtn = document.getElementById('diag-btn-ping');
+        const saveBtn = document.getElementById('diag-btn-save');
+        const baseInput = document.getElementById('diag-api-base-url');
+        const rootInput = document.getElementById('diag-backend-root');
+        const resultEl = document.getElementById('diag-ping-result');
+        const latencyVal = document.getElementById('diag-latency-val');
 
-        if (testBtn) {
-          testBtn.addEventListener('click', async () => {
-            statusEl.textContent = 'Testing connection...';
-            statusEl.style.color = 'var(--accent-gold)';
-            const testApi = new (window.RegistrationApiService || api.constructor)();
-            testApi.setBaseUrl(urlInput.value.trim());
-            const health = await testApi.checkHealth(3000);
-            if (health.online) {
-              statusEl.textContent = `✓ Backend online at ${testApi.getBaseUrl()} (HTTP ${health.status})`;
-              statusEl.style.color = 'var(--success)';
-            } else {
-              statusEl.textContent = `✗ Server unavailable at ${testApi.getBaseUrl()}. Connection refused.`;
-              statusEl.style.color = 'var(--error)';
+        if (pingBtn) {
+          pingBtn.addEventListener('click', async () => {
+            if (resultEl) {
+              resultEl.textContent = 'Pinging /health...';
+              resultEl.style.color = 'var(--accent-gold)';
+            }
+            if (window.systemService) {
+              const pingRes = await window.systemService.ping();
+              if (resultEl) {
+                if (pingRes.online) {
+                  resultEl.textContent = `✓ Connected (${pingRes.latencyMs} ms) — HTTP 200 OK`;
+                  resultEl.style.color = 'var(--success)';
+                } else {
+                  resultEl.textContent = `✗ Unreachable (${pingRes.error || 'Connection refused'})`;
+                  resultEl.style.color = 'var(--error)';
+                }
+              }
+              if (latencyVal && pingRes.latencyMs !== null) {
+                latencyVal.textContent = `${pingRes.latencyMs} ms`;
+              }
             }
           });
         }
 
         if (saveBtn) {
-          saveBtn.addEventListener('click', () => {
-            const newUrl = urlInput.value.trim();
-            if (api) api.setBaseUrl(newUrl);
-            updateApiStatusBadge('checking');
-            closeModal();
-            checkInitialBackendHealth();
+          saveBtn.addEventListener('click', async () => {
+            const newBase = baseInput.value.trim();
+            const newRoot = rootInput.value.trim();
+            if (window.apiClient) {
+              window.apiClient.setBaseUrl(newBase);
+              window.apiClient.setBackendRoot(newRoot);
+            }
+            if (window.showToast) {
+              window.showToast('success', 'CONFIGURATION SAVED', 'Backend base URL updated successfully.');
+            }
+            if (window.systemService) {
+              await window.systemService.ping();
+            }
+            if (window.dashboardPage) {
+              window.dashboardPage.refreshTelemetry();
+            }
           });
         }
       }, 50);
@@ -5172,6 +5512,16 @@ Supported Endpoints:  POST /api/register (multipart/form-data)
     }
   }
 
-  window.addEventListener('DOMContentLoaded', init);
+  // Expose core app methods to modular controllers
+  window.openAppModal = openModal;
+  window.closeAppModal = closeModal;
+  window.switchView = switchAppView;
+  window.checkFilesReady = checkRegistrationReadiness;
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
 })();
