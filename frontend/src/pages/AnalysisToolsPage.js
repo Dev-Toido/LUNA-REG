@@ -264,7 +264,7 @@ class AnalysisToolsPage {
       <div class="analysis-header-bar">
         <div class="analysis-header-left">
           <div class="analysis-breadcrumb">
-            <span class="analysis-bc-link" id="analysis-bc-dash">DASHBOARD</span>
+            <span class="analysis-bc-link" id="analysis-bc-home">LUNA-REG</span>
             <span class="analysis-bc-sep">&gt;</span>
             <span class="analysis-bc-link" id="analysis-bc-res">RESULTS</span>
             <span class="analysis-bc-sep">&gt;</span>
@@ -307,16 +307,16 @@ class AnalysisToolsPage {
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-            <span>RESULTS</span>
+            <span>&larr; RESULTS</span>
           </button>
         </div>
       </div>
     `;
 
     // Breadcrumb navigation
-    const bcDash = headerMount.querySelector('#analysis-bc-dash');
-    if (bcDash) bcDash.addEventListener('click', () => {
-      if (typeof window.switchView === 'function') window.switchView('dashboard');
+    const bcHome = headerMount.querySelector('#analysis-bc-home');
+    if (bcHome) bcHome.addEventListener('click', () => {
+      if (typeof window.switchView === 'function') window.switchView('new-reg');
     });
 
     const bcRes = headerMount.querySelector('#analysis-bc-res');
