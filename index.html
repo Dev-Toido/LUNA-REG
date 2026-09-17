@@ -159,7 +159,7 @@
       
       <!-- Left: Title & Subtitle -->
       <div class="nav-left">
-        <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Open Navigation Drawer" aria-expanded="false" aria-controls="left-sidebar">
+        <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Open Navigation Drawer" aria-expanded="false" aria-controls="left-sidebar" style="display: none !important;" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -230,79 +230,19 @@
       </div>
     </header>
 
-    <!-- Mobile Navigation Drawer Backdrop -->
-    <div class="mobile-backdrop" id="mobile-backdrop"></div>
+    <!-- Mobile Navigation Drawer Backdrop (Hidden) -->
+    <div class="mobile-backdrop" id="mobile-backdrop" style="display: none !important;" aria-hidden="true"></div>
 
     <!-- ==========================================================================
-         MAIN APPLICATION BODY (4-ZONE WORKBENCH)
+         MAIN APPLICATION BODY (Full-Width Focused GIS Workstation)
          ========================================================================== -->
     <div class="app-body">
 
-      <!-- ========================================================================
-           2. LEFT SIDEBAR (Collapsible GIS Navigation)
-           ======================================================================== -->
-      <aside class="left-sidebar" id="left-sidebar" aria-label="GIS System Navigation">
-        <div class="sidebar-top">
-          <span class="sidebar-title">GIS WORKSTATION</span>
-          <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Collapse/Expand Sidebar" aria-label="Toggle Sidebar">
-            <svg id="sidebar-toggle-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-        </div>
-        <!-- Streamlined Navigation Items -->
-        <ul class="sidebar-nav-list">
-          
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn active" data-target="new-reg" id="side-new-reg" onclick="window.switchView('new-reg')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="4"></circle>
-                  <line x1="12" y1="2" x2="12" y2="6"></line>
-                  <line x1="12" y1="18" x2="12" y2="22"></line>
-                  <line x1="2" y1="12" x2="6" y2="12"></line>
-                  <line x1="18" y1="12" x2="22" y2="12"></line>
-                </svg>
-              </span>
-              <span class="nav-item-text">New Registration</span>
-            </button>
-          </li>
-
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="results" id="side-results" onclick="window.switchView('results')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-              </span>
-              <span class="nav-item-text">Registration Results</span>
-            </button>
-          </li>
-
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="analysis" id="side-analysis" onclick="window.switchView('analysis')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                </svg>
-              </span>
-              <span class="nav-item-text">Analysis Tools</span>
-            </button>
-          </li>
-
-        </ul>
-        <div class="sidebar-footer">
-          <div class="status-indicator">
-            <div class="status-circle"></div>
-            <span>ORBITER ONLINE</span>
-          </div>
-          <span style="color:var(--text-muted); font-size:9px;">TMC-2 GSD 5m</span>
-        </div>
-      </aside>
-      <div class="mobile-backdrop" id="mobile-backdrop" aria-hidden="true"></div>
+      <!-- Hidden GIS Workstation Sidebar Stub (Ensures scripts with getElementById('left-sidebar') never fail) -->
+      <aside class="left-sidebar" id="left-sidebar" aria-label="GIS System Navigation" style="display: none !important;" aria-hidden="true"></aside>
 
       <!-- ========================================================================
-           6. NEW IMAGE REGISTRATION WORKFLOW (Dedicated GIS Registration Page)
+           6. NEW IMAGE REGISTRATION WORKFLOW (Dedicated Full-Width GIS Workspace)
            ======================================================================== -->
       <section class="page-new-registration" id="view-new-registration" aria-label="New Image Registration Workspace" style="display: flex;">
         
