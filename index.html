@@ -1,46 +1,32 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LUNA-REG — Lunar Terrain Explorer — Map & GIS</title>
-  <meta name="description" content="LUNA-REG: Professional Lunar Terrain Explorer and multi-modal image registration GIS platform for Chandrayaan-2 planetary data.">
+  <title>LUNA-REG â€” Planetary Image Registration & Analysis Workstation</title>
+  <meta name="description" content="LUNA-REG: Professional multi-modal lunar image registration, sub-pixel alignment, and scientific analysis workstation for Chandrayaan-2 planetary data.">
   <link rel="stylesheet" href="frontend/css/style.css?v=2.5.0">
   <script>
     (function() {
       var viewMap = {
-        'dashboard': 'view-dashboard',
-        'explorer': 'map-workspace',
         'new-reg': 'view-new-registration',
         'processing': 'view-processing',
         'results': 'view-registration-results',
-        'history': 'view-registration-history',
         'analysis': 'view-analysis-tools',
-        'dataset': 'view-dataset',
-        'about': 'view-about',
         'not-found': 'view-not-found'
       };
       var hashMap = {
-        'dashboard': '#/dashboard',
-        'explorer': '#/lunar-map',
-        'new-reg': '#/new-registration',
+        'new-reg': '#/register',
         'processing': '#/processing',
         'results': '#/results',
-        'history': '#/history',
-        'analysis': '#/analysis-tools',
-        'dataset': '#/dataset',
-        'about': '#/about',
+        'analysis': '#/analysis',
         'not-found': '#/not-found'
       };
       var navKeyMap = {
-        'dashboard': 'dashboard',
-        'explorer': 'explore',
         'new-reg': 'register',
         'processing': 'register',
         'results': 'results',
-        'analysis': 'analysis',
-        'dataset': 'dataset',
-        'about': 'about'
+        'analysis': 'analysis'
       };
 
       window.switchView = function(viewKey, updateHash) {
@@ -53,13 +39,7 @@
           if (el) el.style.display = (k === viewKey) ? 'flex' : 'none';
         });
 
-        // 2. Right panel toggle for GIS map
-        var rightPanel = document.getElementById('right-info-panel');
-        if (rightPanel) {
-          rightPanel.style.display = 'none';
-        }
-
-        // 3. Highlight top nav buttons
+        // 2. Highlight top nav buttons
         var targetNav = navKeyMap[viewKey];
         document.querySelectorAll('.nav-link-btn').forEach(function(b) {
           var isAct = b.getAttribute('data-nav') === targetNav;
@@ -67,26 +47,22 @@
           b.setAttribute('aria-selected', String(isAct));
         });
 
-        // 4. Highlight sidebar nav buttons
+        // 3. Highlight sidebar nav buttons
         document.querySelectorAll('.sidebar-nav-btn').forEach(function(b) {
           var st = b.getAttribute('data-target');
-          var isAct = (st === viewKey) ||
-                      (viewKey === 'dashboard' && (st === 'dashboard' || st === 'overview')) ||
-                      (viewKey === 'explorer' && (st === 'explorer' || st === 'layers'));
+          var isAct = (st === viewKey);
           b.classList.toggle('active', isAct);
         });
 
-        // 5. Highlight mobile bottom nav
+        // 4. Highlight mobile bottom nav
         document.querySelectorAll('.mob-nav-btn').forEach(function(b) {
           var isAct = ((viewKey === 'new-reg' || viewKey === 'processing') && b.id === 'mob-btn-new-reg') ||
                       (viewKey === 'results' && b.id === 'mob-btn-results') ||
-                      (viewKey === 'dataset' && b.id === 'mob-btn-dataset') ||
-                      (viewKey === 'history' && b.id === 'mob-btn-history') ||
-                      ((viewKey === 'explorer' || viewKey === 'dashboard') && b.id === 'mob-btn-explorer');
+                      (viewKey === 'analysis' && b.id === 'mob-btn-analysis');
           b.classList.toggle('active', isAct);
         });
 
-        // 6. Synchronize Hash
+        // 5. Synchronize Hash
         if (updateHash && hashMap[viewKey]) {
           try {
             if (window.location.hash !== hashMap[viewKey]) {
@@ -97,7 +73,7 @@
           }
         }
 
-        // 7. Invoke app.js lifecycle hook if available
+        // 6. Invoke app.js lifecycle hook if available
         if (window.__appOnViewSwitch && typeof window.__appOnViewSwitch === 'function') {
           try { window.__appOnViewSwitch(viewKey); } catch(e) { console.warn(e); }
         }
@@ -107,41 +83,22 @@
         var raw = window.location.hash || '';
         var h = raw.split('?')[0].replace(/\/$/, '');
 
-        if (h.startsWith('#/lunar-map') || h === '#/explorer' || h === '#/map') {
-          window.switchView('explorer', false);
-          if (window.lunarMapPage && typeof window.lunarMapPage.init === 'function') {
-            window.lunarMapPage.init();
-          }
-        } else if (h === '#/new-registration' || h === '#/new-reg' || h === '#/register') {
-          window.switchView('new-reg', false);
-          if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
-            window.registrationPreparationPage.init();
-          }
-        } else if (h.startsWith('#/results')) {
+        if (h.startsWith('#/results')) {
           window.switchView('results', false);
           if (window.resultsPage && typeof window.resultsPage.init === 'function') {
             window.resultsPage.init();
           }
-        } else if (h.startsWith('#/processing')) {
-          window.switchView('processing', false);
         } else if (h.startsWith('#/analysis-tools') || h.startsWith('#/analysis')) {
           window.switchView('analysis', false);
           if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
             window.analysisToolsPage.init();
           }
-        } else if (h.startsWith('#/dataset') || h === '#/pairs' || h === '#/products' || h === '#/regions') {
-          window.switchView('dataset', false);
-          if (window.datasetPage && typeof window.datasetPage.init === 'function') {
-            window.datasetPage.init();
-          }
-        } else if (h === '#/history') {
-          window.switchView('history', false);
-        } else if (h === '#/about') {
-          window.switchView('about', false);
-        } else if (h === '#/dashboard' || h === '#/overview' || h === '' || h === '#') {
-          window.switchView('dashboard', false);
-          if (window.dashboardPage && typeof window.dashboardPage.refreshTelemetry === 'function') {
-            window.dashboardPage.refreshTelemetry();
+        } else if (h.startsWith('#/processing')) {
+          window.switchView('processing', false);
+        } else if (h === '#/new-registration' || h === '#/new-reg' || h === '#/register' || h === '' || h === '#') {
+          window.switchView('new-reg', false);
+          if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
+            window.registrationPreparationPage.init();
           }
         } else {
           // 404 Route Not Found
@@ -181,7 +138,6 @@
     </div>
   </div>
   <script>
-    // Fail-safe auto-dismiss: ensure loading screen NEVER blocks the UI
     (function() {
       function hideLoader() {
         var l = document.getElementById('global-app-loader');
@@ -195,13 +151,13 @@
     })();
   </script>
 
-  <!-- Accessible Skip Navigation Link for Screen Readers and Keyboard Traversal -->
-  <a href="#map-workspace" class="skip-to-main">Skip to lunar map workspace</a>
+  <!-- Accessible Skip Navigation Link -->
+  <a href="#view-new-registration" class="skip-to-main">Skip to registration workspace</a>
 
   <div class="app-container" id="app-container">
     
     <!-- ==========================================================================
-         1. TOP NAVIGATION (Clean & Compact)
+         1. TOP NAVIGATION (Clean & Focused)
          ========================================================================== -->
     <header class="top-nav" role="banner">
       
@@ -218,25 +174,20 @@
         <div class="brand-container">
           <div class="brand-orb" aria-hidden="true"></div>
           <div class="brand-text">
-            <span class="brand-title">LUNA-REG — Lunar Terrain Explorer — Map & GIS</span>
-            <span class="brand-subtitle" title="Explore lunar terrain, satellite imagery, and multi-modal registration results.">
-              Explore lunar terrain, satellite imagery, and multi-modal registration results.
+            <span class="brand-title">LUNA-REG â€” Planetary Image Registration &amp; Analysis Workstation</span>
+            <span class="brand-subtitle" title="Multi-modal image correspondence, sub-pixel registration & scientific analysis.">
+              Multi-modal image correspondence, sub-pixel registration &amp; scientific analysis.
             </span>
           </div>
         </div>
       </div>
 
-      <!-- Center Navigation Tabs -->
+      <!-- Center Navigation Tabs: REGISTER, RESULTS, ANALYSIS -->
       <nav class="nav-center" aria-label="Primary Mission Views" role="tablist">
-        <button class="nav-link-btn active" data-nav="dashboard" id="nav-dashboard" role="tab" aria-selected="true" aria-controls="view-dashboard" onclick="window.switchView('dashboard')">DASHBOARD</button>
-        <button class="nav-link-btn" data-nav="explore" id="nav-explore" role="tab" aria-selected="false" aria-controls="map-workspace" onclick="window.switchView('explorer')">LUNAR MAP</button>
-        <button class="nav-link-btn" data-nav="register" id="nav-register" role="tab" aria-selected="false" aria-controls="view-new-registration" onclick="window.switchView('new-reg')">REGISTER</button>
+        <button class="nav-link-btn active" data-nav="register" id="nav-register" role="tab" aria-selected="true" aria-controls="view-new-registration" onclick="window.switchView('new-reg')">REGISTER</button>
         <button class="nav-link-btn" data-nav="results" id="nav-results" role="tab" aria-selected="false" aria-controls="view-registration-results" onclick="window.switchView('results')">RESULTS</button>
         <button class="nav-link-btn" data-nav="analysis" id="nav-analysis" role="tab" aria-selected="false" aria-controls="view-analysis-tools" onclick="window.switchView('analysis')">ANALYSIS</button>
-        <button class="nav-link-btn" data-nav="dataset" id="nav-dataset" role="tab" aria-selected="false" aria-controls="view-dataset" onclick="window.switchView('dataset')">DATASET</button>
-        <button class="nav-link-btn" data-nav="about" id="nav-about" role="tab" aria-selected="false" aria-controls="view-about" onclick="window.switchView('about')">ABOUT</button>
       </nav>
-
       <!-- Right Navigation Tools & Branding -->
       <div class="nav-right">
         <!-- Compact Search -->
@@ -271,7 +222,7 @@
           <div class="user-avatar">D</div>
           <div class="user-details">
             <span class="user-name">DR. DEV</span>
-            <span class="user-role">ISRO SAC • PI</span>
+            <span class="user-role">ISRO SAC â€¢ PI</span>
           </div>
         </div>
 
@@ -306,38 +257,11 @@
 
         <!-- 8 Navigation Items with Line Icons -->
         <ul class="sidebar-nav-list">
+        <!-- Streamlined Navigation Items -->
+        <ul class="sidebar-nav-list">
           
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn active" data-target="dashboard" id="side-dashboard" onclick="window.switchView('dashboard')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <rect x="3" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="14" width="7" height="7"></rect>
-                  <rect x="3" y="14" width="7" height="7"></rect>
-                </svg>
-              </span>
-              <span class="nav-item-text">Dashboard</span>
-            </button>
-          </li>
-
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="explorer" id="side-explorer" onclick="window.switchView('explorer')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="9"></circle>
-                  <path d="M3.6 9h16.8"></path>
-                  <path d="M3.6 15h16.8"></path>
-                  <path d="M12 3a14 14 0 0 0 0 18"></path>
-                  <path d="M12 3a14 14 0 0 1 0 18"></path>
-                </svg>
-              </span>
-              <span class="nav-item-text">Lunar Explorer</span>
-            </button>
-          </li>
-
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="new-reg" id="side-new-reg" onclick="window.switchView('new-reg')">
+            <button class="sidebar-nav-btn active" data-target="new-reg" id="side-new-reg" onclick="window.switchView('new-reg')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="4"></circle>
@@ -363,31 +287,6 @@
           </li>
 
           <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="history" id="side-history" onclick="window.switchView('history')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-              </span>
-              <span class="nav-item-text">Registration History</span>
-            </button>
-          </li>
-
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="layers" id="side-layers" onclick="window.switchView('explorer')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                  <polyline points="2 17 12 22 22 17"></polyline>
-                  <polyline points="2 12 12 17 22 12"></polyline>
-                </svg>
-              </span>
-              <span class="nav-item-text">Image Layers</span>
-            </button>
-          </li>
-
-          <li class="sidebar-nav-item">
             <button class="sidebar-nav-btn" data-target="analysis" id="side-analysis" onclick="window.switchView('analysis')">
               <span class="nav-item-icon">
                 <svg viewBox="0 0 24 24">
@@ -398,34 +297,7 @@
             </button>
           </li>
 
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="dataset" id="side-dataset" onclick="window.switchView('dataset')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-                </svg>
-              </span>
-              <span class="nav-item-text">Dataset</span>
-            </button>
-          </li>
-
-          <li class="sidebar-nav-item">
-            <button class="sidebar-nav-btn" data-target="about" id="side-about" onclick="window.switchView('about')">
-              <span class="nav-item-icon">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-              </span>
-              <span class="nav-item-text">About</span>
-            </button>
-          </li>
-
         </ul>
-
         <div class="sidebar-footer">
           <div class="status-indicator">
             <div class="status-circle"></div>
@@ -437,268 +309,20 @@
       <div class="mobile-backdrop" id="mobile-backdrop" aria-hidden="true"></div>
 
       <!-- ========================================================================
-           DASHBOARD VIEW (Mission Overview, Telemetry & Rapid Workflows)
+           NEW IMAGE REGISTRATION WORKFLOW (Manual Upload & Correspondence)
            ======================================================================== -->
-      <section class="page-dashboard" id="view-dashboard" aria-label="Mission Dashboard Workspace">
-        <!-- Header -->
-        <div class="dash-page-header">
-          <div class="dash-header-title-area">
-            <div class="dash-breadcrumb"><span class="breadcrumb-link" id="dash-bc-luna" role="button" tabindex="0">LUNA-REG</span> &gt; <span class="active">MISSION DASHBOARD</span></div>
-            <h1 class="dash-page-title">MISSION DASHBOARD</h1>
-            <p class="dash-page-subtitle">Chandrayaan-2 Planetary Multi-Modal Registration &amp; Telemetry Overview</p>
-          </div>
-          <div class="dash-header-actions">
-            <button class="btn-tech primary" id="btn-dash-quick-reg" onclick="window.switchView('new-reg')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              <span>NEW REGISTRATION</span>
-            </button>
-            <button class="btn-tech" id="btn-dash-open-map" onclick="window.switchView('explorer')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg>
-              <span>EXPLORE MAP</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="dash-scroll-content">
-          <!-- 4 Mission Telemetry Tiles -->
-          <div class="dash-metrics-grid">
-            <div class="dash-metric-card">
-              <div class="dash-card-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a14 14 0 0 0 0 18"/><path d="M12 3a14 14 0 0 1 0 18"/></svg>
-              </div>
-              <div class="dash-card-info">
-                <span class="dash-card-label">PLANETARY BODY</span>
-                <span class="dash-card-val">MOON (LUNA)</span>
-                <span class="dash-card-sub">Datum: D_MOON_2000 (1737.4 km)</span>
-              </div>
-            </div>
-            <div class="dash-metric-card" id="dash-card-products" role="button" tabindex="0" title="View canonical products archive">
-              <div class="dash-card-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-              </div>
-              <div class="dash-card-info">
-                <span class="dash-card-label">CANONICAL PRODUCTS</span>
-                <span class="dash-card-val"><span id="dash-metric-products-count">--</span> PRODUCTS</span>
-                <span class="dash-card-sub">TMC-2 &bull; OHRC &bull; IIRS Archives</span>
-              </div>
-            </div>
-            <div class="dash-metric-card" id="dash-card-pairs" role="button" tabindex="0" title="View canonical image pairs">
-              <div class="dash-card-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              </div>
-              <div class="dash-card-info">
-                <span class="dash-card-label">IMAGE PAIRS CATALOG</span>
-                <span class="dash-card-val"><span id="dash-metric-pairs-count">--</span> PAIRS</span>
-                <span class="dash-card-sub" style="color: var(--accent-gold);">Indexed SQLite Pairs</span>
-              </div>
-            </div>
-            <div class="dash-metric-card">
-              <div class="dash-card-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"/></svg>
-              </div>
-              <div class="dash-card-info">
-                <span class="dash-card-label">BACKEND API TELEMETRY</span>
-                <span class="dash-card-val" id="dash-backend-status-val" style="color: var(--success);">CHECKING</span>
-                <span class="dash-card-sub" id="dash-backend-status-sub">FastAPI Service Status</span>
-              </div>
-            </div>
-            <div class="dash-metric-card" id="dash-card-regions" role="button" tabindex="0" title="View canonical target regions">
-              <div class="dash-card-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-              </div>
-              <div class="dash-card-info">
-                <span class="dash-card-label">TARGET REGIONS</span>
-                <span class="dash-card-val"><span id="dash-metric-regions-count">--</span> REGIONS</span>
-                <span class="dash-card-sub">Lunar Landing &amp; Polar ROIs</span>
-              </div>
-            </div>
-            <div class="dash-metric-card" id="dash-card-unverified" role="button" tabindex="0" title="Unverified overlap pairs">
-              <div class="dash-card-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              </div>
-              <div class="dash-card-info">
-                <span class="dash-card-label">UNVERIFIED PAIRS</span>
-                <span class="dash-card-val"><span id="dash-metric-unverified-count">--</span> PAIRS</span>
-                <span class="dash-card-sub" style="color: var(--warning);">Pending Footprint Check</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- SYSTEM STATUS AREA -->
-          <div class="dash-system-status-area" id="dash-system-status-area">
-            <div class="sys-status-header">
-              <div class="sys-status-header-left">
-                <span class="sys-status-badge">SYSTEM STATUS</span>
-                <span class="sys-status-title">FastAPI Backend Telemetry &bull; SIH26166</span>
-              </div>
-              <button type="button" class="btn-tech-sm" id="btn-refresh-telemetry" title="Query /health and /api/info">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                <span>REFRESH TELEMETRY</span>
-              </button>
-            </div>
-            <div class="sys-status-grid">
-              <div class="sys-status-cell">
-                <span class="sys-cell-label">Backend Status</span>
-                <span class="sys-cell-val" id="sys-status-backend">Checking...</span>
-              </div>
-              <div class="sys-status-cell">
-                <span class="sys-cell-label">API Version</span>
-                <span class="sys-cell-val col-mono" id="sys-status-api-ver">--</span>
-              </div>
-              <div class="sys-status-cell">
-                <span class="sys-cell-label">Backend Version</span>
-                <span class="sys-cell-val col-mono" id="sys-status-backend-ver">--</span>
-              </div>
-              <div class="sys-status-cell">
-                <span class="sys-cell-label">Environment</span>
-                <span class="sys-cell-val col-mono" id="sys-status-env">--</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- AVAILABLE REGISTRATION PAIRS SECTION -->
-          <div class="dash-section-header" style="margin-top: 24px; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <h3 style="margin:0; font-size:13px; font-weight:700; letter-spacing:1px; color:var(--text-bright);">AVAILABLE REGISTRATION PAIRS</h3>
-              <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">Browse source and reference image combinations prepared for lunar registration from backend catalog.</p>
-            </div>
-            <button type="button" class="btn-tech-sm" id="btn-dash-view-all-pairs" title="View full Pairs catalog" onclick="window.switchView('dataset')">
-              <span>VIEW ALL PAIRS &rarr;</span>
-            </button>
-          </div>
-          <div class="dash-available-pairs-card" id="dash-available-pairs-container">
-            <div class="dash-empty-pairs-hint">Loading available registration pairs...</div>
-          </div>
-
-          <!-- Quick Navigation Cards Grid -->
-          <div class="dash-section-header">
-            <h3>PLATFORM WORKSPACES</h3>
-          </div>
-          <div class="dash-workspaces-grid">
-            <div class="dash-workspace-tile" id="dash-tile-map" role="button" tabindex="0" onclick="window.switchView('explorer')">
-              <div class="tile-top">
-                <div class="tile-badge">GIS CANVAS</div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg>
-              </div>
-              <h4 class="tile-title">Lunar Map Explorer</h4>
-              <p class="tile-desc">Full-screen interactive lunar GIS with photographic rasters, graticule, scale bar, contours, and ROI targeting.</p>
-              <span class="tile-action">OPEN MAP &rarr;</span>
-            </div>
-
-            <div class="dash-workspace-tile" id="dash-tile-newreg" role="button" tabindex="0" onclick="window.switchView('new-reg')">
-              <div class="tile-top">
-                <div class="tile-badge gold">CORE PIPELINE</div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
-              </div>
-              <h4 class="tile-title">New Registration</h4>
-              <p class="tile-desc">Load multi-modal reference and target lunar imagery with drag-and-drop validation and run automated alignment.</p>
-              <span class="tile-action">START REGISTRATION &rarr;</span>
-            </div>
-
-            <div class="dash-workspace-tile" id="dash-tile-results" role="button" tabindex="0" onclick="window.switchView('results')">
-              <div class="tile-top">
-                <div class="tile-badge">COMPARISON</div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              </div>
-              <h4 class="tile-title">Registration Results</h4>
-              <p class="tile-desc">4-mode viewer: Overlay slider, Split-screen, Before/After toggle, and Tie-point matching vector visualization.</p>
-              <span class="tile-action">VIEW RESULTS &rarr;</span>
-            </div>
-
-            <div class="dash-workspace-tile" id="dash-tile-history" role="button" tabindex="0" onclick="window.switchView('history')">
-              <div class="tile-top">
-                <div class="tile-badge">RECORDS</div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </div>
-              <h4 class="tile-title">Registration History</h4>
-              <p class="tile-desc">Browse past registration jobs, check backend processing statuses, and reload completed alignment runs.</p>
-              <span class="tile-action">EXPLORE HISTORY &rarr;</span>
-            </div>
-
-            <div class="dash-workspace-tile" id="dash-tile-analysis" role="button" tabindex="0" onclick="window.switchView('analysis')">
-              <div class="tile-top">
-                <div class="tile-badge">ANALYTICS</div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-              </div>
-              <h4 class="tile-title">Analysis Tools</h4>
-              <p class="tile-desc">Photometric profiling, crater rim detection, sub-pixel residual grid, and DEM cross-section extraction.</p>
-              <span class="tile-action">LAUNCH TOOLS &rarr;</span>
-            </div>
-
-            <div class="dash-workspace-tile" id="dash-tile-dataset" role="button" tabindex="0" onclick="window.switchView('dataset')">
-              <div class="tile-top">
-                <div class="tile-badge">ARCHIVES</div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-              </div>
-              <h4 class="tile-title">Lunar Datasets</h4>
-              <p class="tile-desc">Browse catalog of Chandrayaan-2 TMC-2, OHRC, LOLA SLDEM2015, and LROC orbital archives.</p>
-              <span class="tile-action">VIEW CATALOG &rarr;</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================================================
-           3. MAIN MAP WORKSPACE (PART 7 — LUNAR MAP & GIS EXPLORER)
-           ======================================================================== -->
-      <main class="main-map-workspace" id="map-workspace" aria-label="Lunar GIS Canvas Viewport" style="display: none;">
-        <div class="lunar-map-page-wrapper" id="lunar-map-page-wrapper">
-          <!-- 1. Top GIS Control Bar -->
-          <header class="lunar-map-topbar" id="lunar-map-topbar">
-            <div class="topbar-left">
-              <div class="topbar-breadcrumb">
-                <a href="#/dashboard">LUNA-REG</a>
-                <span class="crumb-separator">/</span>
-                <span class="crumb-current">LUNAR MAP &amp; GIS EXPLORER</span>
-              </div>
-              <h1 class="map-page-title text-gold">LUNAR SURFACE GIS WORKSPACE</h1>
-            </div>
-
-            <!-- Mount: Search Bar -->
-            <div class="topbar-center" id="map-mount-search"></div>
-
-            <!-- Mount: Navigation Toolbar -->
-            <div class="topbar-right" id="map-mount-toolbar"></div>
-          </header>
-
-          <!-- 2. Main Interactive Map Area -->
-          <div class="lunar-map-viewport-container" id="lunar-map-viewport-container">
-            <!-- Canvas Renderer Mount -->
-            <div class="lunar-map-canvas-container" id="lunar-map-canvas-container"></div>
-
-            <!-- Mount: Layer Control Panel (Floating Top-Left) -->
-            <div class="map-floating-layers-container" id="map-mount-layers"></div>
-
-            <!-- Mount: Cartographic Symbology Legend (Floating Bottom-Left) -->
-            <div class="map-floating-legend-container" id="map-mount-legend"></div>
-
-            <!-- Mount: Selected Feature Information Panel (Floating Top-Right) -->
-            <div class="map-floating-feature-container" id="map-mount-feature-info"></div>
-
-            <!-- Mount: Coordinate and Scale Telemetry HUD (Floating Bottom-Center) -->
-            <div class="map-floating-coords-container" id="map-mount-coords"></div>
-
-            <!-- Mount: Loading, Error, and Retry Overlays -->
-            <div class="map-overlay-container" id="map-mount-overlay"></div>
-          </div>
-        </div>
-      </main>
-
-      <!-- ========================================================================
-           6. NEW IMAGE REGISTRATION WORKFLOW (Dedicated GIS Registration Page)
-           ======================================================================== -->
-      <section class="page-new-registration" id="view-new-registration" aria-label="New Image Registration Workspace" style="display: none;">
+      <section class="page-new-registration" id="view-new-registration" aria-label="New Image Registration Workspace" style="display: flex;">
         
         <!-- Registration Page Header -->
         <div class="reg-page-header">
           <div class="reg-page-title-group">
             <div class="reg-page-breadcrumb">
-              <span class="breadcrumb-link" id="reg-bc-dashboard" style="cursor: pointer; transition: color 0.15s;" title="Return to Dashboard">Dashboard</span>
+              <span class="breadcrumb-link" id="reg-bc-home" style="cursor: pointer; transition: color 0.15s;" title="New Registration" onclick="window.switchView('new-reg')">LUNA-REG</span>
               <span>/</span>
               <span class="active">New Registration</span>
             </div>
             <h1 class="reg-page-title">NEW IMAGE REGISTRATION</h1>
-            <p class="reg-page-subtitle">Upload two lunar images to begin multi-modal image correspondence and registration.</p>
+            <p class="reg-page-subtitle">Upload Reference and Target lunar imagery for sub-pixel multi-modal registration.</p>
           </div>
           <div class="reg-header-actions">
             <!-- Backend API Configuration Pill -->
@@ -717,15 +341,11 @@
               <span>RESET STATE</span>
             </button>
 
-            <button class="btn-tech" id="btn-back-to-explorer" title="Return to Lunar Terrain Explorer" onclick="window.switchView('explorer')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-              </svg>
-              <span>BACK TO EXPLORER</span>
+            <button class="btn-tech primary" id="btn-view-results-nav" title="View Latest Registration Results" onclick="window.switchView('results')">
+              <span>VIEW RESULTS â†’</span>
             </button>
           </div>
         </div>
-
         <!-- 7-Stage Workflow Progress Stepper -->
         <div class="reg-workflow-stepper" id="workflow-stepper">
           <div class="stepper-step active" id="step-1" data-step="1">
@@ -767,53 +387,8 @@
         <!-- Registration Content Scroll Area -->
         <div class="reg-content-scroll">
           
-          <!-- REGISTRATION SOURCE Segmented Control (Default: DATABASE PAIR) -->
-          <div class="reg-source-selector-bar">
-            <div class="reg-source-selector-title">
-              <span class="reg-source-pill">REGISTRATION SOURCE</span>
-              <span class="reg-source-subtitle">Select database-cataloged pair combination or upload custom raw raster files.</span>
-            </div>
-            <div class="reg-source-segmented-control" role="tablist" aria-label="Registration Source Mode">
-              <button type="button" class="source-seg-btn active" id="btn-source-db-pair" role="tab" aria-selected="true">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-                <span>DATABASE PAIR</span>
-              </button>
-              <button type="button" class="source-seg-btn" id="btn-source-manual-upload" role="tab" aria-selected="false">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span>MANUAL UPLOAD</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- MODE 1: DATABASE PAIR WORKSPACE (Default Active Mode) -->
-          <div id="reg-mode-db-pair-container" class="reg-mode-panel">
-            <div class="reg-db-pair-toolbar">
-              <div class="db-pair-select-group">
-                <label for="reg-db-pair-select" class="db-pair-label">SELECT LUNAR PAIR:</label>
-                <div class="db-pair-select-wrap">
-                  <select id="reg-db-pair-select" class="reg-pair-select" aria-label="Select Pair Combination">
-                    <option value="">Loading available pairs from backend...</option>
-                  </select>
-                </div>
-              </div>
-              <div class="db-pair-toolbar-actions">
-                <button type="button" class="btn-tech-sm" id="btn-refresh-reg-pairs" title="Refresh available pairs from backend">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                  <span>REFRESH</span>
-                </button>
-                <button type="button" class="btn-tech-sm" id="btn-browse-pairs-picker" title="Browse catalog modal">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                  <span>BROWSE CATALOG</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Staged Canonical Registration Input Container -->
-            <div id="registration-input-container" style="margin-top: 16px;"></div>
-          </div>
-
-          <!-- MODE 2: MANUAL UPLOAD WORKSPACE (Preserved Dual Raster Flow) -->
-          <div id="reg-mode-manual-container" class="reg-mode-panel" style="display:none;">
+          <!-- MANUAL UPLOAD WORKSPACE (Dual Raster Alignment Flow) -->
+          <div id="reg-mode-manual-container" class="reg-mode-panel" style="display:block;">
             <!-- Image Upload Cards Grid -->
             <div class="reg-cards-grid">
             
@@ -851,7 +426,7 @@
                     <span class="drop-text-primary">Drag &amp; drop your reference image here</span>
                     <span class="drop-text-secondary">or</span>
                     <button type="button" class="btn-browse-files" id="btn-browse-ref">BROWSE FILES</button>
-                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
+                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF â€¢ Maximum file size: 50 MB</span>
                   </div>
                 </div>
 
@@ -901,7 +476,7 @@
                       </div>
                       <div class="file-meta-row">
                         <span class="meta-label">Upload Status:</span>
-                        <span class="meta-value success" id="ref-file-status">READY FOR REGISTRATION ✓</span>
+                        <span class="meta-value success" id="ref-file-status">READY FOR REGISTRATION âœ“</span>
                       </div>
                     </div>
                   </div>
@@ -956,7 +531,7 @@
                     <span class="drop-text-primary">Drag &amp; drop your target image here</span>
                     <span class="drop-text-secondary">or</span>
                     <button type="button" class="btn-browse-files" id="btn-browse-tgt">BROWSE FILES</button>
-                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
+                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF â€¢ Maximum file size: 50 MB</span>
                   </div>
                 </div>
 
@@ -1006,7 +581,7 @@
                       </div>
                       <div class="file-meta-row">
                         <span class="meta-label">Upload Status:</span>
-                        <span class="meta-value success" id="tgt-file-status">READY FOR REGISTRATION ✓</span>
+                        <span class="meta-value success" id="tgt-file-status">READY FOR REGISTRATION âœ“</span>
                       </div>
                     </div>
                   </div>
@@ -1096,7 +671,7 @@
             <div class="preflight-checks-grid">
               <div class="preflight-check-item" id="chk-item-sensor">
                 <div class="check-icon-col">
-                  <div class="check-status-icon idle" id="icon-chk-sensor">○</div>
+                  <div class="check-status-icon idle" id="icon-chk-sensor">â—‹</div>
                 </div>
                 <div class="check-text-col">
                   <span class="check-name">Optical Sensor &amp; Orbit Geometry</span>
@@ -1106,7 +681,7 @@
 
               <div class="preflight-check-item" id="chk-item-bitdepth">
                 <div class="check-icon-col">
-                  <div class="check-status-icon idle" id="icon-chk-bitdepth">○</div>
+                  <div class="check-status-icon idle" id="icon-chk-bitdepth">â—‹</div>
                 </div>
                 <div class="check-text-col">
                   <span class="check-name">Bit Depth &amp; Dynamic Range</span>
@@ -1116,7 +691,7 @@
 
               <div class="preflight-check-item" id="chk-item-dims">
                 <div class="check-icon-col">
-                  <div class="check-status-icon idle" id="icon-chk-dims">○</div>
+                  <div class="check-status-icon idle" id="icon-chk-dims">â—‹</div>
                 </div>
                 <div class="check-text-col">
                   <span class="check-name">Spatial Dimensions &amp; Scale Ratio</span>
@@ -1126,7 +701,7 @@
 
               <div class="preflight-check-item" id="chk-item-contrast">
                 <div class="check-icon-col">
-                  <div class="check-status-icon idle" id="icon-chk-contrast">○</div>
+                  <div class="check-status-icon idle" id="icon-chk-contrast">â—‹</div>
                 </div>
                 <div class="check-text-col">
                   <span class="check-name">Terrain Contrast &amp; Gradient SNR</span>
@@ -1198,7 +773,7 @@
                 <div class="preview-crosshair-telemetry" id="preview-crosshair-telemetry">
                   <span class="telemetry-label">INSPECTION:</span>
                   <span class="telemetry-val" id="telemetry-coords">X: -- px | Y: -- px</span>
-                  <span class="telemetry-sep">•</span>
+                  <span class="telemetry-sep">â€¢</span>
                   <span class="telemetry-val" id="telemetry-dn">Intensity: -- DN</span>
                 </div>
 
@@ -1276,7 +851,7 @@
             <div class="reg-action-cta">
               <div class="action-buttons-group">
                 <button class="btn-tech primary large" id="btn-execute-registration" disabled aria-label="Run Registration">
-                  <span>RUN REGISTRATION →</span>
+                  <span>RUN REGISTRATION â†’</span>
                 </button>
                 <button class="btn-tech secondary" id="btn-reset-workflow-cta" aria-label="Reset Workflow">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1333,7 +908,7 @@
               <div class="monitor-success-actions" id="monitor-success-actions" style="display:none;">
                 <div class="convergence-summary">
                   <span class="conv-tag">CONVERGENCE ACHIEVED</span>
-                  <span class="conv-val" id="conv-metrics-text">Reprojection RMSE: 0.318 px • 1,311 Inliers (91.8%)</span>
+                  <span class="conv-val" id="conv-metrics-text">Reprojection RMSE: 0.318 px â€¢ 1,311 Inliers (91.8%)</span>
                 </div>
                 <button class="btn-tech primary" id="btn-jump-explorer">
                   <span>EXPLORE REGISTERED RESULT</span>
@@ -1354,7 +929,7 @@
                 <div class="pulse-indicator online"></div>
                 <div class="created-banner-text">
                   <span class="created-title">REGISTRATION JOB CREATED</span>
-                  <span class="created-sub" id="reg-created-job-text">Job ID: LR-XXXXXX • Status: Processing</span>
+                  <span class="created-sub" id="reg-created-job-text">Job ID: LR-XXXXXX â€¢ Status: Processing</span>
                 </div>
               </div>
             </div>
@@ -1365,7 +940,6 @@
 
       </section>
 
-      <!-- ========================================================================
            7. PROCESSING STATUS PAGE (Mission Control Registration Pipeline)
            ======================================================================== -->
       <section class="page-processing" id="view-processing" aria-label="Registration Processing Workspace" style="display: none;">
@@ -1631,82 +1205,6 @@
         </div>
       </section>
 
-      <!-- ========================================================================
-           11. REGISTRATION HISTORY PAGE (Historical Alignment Jobs & Records)
-           ======================================================================== -->
-      <section class="page-registration-history" id="view-registration-history" aria-label="Registration History Page" style="display: none;">
-        
-        <!-- History Page Header -->
-        <div class="history-page-header">
-          <div class="history-header-left">
-            <div class="history-page-breadcrumb">
-              <span class="breadcrumb-link" id="hist-bc-dashboard" role="button" tabindex="0">Dashboard</span>
-              <span>/</span>
-              <span class="active">Registration History</span>
-            </div>
-            <div class="history-title-row">
-              <h1 class="history-page-title">REGISTRATION HISTORY</h1>
-              <span class="history-count-badge" id="history-total-count">0 JOBS</span>
-            </div>
-            <p class="history-page-subtitle">Chronological ledger of multi-modal lunar registration jobs and processing records.</p>
-          </div>
-
-          <div class="history-header-actions">
-            <button class="btn-tech" id="btn-history-refresh" title="Refresh history from backend">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              <span>REFRESH</span>
-            </button>
-            <button class="btn-tech primary" id="btn-history-new-reg" title="Start a new registration job">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              <span>START NEW REGISTRATION</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- History Main Content Area -->
-        <div class="history-content-area">
-          
-          <!-- Table Container (Shown when registrations exist) -->
-          <div class="history-table-container" id="history-table-wrap">
-            <table class="history-table" id="history-table">
-              <thead>
-                <tr>
-                  <th style="width: 140px;">JOB ID</th>
-                  <th>REFERENCE IMAGE</th>
-                  <th>TARGET IMAGE</th>
-                  <th style="width: 120px;">STATUS</th>
-                  <th style="width: 160px;">DATE</th>
-                  <th style="width: 140px;">PROCESSING TIME</th>
-                  <th style="width: 130px; text-align: right;">ACTION</th>
-                </tr>
-              </thead>
-              <tbody id="history-table-body">
-                <!-- Injected via JavaScript -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Empty State Container (Shown when no registrations exist) -->
-          <div class="history-empty-state" id="history-empty-state" style="display: none;">
-            <div class="empty-icon-wrap">
-              <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-            </div>
-            <h2 class="empty-state-title">No registrations yet.</h2>
-            <p class="empty-state-desc">No planetary image registration jobs have been executed in this session or received from the backend.</p>
-            <button class="btn-tech primary" id="btn-empty-start-reg">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              <span>START NEW REGISTRATION</span>
-            </button>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- ========================================================================
            10. ANALYSIS TOOLS WORKSPACE (Planetary Multi-Sensor GIS Analysis - Part 5)
            ======================================================================== -->
       <section class="page-analysis-tools" id="view-analysis-tools" aria-label="Planetary Analysis Tools Workspace" style="display: none;">
@@ -1749,103 +1247,7 @@
       </section>
 
       <!-- ========================================================================
-           DATASET VIEW (Lunar Satellite Data Catalog & Canonical Database)
-           ======================================================================== -->
-      <section class="page-dataset" id="view-dataset" aria-label="Lunar Satellite Datasets" style="display: none;">
-        <div class="dataset-page-container">
-          <div class="dataset-page-header">
-            <div class="header-left">
-              <div class="header-breadcrumb">
-                <a href="#/dashboard">LUNA-REG</a>
-                <span class="crumb-separator">/</span>
-                <span class="crumb-current">DATASET EXPLORER</span>
-              </div>
-              <h1 class="page-title text-gold">PLANETARY CATALOG &amp; DATASET EXPLORER</h1>
-              <p class="page-subtitle">Multi-sensor lunar telemetry, geographic bounds, and verified registration pairs ledger</p>
-            </div>
-            <div class="header-right-telemetry">
-              <div class="telemetry-chip">
-                <span class="chip-dot"></span>
-                <span class="chip-text">SYNCHRONIZING</span>
-              </div>
-            </div>
-          </div>
-          <div class="dataset-radar-loading-container" style="padding:60px 20px; text-align:center;">
-            <div class="radar-spinner" style="margin:0 auto 20px;"></div>
-            <div style="font-family:var(--font-mono); font-size:14px; color:var(--accent-gold); letter-spacing:1px; margin-bottom:8px;">
-              SYNCHRONIZING PLANETARY ARCHIVE...
-            </div>
-            <div style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted); max-width:500px; margin:0 auto;">
-              Connecting to canonical REST APIs (/products, /pairs, /regions) to load mission data.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================================================
-           ABOUT VIEW (Mission Background, Scientific Specs & Architecture)
-           ======================================================================== -->
-      <section class="page-about" id="view-about" aria-label="About LUNA-REG" style="display: none;">
-        <div class="reg-page-header">
-          <div>
-            <div class="reg-page-breadcrumb"><span class="breadcrumb-link" id="about-bc-dashboard" role="button" tabindex="0">Dashboard</span> &gt; <span class="active">About</span></div>
-            <h1 class="reg-page-title">ABOUT LUNA-REG</h1>
-            <p class="reg-page-subtitle">Chandrayaan-2 Planetary Multi-Modal Image Registration Platform &bull; SIH26166</p>
-          </div>
-          <div class="history-header-actions">
-            <span class="badge-version">v2.4.0-SIH26166</span>
-          </div>
-        </div>
-
-        <div class="about-scroll-body">
-          <div class="about-grid">
-            
-            <div class="about-card hero">
-              <h2 class="about-heading">Autonomous Multi-Modal Planetary Registration</h2>
-              <p>
-                <strong>LUNA-REG</strong> is a specialized planetary GIS and sub-pixel image registration platform engineered for the <strong>Indian Space Research Organisation (ISRO) Space Applications Centre (SAC)</strong> problem statement <em>SIH26166</em>.
-              </p>
-              <p>
-                Orbital satellite images of the Moon captured at different orbital passes exhibit extreme variance due to differences in solar illumination angles (e.g. low-sun oblique shadows vs. high-sun nadir passes), camera optics (TMC-2 vs. OHRC), and temporal regolith modifications. LUNA-REG aligns multi-modal imagery to sub-pixel accuracy without relying on manual ground control points.
-              </p>
-            </div>
-
-            <div class="about-card">
-              <h3 class="about-card-title">Scientific Registration Pipeline</h3>
-              <ul class="about-spec-list">
-                <li><strong>Phase 1 — Keypoint Extraction:</strong> Multi-scale feature detection resilient to illumination flips and shadow inversions.</li>
-                <li><strong>Phase 2 — Outlier Rejection:</strong> Progressive RANSAC with geometric homography constraint verification.</li>
-                <li><strong>Phase 3 — Sub-Pixel Refinement:</strong> Mutual information maximization and local optical flow optimization.</li>
-                <li><strong>Phase 4 — Cartographic Georeferencing:</strong> Projection onto the IAU 2000 Lunar Sphere (1737.4 km radius).</li>
-              </ul>
-            </div>
-
-            <div class="about-card">
-              <h3 class="about-card-title">Target Stakeholders &amp; Applications</h3>
-              <ul class="about-spec-list">
-                <li><strong>ISRO Planetary Cartographers:</strong> Seamless orthomosaicing of Chandrayaan-2 orbital imagery.</li>
-                <li><strong>Lunar Geologists:</strong> Multi-illumination structural analysis of crater terraces and central peaks.</li>
-                <li><strong>Landing Hazard Analysis:</strong> High-precision co-registration for autonomous lunar hazard avoidance.</li>
-                <li><strong>Hackathon &amp; Academic Evaluators:</strong> Verification against rigorous ground-truth metrics (RMSE, inlier ratio).</li>
-              </ul>
-            </div>
-
-            <div class="about-card">
-              <h3 class="about-card-title">Architecture &amp; UX Standards</h3>
-              <ul class="about-spec-list">
-                <li><strong>Restrained Dark Lunar GIS:</strong> Strict adherence to Obsidian, Lunar Grey, Champagne Gold, and Warm Ivory (zero generic blue tones).</li>
-                <li><strong>WCAG 2.1 AA/AAA:</strong> High-contrast typography, visible focus rings, and full keyboard shortcut traversal.</li>
-                <li><strong>Multi-Device Engine:</strong> Desktop 3-column GIS workspace down to mobile-first map with bottom sheet.</li>
-                <li><strong>Decoupled Backend Layer:</strong> Robust API service handling real multipart/form-data with offline calibration recovery.</li>
-              </ul>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================================================
-           404 NOT FOUND VIEW (Mission Control Fallback Error Workspace)
+           404 NOT FOUND VIEW (Fallback Error Workspace)
            ======================================================================== -->
       <section class="page-not-found" id="view-not-found" aria-label="Route Not Found" style="display: none;">
         <div class="notfound-card">
@@ -1864,166 +1266,30 @@
             The requested orbital route <code id="notfound-attempted-route">#/unknown</code> does not correspond to any registered lunar GIS or planetary registration subsystem.
           </p>
           <div class="notfound-guidance">
-            <span>Verify the route URL or return to an active mission control module:</span>
+            <span>Verify the route URL or navigate to an active module:</span>
           </div>
           <div class="notfound-actions">
-            <button type="button" class="btn-tech primary" id="btn-404-dashboard" onclick="window.switchView('dashboard')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              <span>MISSION DASHBOARD</span>
-            </button>
-            <button type="button" class="btn-tech" id="btn-404-map" onclick="window.switchView('explorer')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg>
-              <span>LUNAR MAP EXPLORER</span>
-            </button>
-            <button type="button" class="btn-tech" id="btn-404-dataset" onclick="window.switchView('dataset')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-              <span>DATASET EXPLORER</span>
-            </button>
-            <button type="button" class="btn-tech" id="btn-404-register" onclick="window.switchView('new-reg')">
+            <button type="button" class="btn-tech primary" id="btn-404-register" onclick="window.switchView('new-reg')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               <span>NEW REGISTRATION</span>
+            </button>
+            <button type="button" class="btn-tech" id="btn-404-results" onclick="window.switchView('results')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span>REGISTRATION RESULTS</span>
+            </button>
+            <button type="button" class="btn-tech" id="btn-404-analysis" onclick="window.switchView('analysis')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <span>ANALYSIS TOOLS</span>
             </button>
           </div>
         </div>
       </section>
-
-      <!-- ========================================================================
-           5. RIGHT INFORMATION PANEL (Collapsible Lunar Terrain Data / Mobile Bottom Sheet)
-           ======================================================================== -->
-      <aside class="right-info-panel" id="right-info-panel" aria-label="Lunar Terrain Data" style="display: none;">
-        <!-- Mobile Bottom-Sheet Pull Handle -->
-        <div class="sheet-drag-handle-bar" id="sheet-drag-handle" title="Tap or drag to expand Lunar Terrain Data">
-          <div class="sheet-handle-pill"></div>
-        </div>
-
-        <div class="panel-header" id="right-panel-header">
-          <h3>LUNAR TERRAIN DATA</h3>
-          <div class="panel-header-actions">
-            <span class="sheet-badge-mobile" id="sheet-mobile-latlon">43.31°S 11.36°W</span>
-            <button class="panel-toggle-btn" id="right-panel-toggle" title="Collapse/Expand Info Panel" aria-label="Toggle Info Panel">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="panel-scroll-content">
-          
-          <!-- SECTION: SELECTED IMAGE -->
-          <div class="info-section">
-            <div class="info-section-header">SELECTED IMAGE</div>
-            <div class="selected-image-box">
-              <div class="selected-image-wrapper">
-                <img id="selected-image-thumbnail" class="selected-image-thumb" src="assets/lunar_nadir.jpg" onerror="if(!this.src.includes('frontend/assets/')) this.src='frontend/assets/lunar_nadir.jpg';" alt="Selected Lunar Terrain Image">
-                <div class="selected-image-overlay">
-                  <span id="selected-image-tag">CHANDRAYAAN-2 TMC-2</span>
-                  <span id="selected-image-orbit">ORBIT #4829</span>
-                </div>
-              </div>
-              <div class="selected-image-meta">
-                <span id="selected-image-name" style="color:var(--text-primary); font-weight:600;">Tycho Crater High-Relief Pass</span>
-                <span id="selected-image-illumination" style="color:var(--accent-gold); font-size:9px;">Sun Elevation: 48.2° (Nadir)</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- SECTION: METADATA -->
-          <div class="info-section">
-            <div class="info-section-header">IMAGE & LOCATION METADATA</div>
-            <div class="kv-table">
-              <div class="kv-row">
-                <span class="kv-key">Latitude</span>
-                <span class="kv-val" id="meta-latitude">43.310° S</span>
-              </div>
-              <div class="kv-row">
-                <span class="kv-key">Longitude</span>
-                <span class="kv-val" id="meta-longitude">11.360° W</span>
-              </div>
-              <div class="kv-row">
-                <span class="kv-key">Region</span>
-                <span class="kv-val" id="meta-region">Tycho Crater & Terraces</span>
-              </div>
-              <div class="kv-row">
-                <span class="kv-key">Image Source</span>
-                <span class="kv-val" id="meta-source">Chandrayaan-2 TMC-2</span>
-              </div>
-              <div class="kv-row">
-                <span class="kv-key">Image Resolution</span>
-                <span class="kv-val" id="meta-resolution">5.0 m/pixel</span>
-              </div>
-              <div class="kv-row">
-                <span class="kv-key">Acquisition Date</span>
-                <span class="kv-val" id="meta-date">2020-01-15</span>
-              </div>
-              <div class="kv-row">
-                <span class="kv-key">Image Type</span>
-                <span class="kv-val" id="meta-type">Panchromatic Optical Raster</span>
-              </div>
-              <div class="kv-row">
-                <span class="kv-key">Registration Status</span>
-                <span class="kv-val success" id="meta-reg-status">ALIGNED (RMSE 0.318 px)</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- SECTION: ACTION BUTTONS -->
-          <div class="info-section">
-            <div class="btn-action-group">
-              <button class="btn-tech primary" id="btn-register-image">REGISTER IMAGE</button>
-              <button class="btn-tech" id="btn-view-details">VIEW DETAILS</button>
-              <button class="btn-tech" id="btn-export-geotiff">EXPORT GEOTIFF</button>
-              <button class="btn-tech" id="btn-export-tiepoints">EXPORT TIE-POINTS</button>
-            </div>
-          </div>
-
-          <!-- SECTION: REGISTRATION ACCURACY & HISTOGRAM -->
-          <div class="info-section">
-            <div class="info-section-header">ACCURACY METRICS (CALIBRATED)</div>
-            <div class="metrics-row">
-              <div class="metric-tile">
-                <span class="metric-tile-title">REPROJECTION RMSE</span>
-                <span class="metric-tile-val" id="metric-rmse">0.318 px</span>
-                <span class="metric-tile-sub">Sub-pixel precision</span>
-              </div>
-              <div class="metric-tile">
-                <span class="metric-tile-title">INLIER RATIO</span>
-                <span class="metric-tile-val" id="metric-inlier-ratio">91.8%</span>
-                <span class="metric-tile-sub">1,311 / 1,428 inliers</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- SECTION: RESIDUAL ERROR HISTOGRAM -->
-          <div class="info-section">
-            <div class="info-section-header">RESIDUAL ERROR HISTOGRAM</div>
-            <div class="histogram-box">
-              <div class="histogram-header">
-                <span>RESIDUAL SPREAD (0.0 — 1.5 PX)</span>
-                <span style="color:var(--accent-gold);">σ = 0.084</span>
-              </div>
-              <canvas id="hist-canvas"></canvas>
-            </div>
-          </div>
-
-        </div>
-      </aside>
-
     </div>
-
     <!-- ========================================================================
-         MOBILE BOTTOM NAVIGATION & SHEET CONTROLS (Map-First Experience)
+         MOBILE BOTTOM NAVIGATION (Focused Registration & Analysis Workflow)
          ======================================================================== -->
     <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Mobile Navigation">
-      <button class="mob-nav-btn active" data-view="explorer" id="mob-btn-explorer" title="Lunar Map View" onclick="window.switchView('explorer')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-        <span>MAP</span>
-      </button>
-      <button class="mob-nav-btn" data-view="data-sheet" id="mob-btn-data" title="Expand Terrain Data Bottom Sheet">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-        <span>TERRAIN</span>
-      </button>
-      <button class="mob-nav-btn" data-view="new-reg" id="mob-btn-new-reg" title="New Image Registration" onclick="window.switchView('new-reg')">
+      <button class="mob-nav-btn active" data-view="new-reg" id="mob-btn-new-reg" title="New Image Registration" onclick="window.switchView('new-reg')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         <span>REGISTER</span>
       </button>
@@ -2031,13 +1297,9 @@
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <span>RESULTS</span>
       </button>
-      <button class="mob-nav-btn" data-view="dataset" id="mob-btn-dataset" title="Planetary Dataset Explorer" onclick="window.switchView('dataset')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-        <span>DATASET</span>
-      </button>
-      <button class="mob-nav-btn" data-view="history" id="mob-btn-history" title="Registration Job History" onclick="window.switchView('history')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>HISTORY</span>
+      <button class="mob-nav-btn" data-view="analysis" id="mob-btn-analysis" title="Planetary Analysis Tools" onclick="window.switchView('analysis')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <span>ANALYSIS</span>
       </button>
     </nav>
   </div>
@@ -2058,9 +1320,6 @@
   <!-- Modular API Service Layer -->
   <script src="frontend/src/services/api.js?v=3.1.0"></script>
   <script src="frontend/src/services/systemService.js?v=3.1.0"></script>
-  <script src="frontend/src/services/regionService.js?v=3.1.0"></script>
-  <script src="frontend/src/services/productService.js?v=3.1.0"></script>
-  <script src="frontend/src/services/pairService.js?v=3.1.0"></script>
   <script src="frontend/src/components/ToastManager.js?v=3.1.0"></script>
 
   <!-- Canonical UI Components -->
@@ -2069,14 +1328,10 @@
   <script src="frontend/src/components/LoadingState.js?v=3.1.0"></script>
   <script src="frontend/src/components/ErrorState.js?v=3.1.0"></script>
   <script src="frontend/src/components/FilterBar.js?v=3.1.0"></script>
-  <script src="frontend/src/components/ProductCard.js?v=3.1.0"></script>
-  <script src="frontend/src/components/ProductTable.js?v=3.1.0"></script>
-  <script src="frontend/src/components/PairCard.js?v=3.1.0"></script>
-  <script src="frontend/src/components/PairTable.js?v=3.1.0"></script>
   <script src="frontend/src/components/MetadataPanel.js?v=3.1.0"></script>
   <script src="frontend/src/components/RegistrationInputPanel.js?v=3.1.0"></script>
 
-  <!-- Part 4: Results & Analysis Components -->
+  <!-- Part 4: Results Components -->
   <script src="frontend/src/components/ResultsHeader.js?v=3.1.0"></script>
   <script src="frontend/src/components/RegistrationSummary.js?v=3.1.0"></script>
   <script src="frontend/src/components/ComparisonToolbar.js?v=3.1.0"></script>
@@ -2097,36 +1352,10 @@
   <script src="frontend/src/components/CoordinatePanel.js?v=3.1.0"></script>
   <script src="frontend/src/components/AnalysisExportPanel.js?v=3.1.0"></script>
 
-  <!-- Part 6: Dataset Explorer Components -->
-  <script src="frontend/src/components/DatasetOverview.js?v=3.1.0"></script>
-  <script src="frontend/src/components/DatasetFilters.js?v=3.1.0"></script>
-  <script src="frontend/src/components/RegionTable.js?v=3.1.0"></script>
-  <script src="frontend/src/components/ProductDetailsDrawer.js?v=3.1.0"></script>
-  <script src="frontend/src/components/PairDetailsDrawer.js?v=3.1.0"></script>
-  <script src="frontend/src/components/RegionDetailsDrawer.js?v=3.1.0"></script>
-  <script src="frontend/src/components/FileMetadataPanel.js?v=3.1.0"></script>
-  <script src="frontend/src/components/DatasetEmptyState.js?v=3.1.0"></script>
-
-  <!-- Part 7: Lunar Map & GIS Explorer Components -->
-  <script src="frontend/src/components/LunarMapCanvas.js?v=3.1.0"></script>
-  <script src="frontend/src/components/MapToolbar.js?v=3.1.0"></script>
-  <script src="frontend/src/components/MapLayerPanel.js?v=3.1.0"></script>
-  <script src="frontend/src/components/MapLegend.js?v=3.1.0"></script>
-  <script src="frontend/src/components/MapSearch.js?v=3.1.0"></script>
-  <script src="frontend/src/components/FeatureInfoPanel.js?v=3.1.0"></script>
-  <script src="frontend/src/components/CoordinateDisplay.js?v=3.1.0"></script>
-  <script src="frontend/src/components/MapEmptyState.js?v=3.1.0"></script>
-  <script src="frontend/src/components/MapErrorState.js?v=3.1.0"></script>
-
   <!-- Page Controllers -->
-  <script src="frontend/src/pages/DashboardPage.js?v=3.1.0"></script>
-  <script src="frontend/src/pages/ProductsPage.js?v=3.1.0"></script>
-  <script src="frontend/src/pages/PairsPage.js?v=3.1.0"></script>
   <script src="frontend/src/pages/RegistrationPreparationPage.js?v=3.1.0"></script>
   <script src="frontend/src/pages/ResultsPage.js?v=3.1.0"></script>
   <script src="frontend/src/pages/AnalysisToolsPage.js?v=3.1.0"></script>
-  <script src="frontend/src/pages/DatasetPage.js?v=3.1.0"></script>
-  <script src="frontend/src/pages/LunarMapPage.js?v=3.1.0"></script>
 
   <!-- Main Application Controller -->
   <script src="frontend/js/app.js?v=3.1.0"></script>

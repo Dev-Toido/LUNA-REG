@@ -9,7 +9,7 @@
 
 class RegistrationPreparationPage {
   constructor() {
-    this.sourceMode = 'db-pair'; // 'db-pair' | 'manual-upload'
+    this.sourceMode = 'manual-upload';
     this.availablePairs = [];
     this.selectedPairId = null;
     this.stagedRegistrationInput = null;
@@ -19,9 +19,9 @@ class RegistrationPreparationPage {
   }
 
   async init() {
+    this.sourceMode = 'manual-upload';
     this.bindSourceSegmentedControl();
-    this.bindDatabasePairControls();
-    await this.loadAvailablePairs();
+    this.updateSourceModeUI();
   }
 
   bindSourceSegmentedControl() {
