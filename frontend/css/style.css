@@ -13873,3 +13873,20 @@ canvas#results-canvas {
   border-radius: var(--radius-xs, 2px) !important;
   padding: 12px 14px !important;
 }
+/* ==========================================================================
+   OPERATOR OVERRIDES: Hide Search Container and Notification Box
+   ========================================================================== */
+.search-container,
+#search-crater-input,
+.nav-icon-btn,
+#btn-notifications,
+.notif-badge {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  pointer-events: none !important;
+}

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -186,8 +186,8 @@
       </nav>
       <!-- Right Navigation Tools & Branding -->
       <div class="nav-right">
-        <!-- Compact Search -->
-        <div class="search-container">
+        <!-- Compact Search (Hidden per Operator Preference) -->
+        <div class="search-container" style="display: none !important;" aria-hidden="true">
           <input type="text" class="search-input" id="search-crater-input" placeholder="Search crater / ROI..." autocomplete="off">
           <div class="search-icon">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -204,8 +204,8 @@
           <span class="api-latency-pill" id="api-latency-pill">-- ms</span>
         </button>
 
-        <!-- Notifications Trigger -->
-        <button class="nav-icon-btn" id="btn-notifications" title="System Notifications" aria-label="System Notifications">
+        <!-- Notifications Trigger (Hidden per Operator Preference) -->
+        <button class="nav-icon-btn" id="btn-notifications" title="System Notifications" aria-label="System Notifications" style="display: none !important;" aria-hidden="true">
           <div class="notif-badge"></div>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -1168,7 +1168,7 @@
             <!-- 6. 7 Scientific Accuracy Metric Cards -->
             <section class="analysis-mount-metrics" id="analysis-mount-metrics"></section>
 
-            <!-- 7. Geodetic Coordinate & Footprint Telemetry (Text-only) -->
+            <!-- 7. Geodetic Coordinate & Footprint Mini-Map -->
             <section class="analysis-mount-coords" id="analysis-mount-coords"></section>
 
             <!-- 8. Mission Deliverables & Analytics Export Hub -->
