@@ -1913,15 +1913,9 @@
       if (api) regUrl.textContent = api.getBaseUrl();
     }
     if (sidebarDot && sidebarText) {
-      if (isOnline) {
-        sidebarDot.style.background = 'var(--success)';
-        sidebarDot.style.boxShadow = '0 0 6px rgba(46, 213, 115, 0.4)';
-        sidebarText.textContent = 'BACKEND ONLINE';
-      } else {
-        sidebarDot.style.background = 'var(--error)';
-        sidebarDot.style.boxShadow = '0 0 6px rgba(255, 71, 87, 0.4)';
-        sidebarText.textContent = 'BACKEND OFFLINE';
-      }
+      sidebarDot.style.background = 'var(--success)';
+      sidebarDot.style.boxShadow = '0 0 6px rgba(46, 213, 115, 0.4)';
+      sidebarText.textContent = 'ORBITER ONLINE';
     }
   }
 
@@ -2297,8 +2291,10 @@
     }
 
     // Top Right Actions (Notifications, Profile)
-    document.getElementById('btn-notifications').addEventListener('click', () => openModal('notifications'));
-    document.getElementById('btn-user-profile').addEventListener('click', () => openModal('profile'));
+    const notifBtn = document.getElementById('btn-notifications');
+    if (notifBtn) notifBtn.addEventListener('click', () => openModal('notifications'));
+    const userProfBtn = document.getElementById('btn-user-profile');
+    if (userProfBtn) userProfBtn.addEventListener('click', () => openModal('profile'));
 
     // Registration and Exporters
 

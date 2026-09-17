@@ -13568,3 +13568,23 @@ canvas#results-canvas {
     justify-content: center;
   }
 }
+
+/* ==========================================================================
+   OPERATOR OVERRIDES: Hide User Profile and Backend API Telemetry
+   ========================================================================== */
+.user-profile-badge,
+#btn-user-profile,
+.api-health-badge,
+#btn-api-health-status,
+.api-endpoint-badge,
+#api-endpoint-badge {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}

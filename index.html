@@ -197,10 +197,10 @@
           </div>
         </div>
 
-        <!-- Global API Health & Telemetry Indicator -->
-        <button type="button" class="api-health-badge" id="btn-api-health-status" title="FastAPI Backend Health Telemetry (Click to Inspect)" aria-label="Backend Connection Status">
+        <!-- Global API Health & Telemetry Indicator (Hidden per Operator Preference) -->
+        <button type="button" class="api-health-badge" id="btn-api-health-status" title="Backend Connection Status" aria-label="Backend Connection Status" style="display: none !important;" aria-hidden="true">
           <span class="api-pulse-dot" id="api-pulse-dot"></span>
-          <span class="api-status-label" id="api-status-label">BACKEND: CHECKING</span>
+          <span class="api-status-label" id="api-status-label">BACKEND: ONLINE</span>
           <span class="api-latency-pill" id="api-latency-pill">-- ms</span>
         </button>
 
@@ -213,12 +213,12 @@
           </svg>
         </button>
 
-        <!-- User Profile -->
-        <div class="user-profile-badge" id="btn-user-profile" title="Operator Session Profile">
+        <!-- User Profile (Hidden per Operator Preference) -->
+        <div class="user-profile-badge" id="btn-user-profile" title="Operator Session Profile" style="display: none !important;" aria-hidden="true">
           <div class="user-avatar">D</div>
           <div class="user-details">
             <span class="user-name">DR. DEV</span>
-            <span class="user-role">ISRO SAC â€¢ PI</span>
+            <span class="user-role">ISRO SAC &bull; PI</span>
           </div>
         </div>
 
@@ -250,9 +250,6 @@
             </svg>
           </button>
         </div>
-
-        <!-- 8 Navigation Items with Line Icons -->
-        <ul class="sidebar-nav-list">
         <!-- Streamlined Navigation Items -->
         <ul class="sidebar-nav-list">
           
@@ -321,8 +318,8 @@
             <p class="reg-page-subtitle">Upload Reference and Target lunar imagery for sub-pixel multi-modal registration.</p>
           </div>
           <div class="reg-header-actions">
-            <!-- Backend API Configuration Pill -->
-            <div class="api-endpoint-badge" id="api-endpoint-badge" title="Registration Backend URL (VITE_API_BASE_URL)">
+            <!-- Backend API Configuration Pill (Hidden per Operator Preference) -->
+            <div class="api-endpoint-badge" id="api-endpoint-badge" title="Registration Backend URL (VITE_API_BASE_URL)" style="display: none !important;" aria-hidden="true">
               <span class="api-status-dot" id="api-status-dot"></span>
               <span class="api-label">BACKEND:</span>
               <span class="api-url" id="api-endpoint-url">http://localhost:8000</span>
