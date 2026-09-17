@@ -131,8 +131,8 @@ class AnalysisToolsPage {
           <!-- 5. Transformation Matrix & Parameter Telemetry -->
           <section class="analysis-mount-transform" id="analysis-mount-transform"></section>
 
-          <!-- 6. 7 Scientific Accuracy Metric Cards -->
-          <section class="analysis-mount-metrics" id="analysis-mount-metrics"></section>
+          <!-- 6. 7 Scientific Accuracy Metric Cards (Preserved for backend integration; hidden from website) -->
+          <section class="analysis-mount-metrics" id="analysis-mount-metrics" style="display: none !important;" aria-hidden="true"></section>
 
           <!-- 7. Geodetic Coordinate & Footprint Mini-Map -->
           <section class="analysis-mount-coords" id="analysis-mount-coords"></section>
@@ -237,11 +237,12 @@ class AnalysisToolsPage {
     });
     this.transformPanel.render();
 
-    // 7. Scientific Metrics
-    this.metrics = new ScientificMetrics({
-      container: this.container.querySelector('#analysis-mount-metrics')
-    });
-    this.metrics.render();
+    // 7. Scientific Metrics (Preserved for future backend integration; hidden until backend team provides metrics pipeline)
+    // this.metrics = new ScientificMetrics({
+    //   container: this.container.querySelector('#analysis-mount-metrics')
+    // });
+    // this.metrics.render();
+    this.metrics = null;
 
     // 8. Coordinate Panel (Text-only Geodetic & Cartographic Reference)
     this.coordPanel = new CoordinatePanel({
