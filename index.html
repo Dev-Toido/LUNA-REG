@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LUNA-REG â€” Planetary Image Registration & Analysis Workstation</title>
+  <title>LUNA-REG &mdash; Planetary Image Registration &amp; Analysis Workstation</title>
   <meta name="description" content="LUNA-REG: Professional multi-modal lunar image registration, sub-pixel alignment, and scientific analysis workstation for Chandrayaan-2 planetary data.">
   <link rel="stylesheet" href="frontend/css/style.css?v=2.5.0">
   <script>
@@ -31,7 +31,7 @@
 
       window.switchView = function(viewKey, updateHash) {
         if (updateHash === undefined) updateHash = true;
-        if (!viewMap[viewKey]) viewKey = 'not-found';
+        if (!viewMap[viewKey]) viewKey = 'new-reg';
 
         // 1. Hide all views and display target
         Object.keys(viewMap).forEach(function(k) {
@@ -95,16 +95,12 @@
           }
         } else if (h.startsWith('#/processing')) {
           window.switchView('processing', false);
-        } else if (h === '#/new-registration' || h === '#/new-reg' || h === '#/register' || h === '' || h === '#') {
+        } else {
+          // Default to new-reg
           window.switchView('new-reg', false);
           if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
             window.registrationPreparationPage.init();
           }
-        } else {
-          // 404 Route Not Found
-          window.switchView('not-found', false);
-          var routeEl = document.getElementById('notfound-attempted-route');
-          if (routeEl) routeEl.textContent = raw || h;
         }
       }
 
@@ -174,7 +170,7 @@
         <div class="brand-container">
           <div class="brand-orb" aria-hidden="true"></div>
           <div class="brand-text">
-            <span class="brand-title">LUNA-REG â€” Planetary Image Registration &amp; Analysis Workstation</span>
+            <span class="brand-title">LUNA-REG &mdash; Planetary Image Registration &amp; Analysis Workstation</span>
             <span class="brand-subtitle" title="Multi-modal image correspondence, sub-pixel registration & scientific analysis.">
               Multi-modal image correspondence, sub-pixel registration &amp; scientific analysis.
             </span>
@@ -309,7 +305,7 @@
       <div class="mobile-backdrop" id="mobile-backdrop" aria-hidden="true"></div>
 
       <!-- ========================================================================
-           NEW IMAGE REGISTRATION WORKFLOW (Manual Upload & Correspondence)
+           6. NEW IMAGE REGISTRATION WORKFLOW (Dedicated GIS Registration Page)
            ======================================================================== -->
       <section class="page-new-registration" id="view-new-registration" aria-label="New Image Registration Workspace" style="display: flex;">
         
@@ -342,7 +338,7 @@
             </button>
 
             <button class="btn-tech primary" id="btn-view-results-nav" title="View Latest Registration Results" onclick="window.switchView('results')">
-              <span>VIEW RESULTS â†’</span>
+              <span>VIEW RESULTS &rarr;</span>
             </button>
           </div>
         </div>
@@ -939,7 +935,7 @@
         </div>
 
       </section>
-
+      <!-- ========================================================================
            7. PROCESSING STATUS PAGE (Mission Control Registration Pipeline)
            ======================================================================== -->
       <section class="page-processing" id="view-processing" aria-label="Registration Processing Workspace" style="display: none;">
@@ -1156,7 +1152,6 @@
 
         </div>
       </section>
-
       <!-- ========================================================================
            9. REGISTRATION RESULTS WORKSPACE (Dedicated Comparison Page - Part 4)
            ======================================================================== -->
@@ -1204,7 +1199,7 @@
           </div>
         </div>
       </section>
-
+      <!-- ========================================================================
            10. ANALYSIS TOOLS WORKSPACE (Planetary Multi-Sensor GIS Analysis - Part 5)
            ======================================================================== -->
       <section class="page-analysis-tools" id="view-analysis-tools" aria-label="Planetary Analysis Tools Workspace" style="display: none;">
@@ -1245,7 +1240,6 @@
           </div>
         </div>
       </section>
-
       <!-- ========================================================================
            404 NOT FOUND VIEW (Fallback Error Workspace)
            ======================================================================== -->
@@ -1278,7 +1272,7 @@
               <span>REGISTRATION RESULTS</span>
             </button>
             <button type="button" class="btn-tech" id="btn-404-analysis" onclick="window.switchView('analysis')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
               <span>ANALYSIS TOOLS</span>
             </button>
           </div>
@@ -1298,7 +1292,7 @@
         <span>RESULTS</span>
       </button>
       <button class="mob-nav-btn" data-view="analysis" id="mob-btn-analysis" title="Planetary Analysis Tools" onclick="window.switchView('analysis')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
         <span>ANALYSIS</span>
       </button>
     </nav>

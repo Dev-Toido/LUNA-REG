@@ -3095,25 +3095,22 @@
   // --- APPLICATION VIEW SWITCHER ---
   function switchAppView(view, updateHash = true) {
     const views = {
-      'dashboard': document.getElementById('view-dashboard'),
-      'explorer': document.getElementById('map-workspace'),
       'new-reg': document.getElementById('view-new-registration'),
       'processing': document.getElementById('view-processing'),
       'results': document.getElementById('view-registration-results'),
-      'history': document.getElementById('view-registration-history'),
       'analysis': document.getElementById('view-analysis-tools'),
-      'dataset': document.getElementById('view-dataset'),
-      'about': document.getElementById('view-about'),
       'not-found': document.getElementById('view-not-found')
     };
     const rightPanel = document.getElementById('right-info-panel');
 
     // Normalize
     let targetView = view;
-    if (targetView === 'overview') targetView = 'dashboard';
-    if (targetView === 'lunar-map') targetView = 'explorer';
-    if (targetView === 'register') targetView = 'new-reg';
-    if (!views[targetView]) targetView = 'not-found';
+    if (!targetView || targetView === 'overview' || targetView === 'dashboard' || targetView === 'explorer' || targetView === 'lunar-map' || targetView === 'register') {
+      targetView = 'new-reg';
+    }
+    if (!views[targetView]) {
+      targetView = 'new-reg';
+    }
 
     // Stop status polling if transitioning away from dedicated processing view
     if (targetView !== 'processing') {
@@ -3140,12 +3137,9 @@
     document.querySelectorAll('.nav-link-btn').forEach(b => {
       const navKey = b.getAttribute('data-nav');
       const isActive = (targetView === navKey) ||
-                       (targetView === 'explorer' && navKey === 'explore') ||
                        ((targetView === 'new-reg' || targetView === 'processing') && navKey === 'register') ||
                        (targetView === 'results' && (navKey === 'results' || navKey === 'analyze')) ||
-                       (targetView === 'analysis' && navKey === 'analysis') ||
-                       (targetView === 'dataset' && navKey === 'dataset') ||
-                       (targetView === 'about' && navKey === 'about');
+                       (targetView === 'analysis' && navKey === 'analysis');
       b.classList.toggle('active', isActive);
       b.setAttribute('aria-selected', String(isActive));
     });
@@ -3154,20 +3148,15 @@
     document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
       const sideKey = b.getAttribute('data-target');
       const isActive = (targetView === sideKey) ||
-                       (targetView === 'dashboard' && (sideKey === 'dashboard' || sideKey === 'overview')) ||
-                       (targetView === 'explorer' && sideKey === 'explorer') ||
                        ((targetView === 'new-reg' || targetView === 'processing') && sideKey === 'new-reg') ||
                        (targetView === 'results' && sideKey === 'results') ||
-                       (targetView === 'history' && sideKey === 'history') ||
-                       (targetView === 'analysis' && sideKey === 'analysis') ||
-                       (targetView === 'dataset' && sideKey === 'dataset') ||
-                       (targetView === 'about' && sideKey === 'about');
+                       (targetView === 'analysis' && sideKey === 'analysis');
       b.classList.toggle('active', isActive);
     });
 
     // Hash synchronization
     if (updateHash) {
-      let targetHash = '#/dashboard';
+      let targetHash = '#/new-registration';
       if (targetView === 'processing') {
         targetHash = regWorkflowState.activeJobId ? `#/processing/${regWorkflowState.activeJobId}` : '#/processing';
       } else if (targetView === 'results') {
@@ -3178,20 +3167,12 @@
         }
       } else if (targetView === 'new-reg') {
         targetHash = '#/new-registration';
-      } else if (targetView === 'history') {
-        targetHash = '#/history';
-      } else if (targetView === 'explorer') {
-        targetHash = '#/lunar-map';
       } else if (targetView === 'analysis') {
         if (window.location.hash.startsWith('#/analysis-tools') || window.location.hash.startsWith('#/analysis')) {
           targetHash = window.location.hash;
         } else {
           targetHash = '#/analysis-tools';
         }
-      } else if (targetView === 'dataset') {
-        targetHash = '#/dataset';
-      } else if (targetView === 'about') {
-        targetHash = '#/about';
       } else if (targetView === 'not-found') {
         targetHash = '#/not-found';
       }
@@ -3289,16 +3270,17 @@
         window.analysisToolsPage.init();
       }
       return;
-    } else if (hash === '#/new-registration' || hash === '#/new-reg' || hash === '#/register' || hash === '' || hash === '#') {
+    } else if (hash === '#/new-registration' || hash === '#/new-reg' || hash === '#/register' || hash === '' || hash === '#' || hash === '#/' || hash === '#/dashboard' || hash === '#/explorer' || hash === '#/overview' || hash === '#/lunar-map' || hash === '#/history' || hash === '#/dataset' || hash === '#/about') {
       switchAppView('new-reg', false);
       if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
         window.registrationPreparationPage.init();
       }
       return;
     } else {
-      switchAppView('not-found', false);
-      const routeEl = document.getElementById('notfound-attempted-route');
-      if (routeEl) routeEl.textContent = rawHash || hash;
+      switchAppView('new-reg', false);
+      if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
+        window.registrationPreparationPage.init();
+      }
       return;
     }
   }
