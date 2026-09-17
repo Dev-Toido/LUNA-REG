@@ -64,8 +64,8 @@ class CoordinatePanel {
           <span class="coord-crs-badge">IAU 2000</span>
         </div>
 
-        <div class="coord-content-grid">
-          <!-- Left: Geodetic Metadata Readout -->
+        <div class="coord-content-grid coord-text-only-grid">
+          <!-- Primary Geodetic Text Blocks -->
           <div class="coord-meta-column">
             <div class="coord-meta-block">
               <span class="coord-meta-lbl">TARGET ROI REGION</span>
@@ -77,28 +77,6 @@ class CoordinatePanel {
               <span class="coord-meta-val mono" id="coord-crs-name">${this.crs}</span>
             </div>
 
-            <div class="coord-extents-box">
-              <span class="extents-title">GEODETIC BOUNDING BOX</span>
-              <div class="extents-grid">
-                <div class="extent-cell">
-                  <span class="ext-lbl">LAT MIN:</span>
-                  <span class="ext-num" id="ext-lat-min">${this.latMin.toFixed(2)}°S</span>
-                </div>
-                <div class="extent-cell">
-                  <span class="ext-lbl">LAT MAX:</span>
-                  <span class="ext-num" id="ext-lat-max">${this.latMax.toFixed(2)}°S</span>
-                </div>
-                <div class="extent-cell">
-                  <span class="ext-lbl">LON MIN:</span>
-                  <span class="ext-num" id="ext-lon-min">${this.lonMin.toFixed(2)}°E</span>
-                </div>
-                <div class="extent-cell">
-                  <span class="ext-lbl">LON MAX:</span>
-                  <span class="ext-num" id="ext-lon-max">${this.lonMax.toFixed(2)}°E</span>
-                </div>
-              </div>
-            </div>
-
             <div class="coord-center-box">
               <span class="center-lbl">CENTER COORDINATE:</span>
               <span class="center-val mono" id="coord-center-val">
@@ -107,24 +85,26 @@ class CoordinatePanel {
             </div>
           </div>
 
-          <!-- Right: Interactive Footprint Mini-Map -->
-          <div class="coord-map-column">
-            <div class="coord-map-toolbar">
-              <div class="coord-map-layer-pills">
-                <button type="button" class="coord-layer-btn active" data-layer="footprint" title="Toggle Footprint Extents">FOOTPRINT</button>
-                <button type="button" class="coord-layer-btn active" data-layer="graticule" title="Toggle Graticule">GRATICULE</button>
-                <button type="button" class="coord-layer-btn active" data-layer="landmarks" title="Toggle Landmarks">LANDMARKS</button>
+          <!-- Geodetic Bounding Box -->
+          <div class="coord-extents-box">
+            <span class="extents-title">GEODETIC BOUNDING BOX</span>
+            <div class="extents-grid">
+              <div class="extent-cell">
+                <span class="ext-lbl">LAT MIN:</span>
+                <span class="ext-num" id="ext-lat-min">${Math.abs(this.latMin).toFixed(2)}°${this.latMin < 0 ? 'S' : 'N'}</span>
               </div>
-
-              <div class="coord-map-zoom-pills">
-                <button type="button" class="btn-coord-zoom" id="btn-coord-zoom-in" title="Zoom In">+</button>
-                <button type="button" class="btn-coord-zoom" id="btn-coord-zoom-out" title="Zoom Out">&minus;</button>
-                <button type="button" class="btn-coord-zoom" id="btn-coord-zoom-reset" title="Reset">&#8635;</button>
+              <div class="extent-cell">
+                <span class="ext-lbl">LAT MAX:</span>
+                <span class="ext-num" id="ext-lat-max">${Math.abs(this.latMax).toFixed(2)}°${this.latMax < 0 ? 'S' : 'N'}</span>
               </div>
-            </div>
-
-            <div class="coord-canvas-wrap" id="coord-canvas-wrap">
-              <canvas id="coord-minimap-canvas" class="coord-minimap-canvas"></canvas>
+              <div class="extent-cell">
+                <span class="ext-lbl">LON MIN:</span>
+                <span class="ext-num" id="ext-lon-min">${Math.abs(this.lonMin).toFixed(2)}°${this.lonMin < 0 ? 'W' : 'E'}</span>
+              </div>
+              <div class="extent-cell">
+                <span class="ext-lbl">LON MAX:</span>
+                <span class="ext-num" id="ext-lon-max">${Math.abs(this.lonMax).toFixed(2)}°${this.lonMax < 0 ? 'W' : 'E'}</span>
+              </div>
             </div>
           </div>
         </div>

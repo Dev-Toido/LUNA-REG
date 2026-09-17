@@ -243,12 +243,11 @@ class AnalysisToolsPage {
     });
     this.metrics.render();
 
-    // 8. Coordinate Panel (Preserved in project codebase for future reactivation; hidden from active view per operator preference)
-    // this.coordPanel = new CoordinatePanel({
-    //   container: this.container.querySelector('#analysis-mount-coords')
-    // });
-    // this.coordPanel.render();
-    this.coordPanel = null;
+    // 8. Coordinate Panel (Text-only Geodetic & Cartographic Reference)
+    this.coordPanel = new CoordinatePanel({
+      container: this.container.querySelector('#analysis-mount-coords')
+    });
+    this.coordPanel.render();
 
     // 9. Analysis Export Panel
     this.exportPanel = new AnalysisExportPanel({

@@ -13823,3 +13823,53 @@ canvas#results-canvas {
   border: none !important;
   pointer-events: none !important;
 }
+/* ==========================================================================
+   OPERATOR OVERRIDES: Display Geodetic Coordinates Text & Hide Mini-Map
+   ========================================================================== */
+.analysis-mount-coords,
+#analysis-mount-coords {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  width: 100% !important;
+  margin: 0 0 16px 0 !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+}
+
+.coord-map-column,
+#coord-canvas-wrap,
+#coord-minimap-canvas,
+.coord-map-toolbar {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  pointer-events: none !important;
+}
+
+.coord-text-only-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 20px !important;
+  align-items: start !important;
+}
+
+@media (max-width: 768px) {
+  .coord-text-only-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.coord-text-only-grid .coord-meta-column {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.coord-text-only-grid .coord-extents-box {
+  background: var(--bg-surface-subtle, #121418) !important;
+  border: 1px solid var(--border-dark, #1c2028) !important;
+  border-radius: var(--radius-xs, 2px) !important;
+  padding: 12px 14px !important;
+}
