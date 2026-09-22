@@ -20,6 +20,7 @@ from app.api.canonical import router as canonical_router
 from app.api.canonical_write import router as canonical_write_router
 from app.api.datasets import router as datasets_router
 from app.api.dataset_files import router as dataset_files_router
+from app.api.registration import router as registration_router
 from app.api.registration_jobs import router as registration_jobs_router
 from app.api.storage import router as storage_router
 from app.core.config import settings
@@ -36,6 +37,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="LUNA-REG Backend", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(os.path.join(static_dir, "outputs"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/docs", include_in_schema=False)
@@ -61,6 +63,8 @@ app.include_router(canonical_router, prefix="/api/v1")
 app.include_router(canonical_write_router)
 app.include_router(registration_jobs_router)
 app.include_router(registration_jobs_router, prefix="/api/v1")
+app.include_router(registration_router, prefix="/api")
+app.include_router(registration_router, prefix="/api/v1")
 app.include_router(auth_router)
 app.include_router(storage_router)
 

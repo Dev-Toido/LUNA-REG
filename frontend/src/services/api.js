@@ -322,6 +322,61 @@ class ApiClient {
   createAbortController() {
     return new AbortController();
   }
+
+  /**
+   * Submit image files for multi-modal registration (POST /api/register)
+   */
+  async submitRegistration(formData, options = {}) {
+    return this.post('/register', formData, Object.assign({ timeoutMs: 45000 }, options));
+  }
+
+  /**
+   * Poll active registration job status (GET /api/register/{job_id}/status)
+   */
+  async getRegistrationStatus(jobId, options = {}) {
+    return this.get(`/register/${encodeURIComponent(jobId)}/status`, null, Object.assign({ timeoutMs: 8000 }, options));
+  }
+
+  /**
+   * Fetch completed registration result (GET /api/register/{job_id}/result)
+   */
+  async getRegistrationResult(jobId, options = {}) {
+    return this.get(`/register/${encodeURIComponent(jobId)}/result`, null, Object.assign({ timeoutMs: 15000 }, options));
+  }
+
+  /**
+   * Fetch registration job history (GET /api/register/history)
+   */
+  async getRegistrationHistory(options = {}) {
+    return this.get('/register/history', null, Object.assign({ timeoutMs: 8000 }, options));
+  }
+
+  /**
+   * Resolve an asset URL (whether relative or absolute) against backend host
+   */
+  resolveAssetUrl(assetPath) {
+    if (!assetPath) return '';
+    if (assetPath.startsWith('http://') || assetPath.startsWith('https://') || assetPath.startsWith('data:') || assetPath.startsWith('blob:')) {
+      return assetPath;
+    }
+    const clean = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
+    return `${this.backendRoot}${clean}`;
+  }
+
+  /**
+   * Trigger download of a result raster or report file
+   */
+  downloadRegistrationResult(url, filename = 'download') {
+    if (!url) return;
+    const fullUrl = this.resolveAssetUrl(url);
+    const link = document.createElement('a');
+    link.href = fullUrl;
+    link.download = filename;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 }
 
 // Global Singleton instance
