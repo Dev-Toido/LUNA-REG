@@ -1,0 +1,68 @@
+===========================================
+  UNIFIED REGISTRATION REPORT  (method = sift)
+===========================================
+
+REFERENCE IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/FMT SCALE INVARIANT/Lunar NCR reference.png
+
+MOVING IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/FMT SCALE INVARIANT/Image Lunar NCR.png
+
+-------------------------------------------
+FOURIER-MELLIN SCALE/ROTATION ESTIMATE
+-------------------------------------------
+
+Estimated scale ratio (moving/reference) : 1.5021
+Estimated rotation                       : 0.00 degrees
+Phase-correlation confidence             : 0.4721
+
+-------------------------------------------
+PYRAMID / SCALE MATCHING
+-------------------------------------------
+
+Source resolution used        : 0.6657
+Reference resolution used     : 1.0000
+Pyramid levels built          : 2
+Matched source level          : 1 (scale 0.5000)
+Matched reference level       : 0 (scale 1.0000)
+
+-------------------------------------------
+FEATURE DETECTION + MATCHING (sift)
+-------------------------------------------
+
+Reference Keypoints : 15000
+Moving Keypoints    : 4464
+Total Candidate Matches : 4464
+Triangle Verified   : 1200
+
+-------------------------------------------
+RANSAC
+-------------------------------------------
+
+RANSAC Inliers      : 1200
+Inlier Ratio        : 100.00 %
+
+-------------------------------------------
+SPATIAL DISTRIBUTION
+-------------------------------------------
+
+Moving Coverage     : 100.00 %
+Reference Coverage  : 55.56 %
+
+-------------------------------------------
+REGISTRATION ERROR (full-resolution pixels)
+-------------------------------------------
+
+Mean Error          : 0.394 px
+Median Error        : 0.316 px
+Maximum Error       : 3.300 px
+
+-------------------------------------------
+HOMOGRAPHY (full-resolution coordinate space)
+-------------------------------------------
+
+[[ 6.60925174e-01  1.15242984e-04  2.39243399e+02]
+ [-5.58786960e-05  6.61260129e-01  1.18138839e+02]
+ [-1.63199916e-07  8.17593844e-08  1.00000000e+00]]
+
+===========================================
