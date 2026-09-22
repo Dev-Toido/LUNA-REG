@@ -144,6 +144,17 @@ class LayerControlPanel {
     this.render();
   }
 
+  setLayerGenerated(id, isGenerated = true) {
+    const layer = this.layers.find(l => l.id === id);
+    if (layer) {
+      layer.isGenerated = !!isGenerated;
+      layer.badge = isGenerated ? 'ACTIVE' : 'PENDING';
+      if (isGenerated) layer.visible = true;
+      this.render();
+      this.notifyChange();
+    }
+  }
+
   render(containerEl) {
     if (containerEl) this.container = containerEl;
     if (!this.container) return;

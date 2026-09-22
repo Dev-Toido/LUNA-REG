@@ -46,9 +46,11 @@ class ComparisonViewer {
     this.sourceLoaded = false;
     this.referenceLoaded = false;
 
-    // Default assets
-    this.sourceUrl = 'assets/lunar_low_sun.jpg';
-    this.referenceUrl = 'assets/lunar_nadir.jpg';
+    // Default assets (Strict Zero-Demo Policy: null until provided by registration output)
+    this.sourceUrl = null;
+    this.referenceUrl = null;
+    this.registeredUrl = null;
+    this.differenceUrl = null;
 
     // External recorded measurements to render as overlays
     this.recordedMeasurements = [];
@@ -62,7 +64,8 @@ class ComparisonViewer {
       this.draw();
     };
     this.sourceImg.onerror = () => {
-      this.sourceImg.src = 'assets/lunar_south_pole.jpg';
+      this.sourceLoaded = false;
+      this.draw();
     };
 
     this.referenceImg.onload = () => {
@@ -70,11 +73,12 @@ class ComparisonViewer {
       this.draw();
     };
     this.referenceImg.onerror = () => {
-      this.referenceImg.src = 'assets/lunar_nadir.jpg';
+      this.referenceLoaded = false;
+      this.draw();
     };
 
-    this.sourceImg.src = this.sourceUrl;
-    this.referenceImg.src = this.referenceUrl;
+    if (this.sourceUrl) this.sourceImg.src = this.sourceUrl;
+    if (this.referenceUrl) this.referenceImg.src = this.referenceUrl;
   }
 
   setImageUrls(sourceUrl, referenceUrl, registeredUrl = null, differenceUrl = null) {
@@ -82,24 +86,38 @@ class ComparisonViewer {
       this.sourceUrl = sourceUrl;
       this.sourceLoaded = false;
       this.sourceImg.src = sourceUrl;
+    } else {
+      this.sourceUrl = null;
+      this.sourceLoaded = false;
+      this.sourceImg = new Image();
+      this.initLoaders();
     }
     if (referenceUrl) {
       this.referenceUrl = referenceUrl;
       this.referenceLoaded = false;
       this.referenceImg.src = referenceUrl;
+    } else {
+      this.referenceUrl = null;
+      this.referenceLoaded = false;
+      this.referenceImg = new Image();
+      this.initLoaders();
     }
     if (registeredUrl) {
+      this.registeredUrl = registeredUrl;
       this.registeredImg = new Image();
       this.registeredImg.onload = () => this.draw();
       this.registeredImg.src = registeredUrl;
     } else {
+      this.registeredUrl = null;
       this.registeredImg = null;
     }
     if (differenceUrl) {
+      this.differenceUrl = differenceUrl;
       this.differenceImg = new Image();
       this.differenceImg.onload = () => this.draw();
       this.differenceImg.src = differenceUrl;
     } else {
+      this.differenceUrl = null;
       this.differenceImg = null;
     }
     this.draw();
@@ -612,17 +630,32 @@ class ComparisonViewer {
     const destX = centerX - imgW / 2;
     const destY = centerY - imgH / 2;
 
+    if (!this.referenceLoaded && !this.sourceLoaded && !this.registeredImg) {
+      ctx.fillStyle = '#dfc08a';
+      ctx.font = '12px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('[ANALYSIS ENGINE STANDBY]', centerX, centerY - 10);
+      ctx.fillStyle = '#8f929d';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('Execute image registration to activate multi-spectral raster layers & analysis.', centerX, centerY + 14);
+      ctx.restore();
+      return;
+    }
+
+    const tgtRaster = this.registeredImg || this.sourceImg;
+    const isTgtLoaded = this.registeredImg ? true : (this.sourceLoaded && this.sourceImg.complete);
+
     // 3. Render according to Mode
     if (this.mode === 'side-by-side') {
       const splitPx = w * this.splitPos;
 
-      // Draw Source Image (clipped to left half)
-      if (this.sourceLoaded && this.sourceImg.complete) {
+      // Draw Registered / Source Target Image (clipped to left half)
+      if (isTgtLoaded && tgtRaster) {
         ctx.save();
         ctx.beginPath();
         ctx.rect(0, 0, splitPx, h);
         ctx.clip();
-        ctx.drawImage(this.sourceImg, destX, destY, imgW, imgH);
+        ctx.drawImage(tgtRaster, destX, destY, imgW, imgH);
         ctx.restore();
       }
 
@@ -641,16 +674,16 @@ class ComparisonViewer {
       if (this.referenceLoaded && this.referenceImg.complete) {
         ctx.drawImage(this.referenceImg, destX, destY, imgW, imgH);
       }
-      // Draw Source on top with opacity
-      if (this.sourceLoaded && this.sourceImg.complete) {
+      // Draw Registered / Source Target on top with opacity
+      if (isTgtLoaded && tgtRaster) {
         ctx.save();
         ctx.globalAlpha = this.opacity;
-        ctx.drawImage(this.sourceImg, destX, destY, imgW, imgH);
+        ctx.drawImage(tgtRaster, destX, destY, imgW, imgH);
         ctx.restore();
       }
 
     } else if (this.mode === 'flicker') {
-      const imgToDraw = (this.flickerIndex === 0) ? this.sourceImg : this.referenceImg;
+      const imgToDraw = (this.flickerIndex === 0) ? tgtRaster : this.referenceImg;
       if (imgToDraw && imgToDraw.complete) {
         ctx.drawImage(imgToDraw, destX, destY, imgW, imgH);
       }
@@ -659,7 +692,6 @@ class ComparisonViewer {
       if (this.differenceImg && this.differenceImg.complete) {
         ctx.drawImage(this.differenceImg, destX, destY, imgW, imgH);
       } else {
-        // Fallback reference raster under pending notice
         if (this.referenceLoaded && this.referenceImg.complete) {
           ctx.save();
           ctx.globalAlpha = 0.35;

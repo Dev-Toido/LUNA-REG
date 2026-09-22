@@ -399,39 +399,102 @@ class AnalysisToolsPage {
       longitude_max: 56.3
     };
 
-    // Update Subcomponents
+    // Update Subcomponents with Zero-Demo Protocol & Real Results Integration
     if (this.inspector) {
-      this.inspector.setResolution(this.sourceProduct.resolution_m);
-    }
-
-    if (this.viewer) {
-      this.viewer.setImageUrls('assets/lunar_low_sun.jpg', 'assets/lunar_nadir.jpg', null, null);
-      this.viewer.resizeCanvas();
-      this.viewer.draw();
-    }
-
-    if (this.layerPanel) {
-      this.layerPanel.updateInstrumentInfo('TMC-2', 'OHRC', 5.0, 0.32);
+      this.inspector.setResolution(this.sourceProduct ? this.sourceProduct.resolution_m : 5.0);
     }
 
     if (this.measurementTools) {
-      this.measurementTools.setGSD(5.0);
+      this.measurementTools.setGSD(this.sourceProduct ? this.sourceProduct.resolution_m : 5.0);
     }
 
-    if (this.transformPanel) {
-      this.transformPanel.setData(null, [], false);
+    if (this.coordPanel && this.sourceProduct) {
+      this.coordPanel.setGeodetics(
+        this.sourceProduct.region_name || 'Boguslawsky Crater',
+        this.sourceProduct.latitude_min,
+        this.sourceProduct.latitude_max,
+        this.sourceProduct.longitude_min,
+        this.sourceProduct.longitude_max
+      );
     }
 
-    if (this.metrics) {
-      this.metrics.setMetrics(null, false);
-    }
+    const latest = (window.resultsState && window.resultsState.latestResult) || null;
+    if (latest) {
+      const api = window.LUNAR_API || window.apiService;
+      const refUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.reference_image_url || latest.reference_image) : (latest.reference_image_url || latest.reference_image);
+      const tgtUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.target_original_url || latest.target_image_url || latest.target_image) : (latest.target_original_url || latest.target_image_url || latest.target_image);
+      const regUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.registered_image_url || latest.registered_image) : (latest.registered_image_url || latest.registered_image);
+      const diffUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.difference_image_url || latest.difference_image) : (latest.difference_image_url || latest.difference_image);
 
-    if (this.coordPanel) {
-      this.coordPanel.setGeodetics('Boguslawsky Crater', -74.2, -71.8, 52.1, 56.4);
-    }
+      if (this.viewer) {
+        this.viewer.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl);
+        this.viewer.resizeCanvas();
+        this.viewer.draw();
+      }
 
-    if (this.exportPanel) {
-      this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, [], false);
+      if (this.layerPanel) {
+        const srcInst = (this.sourceProduct && this.sourceProduct.instrument) || 'TMC-2';
+        const refInst = (this.referenceProduct && this.referenceProduct.instrument) || 'OHRC';
+        const srcRes = (this.sourceProduct && this.sourceProduct.resolution_m) || 5.0;
+        const refRes = (this.referenceProduct && this.referenceProduct.resolution_m) || 0.32;
+        this.layerPanel.updateInstrumentInfo(srcInst, refInst, srcRes, refRes);
+        if (typeof this.layerPanel.setLayerGenerated === 'function') {
+          this.layerPanel.setLayerGenerated('registered', !!regUrl);
+          this.layerPanel.setLayerGenerated('difference', !!diffUrl);
+        }
+      }
+
+      if (this.transformPanel) {
+        const matrix = latest.homography_matrix || (latest.transformation && latest.transformation.matrix) || null;
+        const dx = latest.transformation ? latest.transformation.translation_x_px : (latest.metrics ? (latest.metrics.dx || 0) : 0);
+        const dy = latest.transformation ? latest.transformation.translation_y_px : (latest.metrics ? (latest.metrics.dy || 0) : 0);
+        const rotation = latest.transformation ? latest.transformation.rotation_deg : (latest.metrics ? (latest.metrics.rotation_deg || 0) : 0);
+        const scale = latest.transformation ? latest.transformation.scale_ratio : (latest.metrics ? (latest.metrics.scale_ratio || 1.0) : 1.0);
+        const controlPoints = latest.control_points || latest.tie_points || [];
+
+        this.transformPanel.setData({
+          dx: dx,
+          dy: dy,
+          rotation: rotation,
+          scale: scale,
+          matrix: matrix
+        }, controlPoints, true);
+      }
+
+      if (this.metrics) {
+        this.metrics.setMetrics(latest.metrics, true);
+      }
+
+      if (this.exportPanel) {
+        this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, latest.control_points || [], true);
+      }
+    } else {
+      // STRICT ZERO-DEMO PROTOCOL: Do not display demo images
+      if (this.viewer) {
+        this.viewer.setImageUrls(null, null, null, null);
+        this.viewer.resizeCanvas();
+        this.viewer.draw();
+      }
+
+      if (this.layerPanel) {
+        this.layerPanel.updateInstrumentInfo('TMC-2', 'OHRC', 5.0, 0.32);
+        if (typeof this.layerPanel.setLayerGenerated === 'function') {
+          this.layerPanel.setLayerGenerated('registered', false);
+          this.layerPanel.setLayerGenerated('difference', false);
+        }
+      }
+
+      if (this.transformPanel) {
+        this.transformPanel.setData(null, [], false);
+      }
+
+      if (this.metrics) {
+        this.metrics.setMetrics(null, false);
+      }
+
+      if (this.exportPanel) {
+        this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, [], false);
+      }
     }
   }
 

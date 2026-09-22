@@ -321,12 +321,34 @@ class ResultsPage {
       this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, null, false, false);
     }
 
-    if (this.workspace) {
-      const srcUrl = 'assets/lunar_low_sun.jpg';
-      const refUrl = 'assets/lunar_nadir.jpg';
-      this.workspace.setImageUrls(srcUrl, refUrl, null, null);
+    const latest = (window.resultsState && window.resultsState.latestResult) || null;
+    if (latest && this.workspace) {
+      const api = window.LUNAR_API || window.apiService;
+      const refUrl = api.resolveAssetUrl(latest.reference_image_url || latest.reference_image);
+      const tgtUrl = api.resolveAssetUrl(latest.target_original_url || latest.target_image_url || latest.target_image);
+      const regUrl = api.resolveAssetUrl(latest.registered_image_url || latest.registered_image);
+      const diffUrl = api.resolveAssetUrl(latest.difference_image_url || latest.difference_image);
+
+      this.workspace.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl);
       this.workspace.resizeCanvas();
       this.workspace.draw();
+
+      if (this.metrics && latest.metrics) {
+        this.metrics.setMetrics(latest.metrics, pairId);
+      }
+      if (this.exportPanel) {
+        this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, latest.report_url, true, true);
+      }
+    } else {
+      // STRICT ZERO-DEMO PROTOCOL: Do not display demo images
+      if (this.workspace) {
+        this.workspace.setImageUrls(null, null, null, null);
+        this.workspace.resizeCanvas();
+        this.workspace.draw();
+      }
+      if (this.metrics) {
+        this.metrics.setMetrics(null, pairId);
+      }
     }
   }
 

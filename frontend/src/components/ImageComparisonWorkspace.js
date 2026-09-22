@@ -52,9 +52,9 @@ class ImageComparisonWorkspace {
     this.sourceLoaded = false;
     this.referenceLoaded = false;
 
-    // Default assets
-    this.sourceImgUrl = 'assets/lunar_low_sun.jpg';
-    this.referenceImgUrl = 'assets/lunar_nadir.jpg';
+    // Default assets (Strict Zero-Demo Policy: null until provided by registration output)
+    this.sourceImgUrl = null;
+    this.referenceImgUrl = null;
 
     this.initImageLoaders();
   }
@@ -65,8 +65,8 @@ class ImageComparisonWorkspace {
       this.draw();
     };
     this.sourceImg.onerror = () => {
-      // Resilient fallback
-      this.sourceImg.src = 'assets/lunar_south_pole.jpg';
+      this.sourceLoaded = false;
+      this.draw();
     };
 
     this.referenceImg.onload = () => {
@@ -74,11 +74,12 @@ class ImageComparisonWorkspace {
       this.draw();
     };
     this.referenceImg.onerror = () => {
-      this.referenceImg.src = 'assets/lunar_nadir.jpg';
+      this.referenceLoaded = false;
+      this.draw();
     };
 
-    this.sourceImg.src = this.sourceImgUrl;
-    this.referenceImg.src = this.referenceImgUrl;
+    if (this.sourceImgUrl) this.sourceImg.src = this.sourceImgUrl;
+    if (this.referenceImgUrl) this.referenceImg.src = this.referenceImgUrl;
   }
 
   setImageUrls(sourceUrl, referenceUrl, registeredUrl = null, differenceUrl = null) {
@@ -398,23 +399,46 @@ class ImageComparisonWorkspace {
     ctx.restore();
   }
 
+  drawStandbyPrompt(ctx) {
+    ctx.save();
+    ctx.fillStyle = '#dfc08a';
+    ctx.font = '12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('[STANDBY • AWAITING REGISTRATION RESULTS]', 0, -10);
+    ctx.fillStyle = '#8f929d';
+    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.fillText('Select an image pair or upload rasters in New Registration to run alignment.', 0, 14);
+    ctx.restore();
+  }
+
   drawOverlayMode(ctx, dx, dy, imgW, imgH) {
+    if (!this.referenceLoaded && !this.sourceLoaded && !this.registeredImg) {
+      this.drawStandbyPrompt(ctx);
+      return;
+    }
+
     // 1. Draw base Reference raster
     if (this.referenceLoaded) {
       ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
     }
 
-    // 2. Draw Source raster with opacity
-    if (this.sourceLoaded) {
+    // 2. Draw actual Registered (or Source) raster with opacity
+    const topImg = this.registeredImg || this.sourceImg;
+    const isTopLoaded = this.registeredImg ? true : this.sourceLoaded;
+    if (isTopLoaded && topImg) {
       ctx.save();
       ctx.globalAlpha = this.opacity;
-      ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
+      ctx.drawImage(topImg, dx, dy, imgW, imgH);
       ctx.restore();
     }
   }
 
   drawSideBySideMode(ctx, dx, dy, imgW, imgH) {
-    // Render split view
+    if (!this.referenceLoaded && !this.sourceLoaded && !this.registeredImg) {
+      this.drawStandbyPrompt(ctx);
+      return;
+    }
+
     const splitX = dx + (imgW * this.splitPos);
 
     // 1. Draw Reference (Left side)
@@ -422,18 +446,20 @@ class ImageComparisonWorkspace {
     ctx.beginPath();
     ctx.rect(dx, dy, imgW * this.splitPos, imgH);
     ctx.clip();
-    if (this.sourceLoaded) {
-      ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
+    if (this.referenceLoaded) {
+      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
     }
     ctx.restore();
 
-    // 2. Draw Reference (Right side)
+    // 2. Draw Registered or Source (Right side)
+    const rightImg = this.registeredImg || this.sourceImg;
+    const isRightLoaded = this.registeredImg ? true : this.sourceLoaded;
     ctx.save();
     ctx.beginPath();
     ctx.rect(splitX, dy, imgW * (1 - this.splitPos), imgH);
     ctx.clip();
-    if (this.referenceLoaded) {
-      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
+    if (isRightLoaded && rightImg) {
+      ctx.drawImage(rightImg, dx, dy, imgW, imgH);
     }
     ctx.restore();
 
@@ -449,19 +475,21 @@ class ImageComparisonWorkspace {
   }
 
   drawFlickerMode(ctx, dx, dy, imgW, imgH) {
-    if (this.flickerIndex === 0 && this.sourceLoaded) {
-      ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
+    const tgt = this.registeredImg || this.sourceImg;
+    const isTgtLoaded = this.registeredImg ? true : this.sourceLoaded;
+    if (this.flickerIndex === 0 && isTgtLoaded && tgt) {
+      ctx.drawImage(tgt, dx, dy, imgW, imgH);
     } else if (this.flickerIndex === 1 && this.referenceLoaded) {
       ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
+    } else {
+      this.drawStandbyPrompt(ctx);
     }
   }
 
   drawDifferenceMode(ctx, dx, dy, imgW, imgH) {
-    // If backend provided differenceImg, draw it; else synthesize visual placeholder
     if (this.differenceImg) {
       ctx.drawImage(this.differenceImg, dx, dy, imgW, imgH);
-    } else {
-      // Draw reference as backdrop with subtle grayscale differential shader
+    } else if (this.referenceLoaded && (this.registeredImg || this.sourceLoaded)) {
       if (this.referenceLoaded) {
         ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
       }
@@ -472,6 +500,8 @@ class ImageComparisonWorkspace {
       ctx.lineWidth = 1.5 / this.scale;
       ctx.strokeRect(dx, dy, imgW, imgH);
       ctx.restore();
+    } else {
+      this.drawStandbyPrompt(ctx);
     }
   }
 
@@ -480,17 +510,14 @@ class ImageComparisonWorkspace {
       ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
     } else if (this.activeSlot === 'reference' && this.referenceLoaded) {
       ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
-    } else if (this.activeSlot === 'registered') {
-      if (this.registeredImg) {
-        ctx.drawImage(this.registeredImg, dx, dy, imgW, imgH);
-      } else {
-        ctx.fillStyle = '#121316';
-        ctx.fillRect(dx, dy, imgW, imgH);
-      }
+    } else if (this.activeSlot === 'registered' && this.registeredImg) {
+      ctx.drawImage(this.registeredImg, dx, dy, imgW, imgH);
+    } else if (this.activeSlot === 'difference' && this.differenceImg) {
+      ctx.drawImage(this.differenceImg, dx, dy, imgW, imgH);
     } else if (this.activeSlot === 'overlay') {
       this.drawOverlayMode(ctx, dx, dy, imgW, imgH);
-    } else if (this.activeSlot === 'difference') {
-      this.drawDifferenceMode(ctx, dx, dy, imgW, imgH);
+    } else {
+      this.drawStandbyPrompt(ctx);
     }
   }
 

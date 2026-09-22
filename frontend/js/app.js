@@ -1983,26 +1983,19 @@
         resultsState.featureMatches = null;
       }
 
-      // Synchronize with ResultsPage component if mounted
-      if (window.resultsPage) {
-        if (window.resultsPage.metrics && typeof window.resultsPage.metrics.setMetrics === 'function') {
-          window.resultsPage.metrics.setMetrics(Object.assign({}, resultsState.metrics, {
-            rmse: m.rmse || parseFloat(rmse) || 0.384,
-            mae: m.mae || parseFloat(regError) || 0.312,
-            inlier_ratio: m.inlier_ratio || 0.946,
-            inlier_matches: m.inlier_matches || 1200,
-            scale_ratio: m.scale_ratio || 1.0,
-            rotation_deg: m.rotation_deg || 0.0
-          }));
-        }
-        if (window.resultsPage.workspace && typeof window.resultsPage.workspace.setImageUrls === 'function') {
-          window.resultsPage.workspace.setImageUrls(
-            api.resolveAssetUrl(refUrl),
-            api.resolveAssetUrl(origTgtUrl),
-            api.resolveAssetUrl(regTgtUrl),
-            api.resolveAssetUrl(diffUrl)
-          );
-        }
+      // Synchronize with ResultsPage & AnalysisToolsPage components
+      if (window.resultsPage && typeof window.resultsPage.applyPairData === 'function') {
+        window.resultsPage.applyPairData();
+      } else if (window.resultsPage && window.resultsPage.workspace && typeof window.resultsPage.workspace.setImageUrls === 'function') {
+        window.resultsPage.workspace.setImageUrls(
+          api.resolveAssetUrl(origTgtUrl || regTgtUrl),
+          api.resolveAssetUrl(refUrl),
+          api.resolveAssetUrl(regTgtUrl),
+          api.resolveAssetUrl(diffUrl)
+        );
+      }
+      if (window.analysisToolsPage && typeof window.analysisToolsPage.applyPairData === 'function') {
+        window.analysisToolsPage.applyPairData();
       }
 
       // Wire download buttons
@@ -4807,29 +4800,54 @@ GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</d
     // Backend-provided feature matches or null (Strict honesty: no fake matches)
     featureMatches: null,
 
-    // Telemetry & metrics (Default calibrated Tycho demo pair baseline)
+    // Telemetry & metrics (Strict zero fake data: null until backend registration completes)
+    latestResult: null,
     metrics: {
-      numMatches: '1,428',
-      inlierMatches: '1,311 (91.8%)',
-      regError: '0.28 px',
-      rmse: '0.318 px',
-      confidence: '0.964',
-      procTime: '2.45 s',
-      transformType: 'Homography + Affine (8-DOF)'
+      numMatches: null,
+      inlierMatches: null,
+      regError: null,
+      rmse: null,
+      confidence: null,
+      procTime: null,
+      transformType: null
     }
   };
 
   function syncResultsImagery() {
+    const latest = resultsState.latestResult;
+    const api = window.LUNAR_API || window.apiService;
+
+    if (latest) {
+      const refUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.reference_image_url || latest.reference_image) : (latest.reference_image_url || latest.reference_image);
+      const regUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.registered_image_url || latest.registered_image) : (latest.registered_image_url || latest.registered_image);
+      const tgtUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.target_original_url || latest.target_image_url || latest.target_image) : (latest.target_original_url || latest.target_image_url || latest.target_image);
+
+      if (refUrl && (!resultsState.refImage || resultsState.refImage.src !== refUrl)) {
+        resultsState.refImage = new Image();
+        resultsState.refImage.onload = () => drawResultsCanvas();
+        resultsState.refImage.src = refUrl;
+      }
+      if (regUrl && (!resultsState.tgtRegisteredImage || resultsState.tgtRegisteredImage.src !== regUrl)) {
+        resultsState.tgtRegisteredImage = new Image();
+        resultsState.tgtRegisteredImage.onload = () => drawResultsCanvas();
+        resultsState.tgtRegisteredImage.src = regUrl;
+      }
+      if (tgtUrl && (!resultsState.tgtOriginalImage || resultsState.tgtOriginalImage.src !== tgtUrl)) {
+        resultsState.tgtOriginalImage = new Image();
+        resultsState.tgtOriginalImage.onload = () => drawResultsCanvas();
+        resultsState.tgtOriginalImage.src = tgtUrl;
+      }
+      return;
+    }
+
     if (regWorkflowState.refMeta && regWorkflowState.refMeta.url) {
       if (!resultsState.refImage || resultsState.refImage.src !== regWorkflowState.refMeta.url) {
         resultsState.refImage = new Image();
         resultsState.refImage.onload = () => drawResultsCanvas();
         resultsState.refImage.src = regWorkflowState.refMeta.url;
       }
-    } else if (!resultsState.refImage) {
-      resultsState.refImage = new Image();
-      resultsState.refImage.onload = () => drawResultsCanvas();
-      resultsState.refImage.src = 'assets/lunar_nadir.jpg';
+    } else {
+      resultsState.refImage = null;
     }
 
     if (regWorkflowState.tgtMeta && regWorkflowState.tgtMeta.url) {
@@ -4839,11 +4857,9 @@ GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</d
         resultsState.tgtRegisteredImage.src = regWorkflowState.tgtMeta.url;
         resultsState.tgtOriginalImage = resultsState.tgtRegisteredImage;
       }
-    } else if (!resultsState.tgtRegisteredImage) {
-      resultsState.tgtRegisteredImage = new Image();
-      resultsState.tgtRegisteredImage.onload = () => drawResultsCanvas();
-      resultsState.tgtRegisteredImage.src = 'assets/lunar_low_sun.jpg';
-      resultsState.tgtOriginalImage = resultsState.tgtRegisteredImage;
+    } else {
+      resultsState.tgtRegisteredImage = null;
+      resultsState.tgtOriginalImage = null;
     }
   }
 
@@ -5188,10 +5204,47 @@ GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</d
     resultsCtx.fillRect(0, 0, w, h);
 
     if (!resultsState.refImage || !resultsState.tgtRegisteredImage) {
+      resultsCtx.fillStyle = '#08090d';
+      resultsCtx.fillRect(0, 0, w, h);
+
+      // Technical grid background
+      resultsCtx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+      resultsCtx.lineWidth = 1;
+      const step = 40;
+      for (let x = 0; x < w; x += step) {
+        resultsCtx.beginPath();
+        resultsCtx.moveTo(x, 0);
+        resultsCtx.lineTo(x, h);
+        resultsCtx.stroke();
+      }
+      for (let y = 0; y < h; y += step) {
+        resultsCtx.beginPath();
+        resultsCtx.moveTo(0, y);
+        resultsCtx.lineTo(w, y);
+        resultsCtx.stroke();
+      }
+
+      // Standby Banner Card
+      const cardW = Math.min(480, w * 0.88);
+      const cardH = 130;
+      const cardX = (w - cardW) / 2;
+      const cardY = (h - cardH) / 2;
+
+      resultsCtx.fillStyle = 'rgba(15, 17, 23, 0.95)';
+      resultsCtx.fillRect(cardX, cardY, cardW, cardH);
+      resultsCtx.strokeStyle = 'rgba(218, 165, 32, 0.35)';
+      resultsCtx.lineWidth = 1;
+      resultsCtx.strokeRect(cardX, cardY, cardW, cardH);
+
       resultsCtx.fillStyle = '#dfc08a';
-      resultsCtx.font = '12px "JetBrains Mono"';
+      resultsCtx.font = 'bold 12px "JetBrains Mono", monospace';
       resultsCtx.textAlign = 'center';
-      resultsCtx.fillText('LOADING LUNAR COMPARISON IMAGERY...', w / 2, h / 2);
+      resultsCtx.fillText('STANDBY • AWAITING REGISTRATION EXECUTION', w / 2, cardY + 42);
+
+      resultsCtx.fillStyle = '#8e8ea0';
+      resultsCtx.font = '11px "Inter", sans-serif';
+      resultsCtx.fillText('No active registration imagery is currently loaded.', w / 2, cardY + 70);
+      resultsCtx.fillText('Execute a registration job to view aligned rasters, difference map & tie-points.', w / 2, cardY + 92);
       return;
     }
 
@@ -5420,9 +5473,9 @@ GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</d
               mergedMap.set(id, {
                 id: id,
                 refName: bj.reference_image_name || bj.ref_name || bj.reference_image || 'ref_satellite.tif',
-                refThumb: bj.reference_thumbnail || bj.ref_thumb || 'assets/lunar_nadir.jpg',
+                refThumb: bj.reference_thumbnail || bj.ref_thumb || bj.reference_image_url || bj.reference_image || null,
                 tgtName: bj.target_image_name || bj.tgt_name || bj.target_image || 'tgt_satellite.tif',
-                tgtThumb: bj.target_thumbnail || bj.tgt_thumb || 'assets/lunar_low_sun.jpg',
+                tgtThumb: bj.target_thumbnail || bj.tgt_thumb || bj.registered_image_url || bj.target_image_url || null,
                 status: (bj.status ? bj.status.charAt(0).toUpperCase() + bj.status.slice(1) : 'Completed'),
                 date: bj.created_at || bj.date || new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
                 timestamp: bj.timestamp || Date.now(),
@@ -5497,7 +5550,7 @@ GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</d
       const tdRef = document.createElement('td');
       tdRef.innerHTML = `
         <div class="table-img-cell">
-          <img class="table-img-thumb" src="${job.refThumb || 'assets/lunar_nadir.jpg'}" alt="Ref Thumbnail">
+          ${job.refThumb ? `<img class="table-img-thumb" src="${job.refThumb}" alt="Ref Thumbnail">` : '<span class="thumb-tag">REF</span>'}
           <span class="table-img-name" title="${escapeHtml(job.refName || 'reference.tif')}">${escapeHtml(job.refName || 'reference.tif')}</span>
         </div>
       `;
@@ -5507,7 +5560,7 @@ GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</d
       const tdTgt = document.createElement('td');
       tdTgt.innerHTML = `
         <div class="table-img-cell">
-          <img class="table-img-thumb" src="${job.tgtThumb || 'assets/lunar_low_sun.jpg'}" alt="Target Thumbnail">
+          ${job.tgtThumb ? `<img class="table-img-thumb" src="${job.tgtThumb}" alt="Target Thumbnail">` : '<span class="thumb-tag">TGT</span>'}
           <span class="table-img-name" title="${escapeHtml(job.tgtName || 'target.tif')}">${escapeHtml(job.tgtName || 'target.tif')}</span>
         </div>
       `;
