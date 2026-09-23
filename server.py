@@ -12,11 +12,13 @@ Usage:
 """
 
 import argparse
+import io
 import json
 import mimetypes
 import os
 import sys
 import uuid
+import zipfile
 from datetime import datetime
 from email.parser import BytesParser
 from email.policy import default
@@ -93,12 +95,35 @@ class LunaRegHTTPHandler(BaseHTTPRequestHandler):
             self.serve_file(WEB_DIR / "processing_module.html", "text/html; charset=utf-8")
             return
 
-        # Route 4: Automated Test Runner -> serve web/test_runner.html
+        # Route 4: Output Module -> serve web/output_module.html
+        if clean_path in ["/output", "/output-module", "/output.html", "/output_module.html"]:
+            self.serve_file(WEB_DIR / "output_module.html", "text/html; charset=utf-8")
+            return
+
+        # Route 5: Automated Test Runner -> serve web/test_runner.html
         if clean_path in ["/test-runner", "/test_runner.html", "/tests"]:
             self.serve_file(WEB_DIR / "test_runner.html", "text/html; charset=utf-8")
             return
 
-        # Route 5: Registration visual artifacts /api/v1/registration/artifacts/<job_id>/<filename>
+        # Route 6: Download all artifacts as ZIP /api/v1/registration/jobs/<job_id>/download-all
+        if clean_path.startswith("/api/v1/registration/jobs/") and clean_path.endswith("/download-all"):
+            sub = clean_path[len("/api/v1/registration/jobs/"): -len("/download-all")].strip("/")
+            self.handle_download_all_zip(sub)
+            return
+
+        # Route 7: List recent jobs /api/v1/registration/jobs
+        if clean_path in ["/api/v1/registration/jobs", "/api/registration/jobs"]:
+            self.handle_list_jobs()
+            return
+
+        # Route 8: Single job result /api/v1/registration/jobs/<job_id>
+        if clean_path.startswith("/api/v1/registration/jobs/"):
+            job_id = clean_path[len("/api/v1/registration/jobs/"):].strip("/")
+            if job_id and "/" not in job_id:
+                self.handle_get_job_result(job_id)
+                return
+
+        # Route 9: Registration visual artifacts /api/v1/registration/artifacts/<job_id>/<filename>
         if clean_path.startswith("/api/v1/registration/artifacts/"):
             subpath = clean_path[len("/api/v1/registration/artifacts/"):].lstrip("/")
             candidate = REGISTRATIONS_DIR / subpath
@@ -480,6 +505,95 @@ class LunaRegHTTPHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(err_data)
+
+    def handle_list_jobs(self):
+        jobs = []
+        if REGISTRATIONS_DIR.is_dir():
+            for job_dir in REGISTRATIONS_DIR.iterdir():
+                if job_dir.is_dir():
+                    res_file = job_dir / "result.json"
+                    if res_file.is_file():
+                        try:
+                            with open(res_file, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                            jobs.append({
+                                "job_id": data.get("job_id", job_dir.name),
+                                "status": data.get("status", "UNKNOWN"),
+                                "created_at": data.get("created_at", ""),
+                                "reference_name": data.get("reference_name", "unknown"),
+                                "moving_name": data.get("moving_name", "unknown"),
+                                "metrics": data.get("metrics", {}),
+                            })
+                        except Exception:
+                            pass
+        jobs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        resp_bytes = json.dumps(jobs, indent=2).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(resp_bytes)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(resp_bytes)
+
+    def handle_get_job_result(self, job_id: str):
+        job_dir = REGISTRATIONS_DIR / job_id
+        res_file = job_dir / "result.json"
+        try:
+            resolved = res_file.resolve()
+            if not str(resolved).startswith(str(REGISTRATIONS_DIR.resolve())):
+                self.send_error(403, "Access Denied")
+                return
+            if resolved.is_file():
+                with open(resolved, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(content)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(content)
+                return
+            else:
+                err_bytes = json.dumps({"error": f"Job '{job_id}' not found."}).encode("utf-8")
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(err_bytes)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+        except Exception as e:
+            self.send_error(500, f"Error reading job: {e}")
+
+    def handle_download_all_zip(self, job_id: str):
+        job_dir = REGISTRATIONS_DIR / job_id
+        try:
+            resolved = job_dir.resolve()
+            if not str(resolved).startswith(str(REGISTRATIONS_DIR.resolve())):
+                self.send_error(403, "Access Denied")
+                return
+            if not resolved.is_dir():
+                self.send_error(404, f"Job '{job_id}' not found.")
+                return
+
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(resolved):
+                    for file in files:
+                        file_path = Path(root) / file
+                        arcname = file_path.relative_to(resolved)
+                        zf.write(file_path, arcname)
+
+            zip_bytes = zip_buffer.getvalue()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", f'attachment; filename="luna_reg_{job_id}_results.zip"')
+            self.send_header("Content-Length", str(len(zip_bytes)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(zip_bytes)
+        except Exception as e:
+            self.send_error(500, f"Error generating ZIP archive: {e}")
 
     def log_message(self, format, *args):
         # Clean terminal logging

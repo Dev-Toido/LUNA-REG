@@ -580,6 +580,7 @@ class ProcessingEngine:
 
         # Save all generated visualization artifacts to job_dir
         artifacts = {
+            "reference_image": "reference_target.png",
             "registered_image": "registered_target.png",
             "keypoints_image": "keypoints_vis.png",
             "matches_image": "matches_vis.png",
@@ -588,6 +589,7 @@ class ProcessingEngine:
             "difference_image": "difference_map.png",
         }
 
+        cv2.imwrite(str(job_dir / artifacts["reference_image"]), img_ref_orig)
         cv2.imwrite(str(job_dir / artifacts["registered_image"]), aligned_mov)
         cv2.imwrite(str(job_dir / artifacts["keypoints_image"]), keypoints_img)
         cv2.imwrite(str(job_dir / artifacts["matches_image"]), matches_img)
@@ -646,6 +648,9 @@ class ProcessingEngine:
         }
         if settings:
             cfg.update(settings)
+
+        ref_name = Path(ref_image_source).name if isinstance(ref_image_source, (str, Path)) else "reference_frame.png"
+        mov_name = Path(mov_image_source).name if isinstance(mov_image_source, (str, Path)) else "moving_frame.png"
 
         try:
             # 1. Loading Images
@@ -707,9 +712,13 @@ class ProcessingEngine:
             elapsed = round(time.time() - start_time, 3)
 
             # Structured Output Contract
-            return {
+            result_payload = {
                 "job_id": job_id,
                 "status": "SUCCESS",
+                "created_at": datetime.now().isoformat(),
+                "reference_name": ref_name,
+                "moving_name": mov_name,
+                "reference_image": f"/api/v1/registration/artifacts/{job_id}/{artifacts['reference_image']}",
                 "registered_image": f"/api/v1/registration/artifacts/{job_id}/{artifacts['registered_image']}",
                 "keypoints_image": f"/api/v1/registration/artifacts/{job_id}/{artifacts['keypoints_image']}",
                 "matches_image": f"/api/v1/registration/artifacts/{job_id}/{artifacts['matches_image']}",
@@ -734,14 +743,28 @@ class ProcessingEngine:
                     "type": "Homography",
                     "matrix": H.tolist(),
                 },
+                "settings": cfg,
                 "error": None,
             }
 
+            try:
+                import json
+                with open(job_dir / "result.json", "w", encoding="utf-8") as f:
+                    json.dump(result_payload, f, indent=2)
+            except Exception:
+                pass
+
+            return result_payload
+
         except Exception as exc:
             elapsed = round(time.time() - start_time, 3)
-            return {
+            failed_payload = {
                 "job_id": job_id,
                 "status": "FAILED",
+                "created_at": datetime.now().isoformat(),
+                "reference_name": ref_name if 'ref_name' in locals() else "unknown",
+                "moving_name": mov_name if 'mov_name' in locals() else "unknown",
+                "reference_image": None,
                 "registered_image": None,
                 "keypoints_image": None,
                 "matches_image": None,
@@ -752,5 +775,14 @@ class ProcessingEngine:
                     "processing_time_seconds": elapsed,
                 },
                 "transformation": None,
+                "settings": cfg if 'cfg' in locals() else {},
                 "error": str(exc),
             }
+            try:
+                import json
+                with open(job_dir / "result.json", "w", encoding="utf-8") as f:
+                    json.dump(failed_payload, f, indent=2)
+            except Exception:
+                pass
+
+            return failed_payload

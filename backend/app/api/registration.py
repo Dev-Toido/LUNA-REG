@@ -159,3 +159,73 @@ async def get_registration_artifact(job_id: str, filename: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/registration/jobs")
+async def list_registration_jobs():
+    """List recent registration jobs."""
+    import json
+    jobs = []
+    if REGISTRATIONS_DIR.is_dir():
+        for job_dir in REGISTRATIONS_DIR.iterdir():
+            if job_dir.is_dir():
+                res_file = job_dir / "result.json"
+                if res_file.is_file():
+                    try:
+                        with open(res_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        jobs.append({
+                            "job_id": data.get("job_id", job_dir.name),
+                            "status": data.get("status", "UNKNOWN"),
+                            "created_at": data.get("created_at", ""),
+                            "reference_name": data.get("reference_name", "unknown"),
+                            "moving_name": data.get("moving_name", "unknown"),
+                            "metrics": data.get("metrics", {}),
+                        })
+                    except Exception:
+                        pass
+    jobs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return jobs
+
+
+@router.get("/registration/jobs/{job_id}")
+async def get_registration_job(job_id: str):
+    """Retrieve full result object for a registration job."""
+    import json
+    job_dir = REGISTRATIONS_DIR / job_id
+    res_file = job_dir / "result.json"
+    if not res_file.is_file():
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+    try:
+        with open(res_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read job result: {e}")
+
+
+@router.get("/registration/jobs/{job_id}/download-all")
+async def download_all_registration_artifacts(job_id: str):
+    """Download all artifacts and results for a job as a single ZIP archive."""
+    import io
+    import zipfile
+    from fastapi.responses import Response
+
+    job_dir = REGISTRATIONS_DIR / job_id
+    if not job_dir.is_dir():
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(job_dir):
+            for file in files:
+                file_path = Path(root) / file
+                arcname = file_path.relative_to(job_dir)
+                zf.write(file_path, arcname)
+
+    zip_bytes = zip_buffer.getvalue()
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="luna_reg_{job_id}_results.zip"'}
+    )
+
