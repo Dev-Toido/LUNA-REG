@@ -26,3 +26,5 @@ def extract_inliers(matches, mask):
         match for match, valid in zip(matches, mask) if valid
     ]
     return inlier_matches, mask
+
+run_ransac = estimate_homography

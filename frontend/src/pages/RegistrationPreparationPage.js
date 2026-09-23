@@ -344,45 +344,39 @@ class RegistrationPreparationPage {
         execBtn.addEventListener('click', async () => {
           if (window.closeAppModal) window.closeAppModal();
 
-          const api = window.LUNAR_API || window.apiService;
-          const detectorSelect = document.getElementById('setting-feature-detector') || document.getElementById('reg-setting-detector');
+          const detectorSelect = document.getElementById('reg-param-detector') || document.getElementById('setting-feature-detector') || document.getElementById('reg-setting-detector');
           const detector = (detectorSelect && detectorSelect.value) ? detectorSelect.value : 'sift';
 
-          try {
-            if (window.toastManager && typeof window.toastManager.show === 'function') {
-              window.toastManager.show({
-                type: 'info',
-                title: 'SUBMITTING REGISTRATION',
-                message: `Initiating multi-modal alignment for Pair #${pair.id} using '${detector.toUpperCase()}'...`
-              });
-            }
+          const outlierSelect = document.getElementById('reg-param-outlier');
+          const outlierRejection = (outlierSelect && outlierSelect.value) ? outlierSelect.value : 'ransac';
 
-            const formData = new FormData();
-            formData.append('pair_id', String(pair.id));
-            formData.append('detector', detector);
-            formData.append('registration_mode', 'automatic');
+          const modelSelect = document.getElementById('reg-param-model');
+          const geometricModel = (modelSelect && modelSelect.value) ? modelSelect.value : 'homography';
 
-            const response = await api.submitRegistration(formData);
-            const realJobId = (response && response.job_id) ? response.job_id : `LR-PAIR${pair.id}`;
+          if (window.toastManager && typeof window.toastManager.show === 'function') {
+            window.toastManager.show({
+              type: 'info',
+              title: 'EXECUTING REGISTRATION',
+              message: `Initiating multi-modal alignment for Pair #${pair.id} using '${detector.toUpperCase()}'...`
+            });
+          }
 
-            if (typeof window.openProcessingPage === 'function') {
-              window.openProcessingPage(realJobId, true);
-            } else if (typeof window.switchView === 'function') {
-              window.switchView('processing');
-            }
-          } catch (err) {
-            console.warn('[LUNA-REG] Backend server offline, executing browser-native planetary registration for Pair #' + pair.id + ':', err);
-            const isSouthPole = pair.id === 3;
-            if (typeof window.runBrowserRegistrationPipeline === 'function') {
-              window.runBrowserRegistrationPipeline({
-                refSource: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg',
-                tgtSource: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_low_sun.jpg',
-                detector: detector,
-                pairId: pair.id
-              });
-            } else if (typeof window.switchView === 'function') {
-              window.switchView('results');
-            }
+          const isSouthPole = pair.id === 3;
+          const refSource = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg';
+          const tgtSource = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_low_sun.jpg';
+
+          if (typeof window.runBrowserRegistrationPipeline === 'function') {
+            window.runBrowserRegistrationPipeline({
+              refSource: refSource,
+              tgtSource: tgtSource,
+              detector: detector,
+              outlierRejection: outlierRejection,
+              geometricModel: geometricModel,
+              pairId: pair.id,
+              jobId: `LR-PAIR${pair.id}`
+            });
+          } else if (typeof window.switchView === 'function') {
+            window.switchView('results');
           }
         });
       }

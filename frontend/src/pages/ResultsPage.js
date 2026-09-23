@@ -323,11 +323,11 @@ class ResultsPage {
 
     const latest = (window.resultsState && window.resultsState.latestResult) || null;
     if (latest && this.workspace) {
-      const api = window.LUNAR_API || window.apiService;
-      const refUrl = api.resolveAssetUrl(latest.reference_image_url || latest.reference_image);
-      const tgtUrl = api.resolveAssetUrl(latest.target_original_url || latest.target_image_url || latest.target_image);
-      const regUrl = api.resolveAssetUrl(latest.registered_image_url || latest.registered_image);
-      const diffUrl = api.resolveAssetUrl(latest.difference_image_url || latest.difference_image);
+      const resolveUrl = (u) => (window.LUNAR_API && window.LUNAR_API.resolveAssetUrl) ? window.LUNAR_API.resolveAssetUrl(u) : (u || '');
+      const refUrl = resolveUrl(latest.reference_image_url || latest.reference_image);
+      const tgtUrl = resolveUrl(latest.target_original_url || latest.target_image_url || latest.target_image);
+      const regUrl = resolveUrl(latest.registered_image_url || latest.registered_image);
+      const diffUrl = resolveUrl(latest.difference_image_url || latest.difference_image);
 
       this.workspace.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl);
       this.workspace.resizeCanvas();
