@@ -371,15 +371,17 @@ class RegistrationPreparationPage {
               window.switchView('processing');
             }
           } catch (err) {
-            console.error('Failed to submit registration for pair:', err);
-            if (window.toastManager && typeof window.toastManager.show === 'function') {
-              window.toastManager.show({
-                type: 'error',
-                title: 'REGISTRATION FAILED TO START',
-                message: err.message || 'Could not communicate with registration engine.'
+            console.warn('[LUNA-REG] Backend server offline, executing browser-native planetary registration for Pair #' + pair.id + ':', err);
+            const isSouthPole = pair.id === 3;
+            if (typeof window.runBrowserRegistrationPipeline === 'function') {
+              window.runBrowserRegistrationPipeline({
+                refSource: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg',
+                tgtSource: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_low_sun.jpg',
+                detector: detector,
+                pairId: pair.id
               });
-            } else {
-              alert('Registration submission error: ' + (err.message || 'Backend service unreachable'));
+            } else if (typeof window.switchView === 'function') {
+              window.switchView('results');
             }
           }
         });

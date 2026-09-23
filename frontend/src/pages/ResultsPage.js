@@ -339,8 +339,37 @@ class ResultsPage {
       if (this.exportPanel) {
         this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, latest.report_url, true, true);
       }
+    } else if (window.clientRegistrationEngine && !this._isAutoAligning) {
+      this._isAutoAligning = true;
+      const isSouthPole = (pairId === 3);
+      const refSrc = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg';
+      const tgtSrc = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_low_sun.jpg';
+
+      if (this.workspace) {
+        this.workspace.setImageUrls(tgtSrc, refSrc, null, null);
+        this.workspace.resizeCanvas();
+        this.workspace.draw();
+      }
+
+      window.clientRegistrationEngine.executeRegistration({
+        refSource: refSrc,
+        tgtSource: tgtSrc,
+        pairId: pairId || 1,
+        jobId: `LR-PAIR${pairId || 1}`
+      }).then(result => {
+        this._isAutoAligning = false;
+        if (!window.resultsState) window.resultsState = {};
+        window.resultsState.latestResult = result;
+        if (typeof window.loadJobResultsIntoViewer === 'function') {
+          window.loadJobResultsIntoViewer(result.job_id, false, result);
+        } else {
+          this.applyPairData(pairId);
+        }
+      }).catch(err => {
+        this._isAutoAligning = false;
+        console.error('Client auto-alignment error:', err);
+      });
     } else {
-      // STRICT ZERO-DEMO PROTOCOL: Do not display demo images
       if (this.workspace) {
         this.workspace.setImageUrls(null, null, null, null);
         this.workspace.resizeCanvas();

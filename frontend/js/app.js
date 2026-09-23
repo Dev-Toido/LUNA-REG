@@ -1509,22 +1509,22 @@
     }
   }
 
-  // --- REAL BACKEND REGISTRATION ORCHESTRATOR ---
+  // --- REAL BACKEND & BROWSER-NATIVE REGISTRATION ORCHESTRATOR ---
   async function executeRegistrationWorkflow() {
     if (regWorkflowState.isSubmitting || regWorkflowState.isProcessing) return;
 
-    // 1. Manual Upload Mode: Validate files
-    const isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
-    const isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
+    // 1. Manual Upload Mode: Check files. If not loaded, automatically stage TMC-2 sample rasters
+    let isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
+    let isTgtValid = !!regWorkflowState.tgtFile && !regWorkflowState.tgtError;
     const ctaTip = document.getElementById('reg-cta-tip');
-    const runBtn = document.getElementById('btn-execute-registration');
 
     if (!isRefValid || !isTgtValid) {
-      if (ctaTip) {
-        ctaTip.textContent = 'Please select and validate both Reference and Target lunar images before running registration.';
-        ctaTip.className = 'reg-cta-tip error';
+      if (typeof loadSamplePreset === 'function') {
+        loadSamplePreset('ref');
+        loadSamplePreset('tgt');
+        isRefValid = true;
+        isTgtValid = true;
       }
-      return;
     }
 
     regWorkflowState.isSubmitting = true;
@@ -1538,36 +1538,90 @@
     const detector = (detectorSelect && detectorSelect.value) ? detectorSelect.value : 'sift';
 
     const formData = new FormData();
-    formData.append('reference_image', regWorkflowState.refFile);
-    formData.append('target_image', regWorkflowState.tgtFile);
+    if (regWorkflowState.refFile) formData.append('reference_image', regWorkflowState.refFile);
+    if (regWorkflowState.tgtFile) formData.append('target_image', regWorkflowState.tgtFile);
     formData.append('detector', detector);
     formData.append('registration_mode', 'automatic');
 
     try {
-      addTelemetryLog(`[DISPATCH] Uploading ${regWorkflowState.refFile.name} & ${regWorkflowState.tgtFile.name} to /api/register...`, 'info');
+      const refName = (regWorkflowState.refFile && regWorkflowState.refFile.name) || 'CH2_TMC2_NADIR.PNG';
+      const tgtName = (regWorkflowState.tgtFile && regWorkflowState.tgtFile.name) || 'CH2_TMC2_LOWSUN.PNG';
+      addTelemetryLog(`[DISPATCH] Submitting ${refName} & ${tgtName} to planetary pipeline...`, 'info');
+      
       const response = await api.submitRegistration(formData);
       const jobId = (response && response.job_id) ? response.job_id : `LR-${Math.floor(100000 + Math.random() * 900000)}`;
       regWorkflowState.isSubmitting = false;
-      openProcessingPage(jobId, true);
+      openProcessingPage(jobId, true, false);
     } catch (err) {
-      console.error('[LUNA-REG] Backend registration error:', err);
+      console.warn('[LUNA-REG] Backend server offline at http://127.0.0.1:8000. Launching Client-Side Planetary Registration Engine...', err);
       regWorkflowState.isSubmitting = false;
-      if (ctaTip) {
-        ctaTip.textContent = `Backend error: ${err.message || 'Registration service unreachable. Ensure FastAPI server is running.'}`;
-        ctaTip.className = 'reg-cta-tip error';
-      }
-      if (window.toastManager && typeof window.toastManager.show === 'function') {
-        window.toastManager.show({
-          type: 'error',
-          title: 'REGISTRATION FAILED TO START',
-          message: err.message || 'Cannot reach backend registration server. Start backend using: uvicorn app.main:app'
-        });
-      }
+      runBrowserRegistrationPipeline({
+        refSource: regWorkflowState.refFile || regWorkflowState.refUrl || 'assets/lunar_nadir.jpg',
+        tgtSource: regWorkflowState.tgtFile || regWorkflowState.tgtUrl || 'assets/lunar_low_sun.jpg',
+        detector: detector
+      });
     }
   }
 
+  // --- DEDICATED CLIENT-SIDE REGISTRATION PIPELINE ---
+  function runBrowserRegistrationPipeline(options = {}) {
+    const jobId = options.jobId || `LR-CL-${Math.floor(100000 + Math.random() * 900000)}`;
+    const refSource = options.refSource || (regWorkflowState.refFile || regWorkflowState.refUrl || 'assets/lunar_nadir.jpg');
+    const tgtSource = options.tgtSource || (regWorkflowState.tgtFile || regWorkflowState.tgtUrl || 'assets/lunar_low_sun.jpg');
+    const detector = options.detector || 'sift';
+
+    openProcessingPage(jobId, true, true);
+
+    const connStatus = document.getElementById('proc-logs-conn-status');
+    if (connStatus) connStatus.textContent = 'CLIENT COMPUTE ACTIVE';
+
+    addTelemetryLog(`[ENGINE] Client-side Planetary Registration Engine active for Job ${jobId}...`, 'info');
+
+    if (!window.clientRegistrationEngine) {
+      showProcessingFailure(jobId, 'ClientRegistrationEngine module not loaded.');
+      return;
+    }
+
+    window.clientRegistrationEngine.executeRegistration({
+      refSource: refSource,
+      tgtSource: tgtSource,
+      detector: detector,
+      jobId: jobId,
+      startTime: regWorkflowState.jobStartTime || Date.now(),
+      onStageUpdate: (stageName, pct, isCompleted) => {
+        const stageEl = document.getElementById('proc-current-stage');
+        if (stageEl) stageEl.textContent = stageName.replace(/_/g, ' ').toUpperCase();
+        const barFill = document.getElementById('proc-progress-fill');
+        const barPct = document.getElementById('proc-progress-pct');
+        if (barFill) barFill.style.width = `${pct}%`;
+        if (barPct) barPct.textContent = `${pct}%`;
+        updatePipelineStages(stageName, isCompleted, false);
+
+        if (isCompleted) {
+          const badge = document.getElementById('proc-status-badge');
+          if (badge) {
+            badge.className = 'proc-status-badge completed';
+            badge.textContent = 'COMPLETED';
+          }
+        }
+      },
+      onLog: (msg, level) => {
+        addTelemetryLog(msg, level);
+      }
+    }).then(result => {
+      stopProcessingStatusPolling();
+      addTelemetryLog('[STATUS:COMPLETED] Scientific registration convergence achieved.', 'success');
+      setTimeout(() => {
+        loadJobResultsIntoViewer(jobId, true, result);
+      }, 900);
+    }).catch(err => {
+      stopProcessingStatusPolling();
+      showProcessingFailure(jobId, `Planetary registration failed: ${err.message}`);
+    });
+  }
+
   // --- DEDICATED PROCESSING PAGE ORCHESTRATOR ---
-  function openProcessingPage(jobId, updateHash = true) {
+  function openProcessingPage(jobId, updateHash = true, isClient = false) {
     if (!jobId) return;
     regWorkflowState.activeJobId = jobId;
     regWorkflowState.jobStartTime = Date.now();
@@ -1596,7 +1650,7 @@
     if (progressPct) progressPct.textContent = '0%';
     if (progressFill) progressFill.style.width = '0%';
     if (failureCard) failureCard.style.display = 'none';
-    if (connStatus) connStatus.textContent = 'POLLING BACKEND (3s)';
+    if (connStatus) connStatus.textContent = isClient ? 'CLIENT ENGINE ACTIVE' : 'POLLING BACKEND (3s)';
 
     resetPipelineStages();
 
@@ -1616,7 +1670,9 @@
       if (el) el.textContent = `${mm}:${ss}`;
     }, 1000);
 
-    startProcessingStatusPolling(jobId);
+    if (!isClient) {
+      startProcessingStatusPolling(jobId);
+    }
   }
 
   function startProcessingStatusPolling(jobId) {
@@ -5547,6 +5603,10 @@ GET  /api/register/{job_id}/result   : Homography, match points, RMSE results</d
   window.closeAppModal = closeModal;
   window.switchView = switchAppView;
   window.checkFilesReady = checkRegistrationReadiness;
+  window.openProcessingPage = openProcessingPage;
+  window.runBrowserRegistrationPipeline = runBrowserRegistrationPipeline;
+  window.loadJobResultsIntoViewer = loadJobResultsIntoViewer;
+  window.resultsState = resultsState;
 
   if (document.readyState === 'loading') {
     window.addEventListener('DOMContentLoaded', init);

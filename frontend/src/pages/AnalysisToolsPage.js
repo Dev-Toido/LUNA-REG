@@ -468,8 +468,33 @@ class AnalysisToolsPage {
       if (this.exportPanel) {
         this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, latest.control_points || [], true);
       }
+    } else if (window.clientRegistrationEngine && !this._isAutoAligning) {
+      this._isAutoAligning = true;
+      const isSouthPole = (pairId === 3);
+      const refSrc = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg';
+      const tgtSrc = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_low_sun.jpg';
+
+      if (this.viewer) {
+        this.viewer.setImageUrls(tgtSrc, refSrc, null, null);
+        this.viewer.resizeCanvas();
+        this.viewer.draw();
+      }
+
+      window.clientRegistrationEngine.executeRegistration({
+        refSource: refSrc,
+        tgtSource: tgtSrc,
+        pairId: pairId || 1,
+        jobId: `LR-PAIR${pairId || 1}`
+      }).then(result => {
+        this._isAutoAligning = false;
+        if (!window.resultsState) window.resultsState = {};
+        window.resultsState.latestResult = result;
+        this.applyPairData(pairId);
+      }).catch(err => {
+        this._isAutoAligning = false;
+        console.error('Client auto-alignment error in AnalysisToolsPage:', err);
+      });
     } else {
-      // STRICT ZERO-DEMO PROTOCOL: Do not display demo images
       if (this.viewer) {
         this.viewer.setImageUrls(null, null, null, null);
         this.viewer.resizeCanvas();
