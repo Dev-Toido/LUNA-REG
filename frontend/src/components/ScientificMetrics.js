@@ -48,54 +48,69 @@ class ScientificMetrics {
     const m = this.metricsData || {};
     const hasData = this.isOutputAvailable && this.metricsData !== null && Object.keys(m).length > 0;
 
+    const rmseVal = m.rmse !== undefined ? m.rmse : null;
+    const maeVal = m.mae !== undefined ? m.mae : null;
+    const ssimVal = m.ssim !== undefined ? m.ssim : null;
+    const miVal = (m.mutual_info !== undefined) ? m.mutual_info : ((m.mutual_information !== undefined) ? m.mutual_information : null);
+    const matchesVal = (m.feature_matches !== undefined) ? m.feature_matches : ((m.total_matches !== undefined) ? m.total_matches : ((m.num_matches !== undefined) ? m.num_matches : null));
+    
+    let inlierVal = null;
+    if (m.inlier_ratio !== undefined && m.inlier_ratio !== null) {
+      inlierVal = (typeof m.inlier_ratio === 'number' && m.inlier_ratio <= 1.0)
+        ? (m.inlier_ratio * 100).toFixed(1)
+        : m.inlier_ratio;
+    }
+
+    const confVal = (m.confidence_score !== undefined) ? m.confidence_score : ((m.confidence !== undefined) ? m.confidence : null);
+
     const metricItems = [
       {
         id: 'rmse',
         name: 'RMSE',
         fullName: 'Root Mean Square Error',
-        value: this.formatVal(m.rmse, 'px'),
+        value: this.formatVal(rmseVal, 'px'),
         desc: 'Mean geometric sub-pixel displacement residual across verified correspondences.'
       },
       {
         id: 'mae',
         name: 'MAE',
         fullName: 'Mean Absolute Error',
-        value: this.formatVal(m.mae, 'px'),
+        value: this.formatVal(maeVal, 'px'),
         desc: 'L1 robust geometric distance between warped source and reference tie-points.'
       },
       {
         id: 'ssim',
         name: 'SSIM',
         fullName: 'Structural Similarity Index',
-        value: this.formatVal(m.ssim, ''),
+        value: this.formatVal(ssimVal, ''),
         desc: 'Cross-sensor luminance, contrast, and structural texture correlation factor.'
       },
       {
         id: 'mi',
         name: 'MUTUAL INFO',
         fullName: 'Mutual Information',
-        value: this.formatVal(m.mutual_info, 'nats'),
+        value: this.formatVal(miVal, 'nats'),
         desc: 'Statistical information-theoretic overlap between heterogeneous sensors (TMC-2 & OHRC).'
       },
       {
         id: 'matches',
         name: 'FEATURE MATCHES',
         fullName: 'Keypoint Correspondences',
-        value: this.formatVal(m.feature_matches, 'pts'),
+        value: this.formatVal(matchesVal, 'pts'),
         desc: 'Deep feature and phase-congruency keypoints identified across sensor footprints.'
       },
       {
         id: 'inlier',
         name: 'INLIER RATIO',
         fullName: 'RANSAC Geometric Inliers',
-        value: this.formatVal(m.inlier_ratio, '%'),
+        value: this.formatVal(inlierVal, '%'),
         desc: 'Percentage of matched keypoints conforming to affine/homography epipolar geometry.'
       },
       {
         id: 'confidence',
         name: 'CONFIDENCE SCORE',
         fullName: 'Alignment Quality Index',
-        value: this.formatVal(m.confidence_score, '%'),
+        value: this.formatVal(confVal, '%'),
         desc: 'Aggregate ISRO mission-level registration validation certainty index.'
       }
     ];

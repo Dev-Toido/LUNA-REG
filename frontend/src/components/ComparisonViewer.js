@@ -107,6 +107,9 @@ class ComparisonViewer {
       this.registeredImg = new Image();
       this.registeredImg.onload = () => this.draw();
       this.registeredImg.src = registeredUrl;
+      if (this.registeredImg.complete && this.registeredImg.naturalWidth > 0) {
+        this.draw();
+      }
     } else {
       this.registeredUrl = null;
       this.registeredImg = null;
@@ -116,6 +119,9 @@ class ComparisonViewer {
       this.differenceImg = new Image();
       this.differenceImg.onload = () => this.draw();
       this.differenceImg.src = differenceUrl;
+      if (this.differenceImg.complete && this.differenceImg.naturalWidth > 0) {
+        this.draw();
+      }
     } else {
       this.differenceUrl = null;
       this.differenceImg = null;

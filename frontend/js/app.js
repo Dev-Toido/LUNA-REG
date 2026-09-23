@@ -1404,12 +1404,12 @@
   const PIPELINE_STAGES = [
     { num: 1, key: 'validation', aliases: ['validation', 'image_validation', 'validate'] },
     { num: 2, key: 'preprocessing', aliases: ['preprocessing', 'preprocess', 'radiometric', 'clahe'] },
-    { num: 3, key: 'feature_extraction', aliases: ['feature_extraction', 'extraction', 'keypoints', 'detect'] },
+    { num: 3, key: 'feature_extraction', aliases: ['feature_extraction', 'extraction', 'keypoints', 'detect', 'features'] },
     { num: 4, key: 'feature_matching', aliases: ['feature_matching', 'matching', 'correspondence', 'match'] },
-    { num: 5, key: 'geometric_verification', aliases: ['geometric_verification', 'geometric', 'ransac', 'spatial'] },
-    { num: 6, key: 'multimodal_validation', aliases: ['multimodal_validation', 'multi_modal_validation', 'photometric', 'multi-modal'] },
-    { num: 7, key: 'registration', aliases: ['registration', 'homography', 'transformation', 'warp'] },
-    { num: 8, key: 'result_generation', aliases: ['result_generation', 'refinement', 'subpixel', 'output'] }
+    { num: 5, key: 'geometric_verification', aliases: ['geometric_verification', 'geometric', 'ransac', 'magsac', 'spatial', 'outlier', 'outlier_rejection'] },
+    { num: 6, key: 'multimodal_validation', aliases: ['multimodal_validation', 'multi_modal_validation', 'photometric', 'multi-modal', 'optimization', 'refine'] },
+    { num: 7, key: 'registration', aliases: ['registration', 'homography', 'transformation', 'warp', 'transform'] },
+    { num: 8, key: 'result_generation', aliases: ['result_generation', 'refinement', 'subpixel', 'output', 'results'] }
   ];
 
   function resetPipelineStages() {
@@ -1970,8 +1970,48 @@
           window.resultsPage.header.setPairId(pairId, true);
         }
       }
-      if (window.analysisToolsPage && typeof window.analysisToolsPage.applyPairData === 'function') {
-        window.analysisToolsPage.applyPairData(pairId);
+      if (window.analysisToolsPage) {
+        window.analysisToolsPage.pairId = pairId;
+        if (typeof window.analysisToolsPage.applyPairData === 'function') {
+          window.analysisToolsPage.applyPairData(pairId);
+        }
+        if (window.analysisToolsPage.viewer && typeof window.analysisToolsPage.viewer.setImageUrls === 'function') {
+          window.analysisToolsPage.viewer.setImageUrls(
+            resolveUrl(origTgtUrl || regTgtUrl),
+            resolveUrl(refUrl),
+            resolveUrl(regTgtUrl),
+            resolveUrl(diffUrl)
+          );
+          window.analysisToolsPage.viewer.resizeCanvas();
+          window.analysisToolsPage.viewer.draw();
+        }
+        if (window.analysisToolsPage.layerPanel && typeof window.analysisToolsPage.layerPanel.setLayerGenerated === 'function') {
+          window.analysisToolsPage.layerPanel.setLayerGenerated('registered', !!regTgtUrl);
+          window.analysisToolsPage.layerPanel.setLayerGenerated('difference', !!diffUrl);
+        }
+        if (window.analysisToolsPage.transformPanel && typeof window.analysisToolsPage.transformPanel.setData === 'function') {
+          const matrix = result.homography_matrix || (result.transformation && result.transformation.matrix) || [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+          const m = result.metrics || {};
+          window.analysisToolsPage.transformPanel.setData({
+            dx: (m.dx !== undefined) ? m.dx : 0,
+            dy: (m.dy !== undefined) ? m.dy : 0,
+            rotation: (m.rotation_deg !== undefined) ? m.rotation_deg : (m.rotation || 0),
+            scale: (m.scale_ratio !== undefined) ? m.scale_ratio : (m.scale || 1.0),
+            matrix: matrix
+          }, result.control_points || result.tie_points || [], true);
+        }
+        if (window.analysisToolsPage.metrics && typeof window.analysisToolsPage.metrics.setMetrics === 'function') {
+          window.analysisToolsPage.metrics.setMetrics(result.metrics, true);
+        }
+        if (window.analysisToolsPage.exportPanel && typeof window.analysisToolsPage.exportPanel.setData === 'function') {
+          window.analysisToolsPage.exportPanel.setData(
+            window.analysisToolsPage.activePair,
+            window.analysisToolsPage.sourceProduct,
+            window.analysisToolsPage.referenceProduct,
+            result.control_points || [],
+            true
+          );
+        }
       }
 
       // Wire download buttons
@@ -3334,6 +3374,10 @@
     } else if (targetView === 'analysis') {
       if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
         window.analysisToolsPage.init();
+      }
+      if (window.analysisToolsPage && typeof window.analysisToolsPage.applyPairData === 'function') {
+        const pairId = (window.resultsState && window.resultsState.latestResult && window.resultsState.latestResult.pair_id) || (window.resultsPage && window.resultsPage.pairId) || window.analysisToolsPage.pairId || 1;
+        window.analysisToolsPage.applyPairData(pairId);
       }
     } else if (targetView === 'history') {
       loadRegistrationHistory();
