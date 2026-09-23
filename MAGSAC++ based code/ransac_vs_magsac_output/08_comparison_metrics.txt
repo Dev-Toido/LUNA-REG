@@ -1,0 +1,22 @@
+RANSAC vs MAGSAC++ COMPARISON
+=============================
+
+Moving keypoints: 11938
+Reference keypoints: 10810
+Lowe matches: 41
+
+RANSAC
+Inliers: 17
+Outliers: 24
+Inlier ratio: 41.46%
+Mean reprojection error: 0.7100 px
+Median reprojection error: 0.6107 px
+Maximum reprojection error: 1.4636 px
+
+MAGSAC++
+Inliers: 16
+Outliers: 25
+Inlier ratio: 39.02%
+Mean reprojection error: 0.4444 px
+Median reprojection error: 0.2597 px
+Maximum reprojection error: 1.3193 px

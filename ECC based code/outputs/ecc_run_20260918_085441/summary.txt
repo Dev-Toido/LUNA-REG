@@ -1,0 +1,8 @@
+ECC IMAGE REGISTRATION SUMMARY
+========================================
+Motion model              : euclidean
+Final correlation coeff.  : 0.156872  (1.0 = perfect match)
+
+Warp matrix:
+[[ 9.9923062e-01  3.9218869e-02 -1.2904361e+02]
+ [-3.9218869e-02  9.9923062e-01 -1.0108446e+02]]

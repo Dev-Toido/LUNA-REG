@@ -1,0 +1,7 @@
+Segmentation work
+Aj core ka dekh ke final krna h
+or pipeline ka proper flow krna h (Vivek ka dekh ke)
+pura workflow frontend mai kya kya daleng or kaise
+Koi graph jaisa result nikal ske
+GitHub pe dalna h
+Code ka ek fixed thing rakhna ki kitne %pe run kre or kitne pe nhi 

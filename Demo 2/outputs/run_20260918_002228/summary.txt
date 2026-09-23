@@ -1,0 +1,14 @@
+IMAGE REGISTRATION SUMMARY
+========================================
+Keypoints in image1 (moving) : 8000
+Keypoints in image2 (fixed)  : 8000
+Raw KNN match pairs          : 8000
+Good matches (ratio test)    : 6
+RANSAC inliers               : 4
+RANSAC outliers rejected     : 2
+Inlier ratio                 : 66.67%
+
+Homography matrix:
+[[ 3.90564074e+00  2.85818426e+00  2.25745229e+03]
+ [ 6.57884155e+00  4.95269667e+00 -5.43564316e+02]
+ [ 4.71489542e-03  9.33805232e-03  1.00000000e+00]]
