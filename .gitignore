@@ -3,6 +3,7 @@ __pycache__/
 *.py[codz]
 *$py.class
 data/staged_inputs/
+data/registrations/
 
 # C extensions
 *.so

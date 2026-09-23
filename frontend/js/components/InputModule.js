@@ -353,9 +353,12 @@ class InputModule {
             <pre class="input-json-viewer">${JSON.stringify(displayObj, null, 2)}</pre>
           </div>
         </div>
-        <div class="input-modal-footer">
+        <div class="input-modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" class="btn-browse-file" id="btnDismissHandoffModal" style="flex: 0 0 auto;">
             <span>Acknowledge & Close</span>
+          </button>
+          <button type="button" class="btn-proceed-processing" id="btnLaunchProcessing" style="flex: 0 0 auto; background: linear-gradient(135deg, #d4af37 0%, #b89628 100%); color: #07080a; font-weight: 700; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <span>Launch Processing Module &rarr;</span>
           </button>
         </div>
       </div>
@@ -370,6 +373,15 @@ class InputModule {
 
     modal.querySelector('#btnCloseHandoffModal').addEventListener('click', closeModal);
     modal.querySelector('#btnDismissHandoffModal').addEventListener('click', closeModal);
+
+    const launchBtn = modal.querySelector('#btnLaunchProcessing');
+    if (launchBtn) {
+      launchBtn.addEventListener('click', () => {
+        const stageId = apiResult?.stage_id;
+        const targetUrl = stageId ? `/processing?stage_id=${encodeURIComponent(stageId)}` : '/processing';
+        window.location.href = targetUrl;
+      });
+    }
   }
 
   /**

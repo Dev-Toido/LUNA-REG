@@ -46,8 +46,22 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
         pass
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 WEB_DIR = PROJECT_ROOT / "frontend" if (PROJECT_ROOT / "frontend").is_dir() else PROJECT_ROOT / "web"
 STAGED_DIR = PROJECT_ROOT / "data" / "staged_inputs"
+REGISTRATIONS_DIR = PROJECT_ROOT / "data" / "registrations"
+STAGED_DIR.mkdir(parents=True, exist_ok=True)
+REGISTRATIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+try:
+    from core.processing_engine import ProcessingEngine
+except ImportError:
+    try:
+        from src.core.processing_engine import ProcessingEngine
+    except ImportError:
+        ProcessingEngine = None
 
 
 class LunaRegHTTPHandler(BaseHTTPRequestHandler):
@@ -74,12 +88,54 @@ class LunaRegHTTPHandler(BaseHTTPRequestHandler):
             self.serve_file(WEB_DIR / "input_module.html", "text/html; charset=utf-8")
             return
 
-        # Route 3: Automated Test Runner -> serve web/test_runner.html
+        # Route 3: Processing Module -> serve web/processing_module.html
+        if clean_path in ["/processing", "/processing-module", "/processing.html", "/processing_module.html"]:
+            self.serve_file(WEB_DIR / "processing_module.html", "text/html; charset=utf-8")
+            return
+
+        # Route 4: Automated Test Runner -> serve web/test_runner.html
         if clean_path in ["/test-runner", "/test_runner.html", "/tests"]:
             self.serve_file(WEB_DIR / "test_runner.html", "text/html; charset=utf-8")
             return
 
-        # Route 4: /api/demo-data -> JSON API endpoint for external/API inspection
+        # Route 5: Registration visual artifacts /api/v1/registration/artifacts/<job_id>/<filename>
+        if clean_path.startswith("/api/v1/registration/artifacts/"):
+            subpath = clean_path[len("/api/v1/registration/artifacts/"):].lstrip("/")
+            candidate = REGISTRATIONS_DIR / subpath
+            try:
+                resolved = candidate.resolve()
+                if not str(resolved).startswith(str(REGISTRATIONS_DIR.resolve())):
+                    self.send_error(403, "Access Denied: Path outside registrations directory")
+                    return
+                if resolved.is_file():
+                    mime_type, _ = mimetypes.guess_type(str(resolved))
+                    self.serve_file(resolved, mime_type or "image/png")
+                    return
+                else:
+                    self.send_error(404, f"Artifact not found: {subpath}")
+                    return
+            except Exception as e:
+                self.send_error(500, f"Error resolving artifact: {e}")
+                return
+
+        # Route 6: Staged inputs and data directory access
+        if clean_path.startswith("/data/"):
+            rel = clean_path.lstrip("/")
+            cand = PROJECT_ROOT / rel
+            try:
+                resolved = cand.resolve()
+                if not str(resolved).startswith(str((PROJECT_ROOT / "data").resolve())):
+                    self.send_error(403, "Access Denied")
+                    return
+                if resolved.is_file():
+                    mime_type, _ = mimetypes.guess_type(str(resolved))
+                    self.serve_file(resolved, mime_type or "application/octet-stream")
+                    return
+            except Exception as e:
+                self.send_error(500, f"Internal Error: {e}")
+                return
+
+        # Route 7: /api/demo-data -> JSON API endpoint for external/API inspection
         if clean_path == "/api/demo-data":
             self.serve_demo_api()
             return
@@ -156,6 +212,10 @@ class LunaRegHTTPHandler(BaseHTTPRequestHandler):
 
         if clean_path == "/api/stage-inputs":
             self.handle_stage_inputs()
+            return
+
+        if clean_path in ["/api/v1/registration/process", "/api/process"]:
+            self.handle_registration_process()
             return
 
         self.send_error(404, f"Endpoint not found: {clean_path}")
@@ -235,6 +295,185 @@ class LunaRegHTTPHandler(BaseHTTPRequestHandler):
 
         except Exception as e:
             err_data = json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(err_data)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(err_data)
+
+    def handle_registration_process(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            content_type = self.headers.get("Content-Type", "")
+
+            # Security limit: 150 MB max payload for registration
+            if content_length > 150 * 1024 * 1024:
+                self.send_error(413, "Payload Too Large: Max registration size is 150 MB")
+                return
+
+            body = self.rfile.read(content_length)
+            job_id = f"job_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+            job_dir = REGISTRATIONS_DIR / job_id
+            job_dir.mkdir(parents=True, exist_ok=True)
+            inputs_dir = job_dir / "inputs"
+            inputs_dir.mkdir(parents=True, exist_ok=True)
+
+            ref_path = None
+            mov_path = None
+            settings = {
+                "ratio_threshold": 0.75,
+                "ransac_threshold": 5.0,
+                "max_features": 2000,
+                "contrast_enhancement": True,
+                "rescale_factor": 1.0,
+            }
+
+            if "multipart/form-data" in content_type:
+                header_bytes = f"Content-Type: {content_type}\r\n\r\n".encode("latin1")
+                full_msg = BytesParser(policy=default).parsebytes(header_bytes + body)
+
+                for part in full_msg.iter_parts():
+                    cd = part.get("Content-Disposition", "")
+                    name = None
+                    filename = None
+                    for item in cd.split(";"):
+                        item = item.strip()
+                        if item.startswith("name="):
+                            name = item.split("=", 1)[1].strip('"\'')
+                        elif item.startswith("filename="):
+                            filename = item.split("=", 1)[1].strip('"\'')
+
+                    if filename:
+                        safe_filename = Path(filename).name
+                        data = part.get_payload(decode=True)
+                        target_path = inputs_dir / safe_filename
+                        with open(target_path, "wb") as f:
+                            f.write(data)
+
+                        if name == "reference_image" or (name and "ref" in name.lower()):
+                            ref_path = target_path
+                        elif name == "moving_image" or (name and ("mov" in name.lower() or "source" in name.lower())):
+                            mov_path = target_path
+                        elif not ref_path:
+                            ref_path = target_path
+                        elif not mov_path:
+                            mov_path = target_path
+                    else:
+                        payload_val = part.get_payload(decode=True).decode("utf-8", errors="ignore").strip()
+                        if name == "stage_id":
+                            stage_dir = STAGED_DIR / payload_val
+                            if stage_dir.is_dir():
+                                staged_files = [p for p in stage_dir.iterdir() if p.is_file() and p.name != "staging_meta.json"]
+                                for sf in staged_files:
+                                    if "ref" in sf.name.lower():
+                                        ref_path = sf
+                                    elif "mov" in sf.name.lower() or "source" in sf.name.lower():
+                                        mov_path = sf
+                                if not ref_path and len(staged_files) >= 1:
+                                    ref_path = staged_files[0]
+                                if not mov_path and len(staged_files) >= 2:
+                                    mov_path = staged_files[1]
+                        elif name == "reference_path":
+                            cand = Path(payload_val)
+                            ref_candidate = cand if cand.is_absolute() else PROJECT_ROOT / cand
+                            if ref_candidate.is_file():
+                                ref_path = ref_candidate
+                        elif name == "moving_path":
+                            cand = Path(payload_val)
+                            mov_candidate = cand if cand.is_absolute() else PROJECT_ROOT / cand
+                            if mov_candidate.is_file():
+                                mov_path = mov_candidate
+                        elif name in settings:
+                            if name == "contrast_enhancement":
+                                settings[name] = payload_val.lower() in ["true", "1", "yes"]
+                            elif name == "max_features":
+                                settings[name] = int(payload_val)
+                            elif name in ["ratio_threshold", "ransac_threshold", "rescale_factor"]:
+                                settings[name] = float(payload_val)
+            else:
+                try:
+                    payload = json.loads(body.decode("utf-8"))
+                except Exception:
+                    payload = {}
+
+                if "stage_id" in payload and payload["stage_id"]:
+                    stage_dir = STAGED_DIR / payload["stage_id"]
+                    if stage_dir.is_dir():
+                        staged_files = [p for p in stage_dir.iterdir() if p.is_file() and p.name != "staging_meta.json"]
+                        for sf in staged_files:
+                            if "ref" in sf.name.lower():
+                                ref_path = sf
+                            elif "mov" in sf.name.lower() or "source" in sf.name.lower():
+                                mov_path = sf
+                        if not ref_path and len(staged_files) >= 1:
+                            ref_path = staged_files[0]
+                        if not mov_path and len(staged_files) >= 2:
+                            mov_path = staged_files[1]
+
+                if "reference_path" in payload and payload["reference_path"]:
+                    cand = Path(payload["reference_path"])
+                    ref_path = cand if cand.is_absolute() else PROJECT_ROOT / cand
+
+                if "moving_path" in payload and payload["moving_path"]:
+                    cand = Path(payload["moving_path"])
+                    mov_path = cand if cand.is_absolute() else PROJECT_ROOT / cand
+
+                if "settings" in payload and isinstance(payload["settings"], dict):
+                    settings.update(payload["settings"])
+
+            if not ref_path or not mov_path:
+                resp = {
+                    "job_id": job_id,
+                    "status": "FAILED",
+                    "registered_image": None,
+                    "keypoints_image": None,
+                    "matches_image": None,
+                    "inliers_image": None,
+                    "overlay_image": None,
+                    "difference_image": None,
+                    "metrics": {"processing_time_seconds": 0.0},
+                    "transformation": None,
+                    "error": "Missing input: Reference and Moving images are both required for registration.",
+                }
+                resp_bytes = json.dumps(resp, indent=2).encode("utf-8")
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(resp_bytes)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(resp_bytes)
+                return
+
+            if not ProcessingEngine:
+                raise RuntimeError("ProcessingEngine module could not be imported.")
+
+            engine = ProcessingEngine(artifacts_dir=REGISTRATIONS_DIR)
+            result = engine.run_registration(ref_path, mov_path, settings=settings, job_id=job_id)
+
+            resp_bytes = json.dumps(result, indent=2).encode("utf-8")
+            status_code = 200 if result.get("status") == "SUCCESS" else 422
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(resp_bytes)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(resp_bytes)
+
+        except Exception as e:
+            err_data = json.dumps({
+                "job_id": None,
+                "status": "FAILED",
+                "registered_image": None,
+                "keypoints_image": None,
+                "matches_image": None,
+                "inliers_image": None,
+                "overlay_image": None,
+                "difference_image": None,
+                "metrics": {"processing_time_seconds": 0.0},
+                "transformation": None,
+                "error": f"Internal Registration Server Error: {e}"
+            }, indent=2).encode("utf-8")
             self.send_response(500)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(err_data)))

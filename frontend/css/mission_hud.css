@@ -1,0 +1,182 @@
+/* ==========================================================================
+   LUNA-REG — Mission HUD & Shared Header Stylesheet
+   Strict Mission Control Theme (Zero Blue Colors)
+   ========================================================================== */
+
+:root {
+  --obsidian-base: #07080a;
+  --charcoal-surface: #121418;
+  --charcoal-card: #181b22;
+  --lunar-border: #272b35;
+  --lunar-border-light: #363a44;
+  --champagne-gold: #d4af37;
+  --gold-glow: rgba(212, 175, 55, 0.25);
+  --off-white: #eef0f5;
+  --text-muted: #8d929f;
+  --status-green: #4caf50;
+  --status-amber: #ffb74d;
+  --status-crimson: #d9534f;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--obsidian-base);
+  color: var(--off-white);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Mission Control Header */
+.mission-header {
+  background: linear-gradient(180deg, #181b22 0%, #121418 100%);
+  border-bottom: 1px solid var(--lunar-border);
+  padding: 10px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mission-crest {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #272b35 0%, #0b0c10 100%);
+  border: 1.5px solid var(--champagne-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px var(--gold-glow);
+}
+
+.crest-moon {
+  font-size: 18px;
+  color: var(--champagne-gold);
+}
+
+.brand-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.brand-name {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--off-white);
+  font-family: var(--font-mono);
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--champagne-gold);
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+
+/* Header Telemetry Group */
+.header-telemetry-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.telemetry-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.telemetry-val {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--off-white);
+}
+
+.telemetry-val.highlight {
+  color: var(--champagne-gold);
+}
+
+/* Demo / Active Subsystem Mode Badge */
+.demo-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 3px;
+  border: 1px solid var(--champagne-gold);
+  background: rgba(212, 175, 55, 0.12);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.badge-pulse-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: hud-pulse 1.6s infinite;
+}
+
+@keyframes hud-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+}
+
+/* Header Action Links */
+.header-action-btn {
+  background: #181b22;
+  border: 1px solid var(--lunar-border-light);
+  color: var(--off-white);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.header-action-btn:hover {
+  background: #272b35;
+  border-color: var(--champagne-gold);
+  color: var(--champagne-gold);
+}
