@@ -1,0 +1,56 @@
+
+===========================================
+        SIFT + RANSAC REPORT
+===========================================
+
+REFERENCE IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Akshat code/Image/Lunar NCR reference.png
+
+MOVING IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Akshat code/Image/Image Lunar NCR.png
+
+-------------------------------------------
+FEATURE DETECTION
+-------------------------------------------
+
+Reference Keypoints : 15000
+Moving Keypoints    : 15001
+
+-------------------------------------------
+FEATURE MATCHING
+-------------------------------------------
+
+Candidate Matches   : 15001
+Lowe Good Matches   : 2881
+
+-------------------------------------------
+RANSAC
+-------------------------------------------
+
+RANSAC Inliers      : 2849
+Inlier Ratio        : 98.89 %
+
+-------------------------------------------
+SPATIAL DISTRIBUTION
+-------------------------------------------
+
+Moving Coverage     : 100.00 %
+Reference Coverage  : 63.89 %
+
+-------------------------------------------
+REGISTRATION ERROR
+-------------------------------------------
+
+Mean Error          : 0.396 px
+Median Error        : 0.309 px
+Maximum Error       : 3.234 px
+
+-------------------------------------------
+HOMOGRAPHY
+-------------------------------------------
+
+[[ 6.60929773e-01  4.69309344e-05  2.39086376e+02]
+ [-4.64372474e-05  6.61197148e-01  1.17970980e+02]
+ [-1.57980197e-07  1.41429860e-08  1.00000000e+00]]
+
+===========================================

@@ -1,0 +1,69 @@
+
+===========================================
+  UNIFIED REGISTRATION REPORT  (method = sift)
+===========================================
+
+REFERENCE IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Demo 4/Referenced.jpeg
+
+MOVING IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Demo 4/Moving.jpeg
+
+-------------------------------------------
+FOURIER-MELLIN SCALE/ROTATION ESTIMATE
+-------------------------------------------
+
+Estimated scale ratio (moving/reference) : 1.0004
+Estimated rotation                       : -0.05 degrees
+Phase-correlation confidence             : 0.0827
+
+-------------------------------------------
+PYRAMID / SCALE MATCHING
+-------------------------------------------
+
+Source resolution used        : 0.9996
+Reference resolution used     : 1.0000
+Pyramid levels built          : 2
+Matched source level          : 0 (scale 1.0000)
+Matched reference level       : 0 (scale 1.0000)
+
+-------------------------------------------
+FEATURE DETECTION + MATCHING (sift)
+-------------------------------------------
+
+Reference Keypoints : 15000
+Moving Keypoints    : 3080
+Total Candidate Matches : 3080
+Triangle Verified   : 1193
+
+-------------------------------------------
+RANSAC
+-------------------------------------------
+
+RANSAC Inliers      : 1193
+Inlier Ratio        : 100.00 %
+
+-------------------------------------------
+SPATIAL DISTRIBUTION
+-------------------------------------------
+
+Moving Coverage     : 27.78 %
+Reference Coverage  : 27.78 %
+
+-------------------------------------------
+REGISTRATION ERROR (full-resolution pixels)
+-------------------------------------------
+
+Mean Error          : 0.094 px
+Median Error        : 0.072 px
+Maximum Error       : 1.124 px
+
+-------------------------------------------
+HOMOGRAPHY (full-resolution coordinate space)
+-------------------------------------------
+
+[[ 1.00006002e+00  1.00458419e-05 -3.06662518e-02]
+ [ 3.59454939e-05  9.99981759e-01 -2.03603895e-02]
+ [ 5.70404538e-10 -3.44677618e-08  1.00000000e+00]]
+
+===========================================

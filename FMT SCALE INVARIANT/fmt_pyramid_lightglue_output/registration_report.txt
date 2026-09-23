@@ -1,0 +1,74 @@
+
+===========================================
+  FMT + PYRAMID + SUPERPOINT + LIGHTGLUE + RANSAC REPORT
+===========================================
+
+REFERENCE IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/FMT SCALE INVARIANT/Lunar NCR reference.png
+
+MOVING IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/FMT SCALE INVARIANT/Image Lunar NCR.png
+
+-------------------------------------------
+FOURIER-MELLIN SCALE/ROTATION ESTIMATE
+-------------------------------------------
+
+Estimated scale ratio (moving/reference) : 1.5021
+Estimated rotation                       : 0.00 degrees
+Phase-correlation confidence             : 0.4721
+
+-------------------------------------------
+PYRAMID / SCALE MATCHING
+-------------------------------------------
+
+Source resolution used        : 0.6657
+Reference resolution used     : 1.0000
+Pyramid levels built          : 2
+Matched source level          : 1 (scale 0.5000)
+Matched reference level       : 0 (scale 1.0000)
+
+-------------------------------------------
+FEATURE DETECTION (SuperPoint, on matched levels)
+-------------------------------------------
+
+Reference Keypoints : 1384
+Moving Keypoints    : 1175
+
+-------------------------------------------
+FEATURE MATCHING (LightGlue)
+-------------------------------------------
+
+Candidate Keypoint Pairs : 573
+Triangle Verified   : 573
+
+-------------------------------------------
+RANSAC
+-------------------------------------------
+
+RANSAC Inliers      : 531
+Inlier Ratio        : 92.67 %
+
+-------------------------------------------
+SPATIAL DISTRIBUTION
+-------------------------------------------
+
+Moving Coverage     : 100.00 %
+Reference Coverage  : 58.33 %
+
+-------------------------------------------
+REGISTRATION ERROR (full-resolution pixels)
+-------------------------------------------
+
+Mean Error          : 1.350 px
+Median Error        : 1.172 px
+Maximum Error       : 3.996 px
+
+-------------------------------------------
+HOMOGRAPHY (full-resolution coordinate space)
+-------------------------------------------
+
+[[ 6.61249664e-01  1.53271350e-05  2.39318521e+02]
+ [-3.36743552e-05  6.61889978e-01  1.18064018e+02]
+ [ 2.52848826e-08  3.97165190e-07  1.00000000e+00]]
+
+===========================================

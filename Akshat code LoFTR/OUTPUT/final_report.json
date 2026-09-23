@@ -1,0 +1,31 @@
+{
+  "reference": "OHRC",
+  "target": "TMC-2",
+  "direction": "TMC-2 -> OHRC",
+  "test_mode": "image_inputs_only_no_metadata",
+  "resolution_normalization": {
+    "reference_safe_scale": 1.0,
+    "moving_safe_scale": 1.0,
+    "metadata_gsd_normalization": "disabled_for_test"
+  },
+  "illumination_analysis": {
+    "analysis_mode": "IMAGE_ONLY_TEST",
+    "reference_mean_intensity": 52.731813455657495,
+    "moving_mean_intensity": 54.90519113149847,
+    "brightness_difference": 2.1733776758409746,
+    "histogram_distance": 0.07681924055685904,
+    "severity_score": 0,
+    "severity": "LOW"
+  },
+  "selected_branch": "CLAHE + SIFT",
+  "quality": {
+    "ransac_inliers": 1800,
+    "inlier_ratio_percent": 100.0,
+    "mean_reprojection_error_px": 0.3594578802585602,
+    "median_reprojection_error_px": 0.28601139783859253,
+    "max_reprojection_error_px": 3.0138208866119385,
+    "spatial_coverage_percent": 61.111111111111114,
+    "homography_valid": true,
+    "accepted": true
+  }
+}

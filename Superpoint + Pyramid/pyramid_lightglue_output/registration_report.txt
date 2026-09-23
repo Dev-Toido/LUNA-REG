@@ -1,0 +1,66 @@
+
+===========================================
+  PYRAMID + SUPERPOINT + LIGHTGLUE + RANSAC REPORT
+===========================================
+
+REFERENCE IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Superpoint + Pyramid/quickmap-lroc.png
+
+MOVING IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Superpoint + Pyramid/Croped.png
+
+-------------------------------------------
+PYRAMID / SCALE MATCHING
+-------------------------------------------
+
+Source resolution (m/px)      : 0.1
+Reference resolution (m/px)   : 0.1
+Pyramid levels built          : 1
+Matched source level          : 0 (scale 1.0000)
+Matched reference level       : 0 (scale 1.0000)
+
+-------------------------------------------
+FEATURE DETECTION (SuperPoint, on matched levels)
+-------------------------------------------
+
+Reference Keypoints : 2118
+Moving Keypoints    : 958
+
+-------------------------------------------
+FEATURE MATCHING (LightGlue)
+-------------------------------------------
+
+Candidate Keypoint Pairs : 45
+Triangle Verified   : 45
+
+-------------------------------------------
+RANSAC
+-------------------------------------------
+
+RANSAC Inliers      : 32
+Inlier Ratio        : 71.11 %
+
+-------------------------------------------
+SPATIAL DISTRIBUTION
+-------------------------------------------
+
+Moving Coverage     : 25.00 %
+Reference Coverage  : 8.33 %
+
+-------------------------------------------
+REGISTRATION ERROR (full-resolution pixels)
+-------------------------------------------
+
+Mean Error          : 1.627 px
+Median Error        : 1.643 px
+Maximum Error       : 3.473 px
+
+-------------------------------------------
+HOMOGRAPHY (full-resolution coordinate space)
+-------------------------------------------
+
+[[ 1.03614035e+00  4.12107554e-03 -1.82081634e+00]
+ [ 2.15956168e-03  1.02716482e+00 -1.60174261e+00]
+ [ 8.23170509e-05  6.59426456e-05  1.00000000e+00]]
+
+===========================================
