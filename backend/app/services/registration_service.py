@@ -27,24 +27,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
-import sys
-
-# Ensure repository root and backend directory are in sys.path
-backend_dir = Path(__file__).resolve().parent.parent.parent
-repo_root = backend_dir.parent
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
-if str(backend_dir) not in sys.path:
-    sys.path.insert(0, str(backend_dir))
-
-try:
-    import processing as proc
-    import output as out
-except ImportError as imp_err:
-    logger.warning("Core processing/output module import failed: %s", imp_err)
-    proc = None
-    out = None
-
 logger = logging.getLogger("luna_reg.registration_service")
 
 # Output directory for static web access

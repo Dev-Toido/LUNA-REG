@@ -220,7 +220,3 @@ __marimo__/
 
 backend/credentials.json
 backend/token.json
-
-# Local venv and registration outputs
-pyvenv.cfg
-luna_reg_outputs/
