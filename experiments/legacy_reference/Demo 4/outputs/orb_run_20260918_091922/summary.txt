@@ -1,0 +1,14 @@
+ORB IMAGE REGISTRATION SUMMARY
+========================================
+Keypoints in image1 (moving) : 18848
+Keypoints in image2 (fixed)  : 20000
+Raw KNN match pairs          : 18848
+Good matches (ratio test)    : 3829
+RANSAC inliers               : 3135
+RANSAC outliers rejected     : 694
+Inlier ratio                 : 81.88%
+
+Homography matrix:
+[[ 9.98973168e-01 -9.44889722e-05  1.60919586e-01]
+ [-7.13000531e-04  9.99169127e-01  3.39748731e-01]
+ [-1.22797188e-06 -4.01163746e-07  1.00000000e+00]]

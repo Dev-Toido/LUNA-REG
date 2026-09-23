@@ -1,0 +1,69 @@
+
+===========================================
+  UNIFIED REGISTRATION REPORT  (method = sift)
+===========================================
+
+REFERENCE IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Superpoint + Pyramid/quickmap-lroc.png
+
+MOVING IMAGE
+C:/Users/Yashi Kumari/OneDrive/Desktop/Lunar coding/Superpoint + Pyramid/Croped.png
+
+-------------------------------------------
+FOURIER-MELLIN SCALE/ROTATION ESTIMATE
+-------------------------------------------
+
+Estimated scale ratio (moving/reference) : 1.2451
+Estimated rotation                       : -28.92 degrees
+Phase-correlation confidence             : -0.0179
+
+-------------------------------------------
+PYRAMID / SCALE MATCHING
+-------------------------------------------
+
+Source resolution used        : 1.0000
+Reference resolution used     : 1.0000
+Pyramid levels built          : 1
+Matched source level          : 0 (scale 1.0000)
+Matched reference level       : 0 (scale 1.0000)
+
+-------------------------------------------
+FEATURE DETECTION + MATCHING (sift)
+-------------------------------------------
+
+Reference Keypoints : 15001
+Moving Keypoints    : 6961
+Total Candidate Matches : 6961
+Triangle Verified   : 1197
+
+-------------------------------------------
+RANSAC
+-------------------------------------------
+
+RANSAC Inliers      : 1197
+Inlier Ratio        : 100.00 %
+
+-------------------------------------------
+SPATIAL DISTRIBUTION
+-------------------------------------------
+
+Moving Coverage     : 100.00 %
+Reference Coverage  : 25.00 %
+
+-------------------------------------------
+REGISTRATION ERROR (full-resolution pixels)
+-------------------------------------------
+
+Mean Error          : 0.033 px
+Median Error        : 0.022 px
+Maximum Error       : 0.488 px
+
+-------------------------------------------
+HOMOGRAPHY (full-resolution coordinate space)
+-------------------------------------------
+
+[[ 1.00005386e+00  2.61564023e-05 -1.31633822e-02]
+ [ 3.09482959e-05  1.00001220e+00 -8.64135255e-03]
+ [ 9.32379080e-08 -3.12048924e-08  1.00000000e+00]]
+
+===========================================

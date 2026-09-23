@@ -1,0 +1,21 @@
+Category,Algorithm,Source Files,Duplicates
+Feature Extraction,SIFT,"Akshat code/registration.py, Akshat code/siftFMT.py, Akshat new code (good)/new.py, Akshat code LoFTR/Loftr.py, Demo 1/one.py",Yes
+Feature Extraction,SuperPoint,"Akshat + superpoint+ lightglue/superpoint.py, Akshat code/ARSS_demo.py, FMT SCALE INVARIANT/scale.py, Superpoint + Pyramid/superPyramid.py",Yes
+Feature Extraction,ORB,"Demo 1/one.py, Demo 4/demo.py",Yes
+Feature Extraction,RIFT2,"Akshat code LoFTR/Loftr.py, Akshat code LoFTR/loftr_sun.py",Yes
+Matching,LightGlue,"Akshat + superpoint+ lightglue/superpoint.py, Akshat code/ARSS_demo.py, FMT SCALE INVARIANT/scale.py, Superpoint + Pyramid/superPyramid.py",Yes
+Matching,LoFTR,"Akshat code LoFTR/Loftr.py, Akshat code LoFTR/loftr_sun.py",Yes
+Matching,BF,"Akshat code/registration.py, Akshat new code (good)/new.py",Yes
+Preprocessing,CLAHE/Scharr/PhaseOrientation,"Akshat code LoFTR/Loftr.py",Yes
+Preprocessing,Image Pyramid,"Akshat code/ARSS_demo.py, Akshat code/siftFMT.py, FMT SCALE INVARIANT/scale.py, Superpoint + Pyramid/superPyramid.py, ECC based code/demo.py",Yes
+Correspondence,Triangular Verification (TAT/RUCO),"Akshat + superpoint+ lightglue/superpoint.py, Akshat code/ARSS_demo.py, Akshat code/siftFMT.py, Akshat new code (good)/new.py, FMT SCALE INVARIANT/scale.py, Superpoint + Pyramid/superPyramid.py, Akshat code LoFTR/Loftr.py",Yes
+Correspondence,Bidirectional Matching,"Akshat new code (good)/new.py",No
+Outlier Removal,RANSAC,"Various",Yes
+Outlier Removal,MAGSAC/MAGSAC++,"MAGSAC++ based code/magsac.py, Demo 3 (ECC + Demo 2)/demo.py",Yes
+Geometric Models,FMT,"Akshat code/ARSS_demo.py, Akshat code/siftFMT.py, FMT SCALE INVARIANT/scale.py",Yes
+Registration,ECC,"Demo 1/one.py, Demo 3 (ECC + Demo 2)/demo.py, ECC based code/demo.py",Yes
+Registration,Phase Correlation,"Demo 1/one.py",No
+Registration,Optical Flow,"Demo 1/one.py",No
+Quality Evaluation,Reprojection Error,"Various",Yes
+Quality Evaluation,Spatial Coverage,"Various",Yes
+Quality Evaluation,Blur Score,"Akshat code/ARSS_demo.py",No
