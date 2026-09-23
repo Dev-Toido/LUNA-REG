@@ -52,6 +52,21 @@ class ComparisonToolbar {
     if (label) label.textContent = `${this.opacity}%`;
   }
 
+  setRegistrationStatus(isAvailable) {
+    this.isRegistrationAvailable = !!isAvailable;
+    if (!this.container) return;
+    const tag = this.container.querySelector('.comp-tag-status');
+    if (tag) {
+      if (this.isRegistrationAvailable) {
+        tag.textContent = 'REGISTERED RASTER ACTIVE';
+        tag.className = 'comp-tag-status active';
+      } else {
+        tag.textContent = 'AWAITING REGISTERED RASTER';
+        tag.className = 'comp-tag-status';
+      }
+    }
+  }
+
   render(containerEl) {
     if (containerEl) this.container = containerEl;
     if (!this.container) return;

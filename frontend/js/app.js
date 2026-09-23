@@ -1595,6 +1595,7 @@
       subpixel: subpixel,
       clahe: clahe,
       jobId: jobId,
+      pairId: options.pairId || 1,
       startTime: regWorkflowState.jobStartTime || Date.now(),
       onStageUpdate: (stageName, pct, isCompleted) => {
         const stageEl = document.getElementById('proc-current-stage');
@@ -1619,9 +1620,12 @@
     }).then(result => {
       stopProcessingStatusPolling();
       addTelemetryLog('[STATUS:COMPLETED] Scientific registration convergence achieved.', 'success');
+      if (typeof resultsState !== 'undefined') resultsState.latestResult = result;
+      if (!window.resultsState) window.resultsState = {};
+      window.resultsState.latestResult = result;
       setTimeout(() => {
         loadJobResultsIntoViewer(jobId, true, result);
-      }, 700);
+      }, 500);
     }).catch(err => {
       stopProcessingStatusPolling();
       showProcessingFailure(jobId, `Planetary registration failed: ${err.message}`);
@@ -1807,6 +1811,35 @@
   async function loadJobResultsIntoViewer(jobId, updateHash = true, directResultData = null) {
     if (!jobId) return;
 
+    const api = window.LUNAR_API || window.apiService;
+    let result = directResultData;
+    if (!result && api && typeof api.getRegistrationResult === 'function') {
+      try {
+        result = await api.getRegistrationResult(jobId);
+      } catch (e) {
+        console.warn('api.getRegistrationResult failed:', e);
+      }
+    }
+    if (!result && window.resultsState && window.resultsState.latestResult) {
+      result = window.resultsState.latestResult;
+    }
+
+    if (result) {
+      resultsState.latestResult = result;
+      if (!window.resultsState) window.resultsState = {};
+      window.resultsState.latestResult = result;
+    }
+
+    let pairId = 1;
+    if (result && result.pair_id) {
+      pairId = result.pair_id;
+    } else if (jobId && typeof jobId === 'string' && jobId.includes('PAIR')) {
+      const match = jobId.match(/PAIR(\d+)/i);
+      if (match) pairId = parseInt(match[1], 10);
+    } else if (window.resultsPage && window.resultsPage.pairId) {
+      pairId = window.resultsPage.pairId;
+    }
+
     switchAppView('results', updateHash);
 
     const metaHeader = document.getElementById('res-meta-header');
@@ -1814,11 +1847,13 @@
       metaHeader.textContent = `JOB ${jobId} • Multi-modal lunar satellite correspondence analysis`;
     }
 
-    const api = window.LUNAR_API || window.apiService;
-
     try {
-      const result = directResultData || (await api.getRegistrationResult(jobId));
-      resultsState.latestResult = result;
+      if (!result) {
+        result = directResultData || (await api.getRegistrationResult(jobId));
+        resultsState.latestResult = result;
+        if (!window.resultsState) window.resultsState = {};
+        window.resultsState.latestResult = result;
+      }
 
       const m = result.metrics || {};
       const numMatches = (m.total_matches !== undefined) ? String(m.total_matches) : ((result.num_matches !== undefined) ? String(result.num_matches) : (result.matches ? String(result.matches.length) : 'Not available'));
@@ -1852,25 +1887,26 @@
       updateResultsMetrics(resultsState.metrics);
 
       // Imagery assets
+      const resolveUrl = (u) => (api && api.resolveAssetUrl) ? api.resolveAssetUrl(u) : (u || '');
       const refUrl = result.reference_image_url || result.reference_image;
       if (refUrl) {
         resultsState.refImage = new Image();
         resultsState.refImage.onload = () => drawResultsCanvas();
-        resultsState.refImage.src = api.resolveAssetUrl(refUrl);
+        resultsState.refImage.src = resolveUrl(refUrl);
       }
 
       const regTgtUrl = result.registered_image_url || result.registered_image || result.target_aligned_url;
       if (regTgtUrl) {
         resultsState.tgtRegisteredImage = new Image();
         resultsState.tgtRegisteredImage.onload = () => drawResultsCanvas();
-        resultsState.tgtRegisteredImage.src = api.resolveAssetUrl(regTgtUrl);
+        resultsState.tgtRegisteredImage.src = resolveUrl(regTgtUrl);
       }
 
       const origTgtUrl = result.target_original_url || result.target_image_url || result.target_image;
       if (origTgtUrl) {
         resultsState.tgtOriginalImage = new Image();
         resultsState.tgtOriginalImage.onload = () => drawResultsCanvas();
-        resultsState.tgtOriginalImage.src = api.resolveAssetUrl(origTgtUrl);
+        resultsState.tgtOriginalImage.src = resolveUrl(origTgtUrl);
       } else if (resultsState.tgtRegisteredImage) {
         resultsState.tgtOriginalImage = resultsState.tgtRegisteredImage;
       }
@@ -1899,18 +1935,43 @@
       }
 
       // Synchronize with ResultsPage & AnalysisToolsPage components
-      if (window.resultsPage && typeof window.resultsPage.applyPairData === 'function') {
-        window.resultsPage.applyPairData();
-      } else if (window.resultsPage && window.resultsPage.workspace && typeof window.resultsPage.workspace.setImageUrls === 'function') {
-        window.resultsPage.workspace.setImageUrls(
-          api.resolveAssetUrl(origTgtUrl || regTgtUrl),
-          api.resolveAssetUrl(refUrl),
-          api.resolveAssetUrl(regTgtUrl),
-          api.resolveAssetUrl(diffUrl)
-        );
+      if (window.resultsPage) {
+        window.resultsPage.pairId = pairId;
+        if (typeof window.resultsPage.applyPairData === 'function') {
+          window.resultsPage.applyPairData(pairId);
+        }
+        if (window.resultsPage.workspace && typeof window.resultsPage.workspace.setImageUrls === 'function') {
+          window.resultsPage.workspace.setImageUrls(
+            resolveUrl(origTgtUrl || regTgtUrl),
+            resolveUrl(refUrl),
+            resolveUrl(regTgtUrl),
+            resolveUrl(diffUrl)
+          );
+          window.resultsPage.workspace.resizeCanvas();
+          window.resultsPage.workspace.draw();
+        }
+        if (window.resultsPage.metrics && result.metrics) {
+          window.resultsPage.metrics.setMetrics(result.metrics, pairId);
+        }
+        if (window.resultsPage.exportPanel) {
+          window.resultsPage.exportPanel.setData(
+            window.resultsPage.activePair,
+            window.resultsPage.sourceProduct,
+            window.resultsPage.referenceProduct,
+            result.metrics,
+            !!regTgtUrl,
+            !!diffUrl
+          );
+        }
+        if (window.resultsPage.toolbar && typeof window.resultsPage.toolbar.setRegistrationStatus === 'function') {
+          window.resultsPage.toolbar.setRegistrationStatus(!!regTgtUrl);
+        }
+        if (window.resultsPage.header && typeof window.resultsPage.header.setPairId === 'function') {
+          window.resultsPage.header.setPairId(pairId, true);
+        }
       }
       if (window.analysisToolsPage && typeof window.analysisToolsPage.applyPairData === 'function') {
-        window.analysisToolsPage.applyPairData();
+        window.analysisToolsPage.applyPairData(pairId);
       }
 
       // Wire download buttons

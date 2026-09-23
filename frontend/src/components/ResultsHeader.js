@@ -22,7 +22,7 @@ class ResultsHeader {
     this.backendHealth = { online: false, message: 'CHECKING...' };
   }
 
-  setPairId(pairId) {
+  setPairId(pairId, isCompleted = false) {
     this.activePairId = pairId;
     const select = this.container ? this.container.querySelector('#results-pair-select') : null;
     if (select && pairId) {
@@ -30,7 +30,11 @@ class ResultsHeader {
     }
     const badge = this.container ? this.container.querySelector('#results-pair-badge') : null;
     if (badge) {
-      badge.textContent = pairId ? `PAIR #${pairId}` : 'NO PAIR SELECTED';
+      badge.textContent = pairId ? (isCompleted ? `PAIR #${pairId} • ALIGNED ✓` : `PAIR #${pairId}`) : 'NO PAIR SELECTED';
+      if (isCompleted) {
+        badge.style.color = '#73c991';
+        badge.style.borderColor = 'rgba(115, 201, 145, 0.4)';
+      }
     }
   }
 

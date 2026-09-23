@@ -248,13 +248,17 @@ class ResultsPage {
    * Immediately applies complete metadata for a pair to ensure instant zero-latency rendering
    */
   applyPairData(pairId) {
-    if (!pairId) return;
+    pairId = pairId || this.pairId || 1;
     this.pairId = pairId;
     this.syncPairIdToUrl(pairId);
-    if (this.header) this.header.setPairId(pairId);
 
-    const stateWrap = this.container.querySelector('#res-mount-state');
-    const contentWrap = this.container.querySelector('#res-populated-content');
+    const latest = (window.resultsState && window.resultsState.latestResult) || null;
+    const isCompleted = !!(latest && (latest.registered_image_url || latest.registered_image));
+
+    if (this.header) this.header.setPairId(pairId, isCompleted);
+
+    const stateWrap = this.container ? this.container.querySelector('#res-mount-state') : null;
+    const contentWrap = this.container ? this.container.querySelector('#res-populated-content') : null;
     if (stateWrap && contentWrap) {
       stateWrap.style.display = 'none';
       contentWrap.style.display = 'block';
@@ -313,15 +317,6 @@ class ResultsPage {
       this.mapPreview.setData(this.activePair, this.sourceProduct, this.referenceProduct);
     }
 
-    if (this.metrics) {
-      this.metrics.setMetrics(null, pairId);
-    }
-
-    if (this.exportPanel) {
-      this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, null, false, false);
-    }
-
-    const latest = (window.resultsState && window.resultsState.latestResult) || null;
     if (latest && this.workspace) {
       const resolveUrl = (u) => (window.LUNAR_API && window.LUNAR_API.resolveAssetUrl) ? window.LUNAR_API.resolveAssetUrl(u) : (u || '');
       const refUrl = resolveUrl(latest.reference_image_url || latest.reference_image);
@@ -337,7 +332,10 @@ class ResultsPage {
         this.metrics.setMetrics(latest.metrics, pairId);
       }
       if (this.exportPanel) {
-        this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, latest.report_url, true, true);
+        this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, latest.metrics, !!regUrl, !!diffUrl);
+      }
+      if (this.toolbar && typeof this.toolbar.setRegistrationStatus === 'function') {
+        this.toolbar.setRegistrationStatus(!!regUrl);
       }
     } else if (window.clientRegistrationEngine && !this._isAutoAligning) {
       this._isAutoAligning = true;
@@ -377,6 +375,9 @@ class ResultsPage {
       }
       if (this.metrics) {
         this.metrics.setMetrics(null, pairId);
+      }
+      if (this.exportPanel) {
+        this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, null, false, false);
       }
     }
   }
@@ -435,7 +436,11 @@ class ResultsPage {
           if (this.summary) this.summary.setData(this.activePair, this.sourceProduct, this.referenceProduct);
           if (this.accordion) this.accordion.setData(this.activePair, this.sourceProduct, this.referenceProduct, this.sourceFiles, this.referenceFiles);
           if (this.mapPreview) this.mapPreview.setData(this.activePair, this.sourceProduct, this.referenceProduct);
-          if (this.exportPanel) this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, null, false, false);
+          const latest = (window.resultsState && window.resultsState.latestResult) || null;
+          const regAvail = !!(latest && (latest.registered_image_url || latest.registered_image));
+          const diffAvail = !!(latest && (latest.difference_image_url || latest.difference_image));
+          const metrics = latest ? latest.metrics : null;
+          if (this.exportPanel) this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, metrics, regAvail, diffAvail);
         } else if (pairMeta) {
           this.activePair = pairMeta;
           if (this.summary) this.summary.setData(this.activePair, this.sourceProduct, this.referenceProduct);

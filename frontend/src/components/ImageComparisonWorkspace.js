@@ -46,11 +46,15 @@ class ImageComparisonWorkspace {
     // Image Objects & Loaded Bitmaps
     this.sourceImg = new Image();
     this.referenceImg = new Image();
-    this.registeredImg = null; // Stays null when no backend output exists
-    this.differenceImg = null; // Stays null when no backend output exists
+    this.registeredImg = null;
+    this.differenceImg = null;
 
     this.sourceLoaded = false;
     this.referenceLoaded = false;
+    this.registeredLoaded = false;
+    this.differenceLoaded = false;
+    this.isLoading = false;
+    this.loadError = null;
 
     // Default assets (Strict Zero-Demo Policy: null until provided by registration output)
     this.sourceImgUrl = null;
@@ -63,19 +67,23 @@ class ImageComparisonWorkspace {
     this.sourceImg.onload = () => {
       this.sourceLoaded = true;
       this.draw();
+      this.updateDomElements();
     };
     this.sourceImg.onerror = () => {
       this.sourceLoaded = false;
       this.draw();
+      this.updateDomElements();
     };
 
     this.referenceImg.onload = () => {
       this.referenceLoaded = true;
       this.draw();
+      this.updateDomElements();
     };
     this.referenceImg.onerror = () => {
       this.referenceLoaded = false;
       this.draw();
+      this.updateDomElements();
     };
 
     if (this.sourceImgUrl) this.sourceImg.src = this.sourceImgUrl;
@@ -83,31 +91,122 @@ class ImageComparisonWorkspace {
   }
 
   setImageUrls(sourceUrl, referenceUrl, registeredUrl = null, differenceUrl = null) {
+    if (!sourceUrl && !referenceUrl && !registeredUrl && !differenceUrl) {
+      this.sourceImgUrl = null;
+      this.referenceImgUrl = null;
+      this.sourceLoaded = false;
+      this.referenceLoaded = false;
+      this.registeredLoaded = false;
+      this.differenceLoaded = false;
+      this.registeredImg = null;
+      this.differenceImg = null;
+      this.isLoading = false;
+      this.loadError = null;
+      this.draw();
+      this.updateDomElements();
+      return;
+    }
+
+    this.isLoading = true;
+    this.loadError = null;
+    let pendingCount = 0;
+
+    const notifyLoadProgress = () => {
+      pendingCount--;
+      if (pendingCount <= 0) {
+        this.isLoading = false;
+        this.draw();
+        this.updateDomElements();
+      }
+    };
+
     if (sourceUrl) {
       this.sourceImgUrl = sourceUrl;
       this.sourceLoaded = false;
+      pendingCount++;
+      this.sourceImg.onload = () => {
+        this.sourceLoaded = true;
+        notifyLoadProgress();
+      };
+      this.sourceImg.onerror = () => {
+        this.sourceLoaded = false;
+        notifyLoadProgress();
+      };
       this.sourceImg.src = sourceUrl;
+      if (this.sourceImg.complete && this.sourceImg.naturalWidth > 0) {
+        this.sourceLoaded = true;
+        pendingCount--;
+      }
     }
+
     if (referenceUrl) {
       this.referenceImgUrl = referenceUrl;
       this.referenceLoaded = false;
+      pendingCount++;
+      this.referenceImg.onload = () => {
+        this.referenceLoaded = true;
+        notifyLoadProgress();
+      };
+      this.referenceImg.onerror = () => {
+        this.referenceLoaded = false;
+        notifyLoadProgress();
+      };
       this.referenceImg.src = referenceUrl;
+      if (this.referenceImg.complete && this.referenceImg.naturalWidth > 0) {
+        this.referenceLoaded = true;
+        pendingCount--;
+      }
     }
+
     if (registeredUrl) {
+      this.registeredLoaded = false;
+      pendingCount++;
       this.registeredImg = new Image();
-      this.registeredImg.onload = () => this.draw();
+      this.registeredImg.onload = () => {
+        this.registeredLoaded = true;
+        notifyLoadProgress();
+      };
+      this.registeredImg.onerror = () => {
+        this.registeredLoaded = false;
+        notifyLoadProgress();
+      };
       this.registeredImg.src = registeredUrl;
+      if (this.registeredImg.complete && this.registeredImg.naturalWidth > 0) {
+        this.registeredLoaded = true;
+        pendingCount--;
+      }
     } else {
       this.registeredImg = null;
+      this.registeredLoaded = false;
     }
+
     if (differenceUrl) {
+      this.differenceLoaded = false;
+      pendingCount++;
       this.differenceImg = new Image();
-      this.differenceImg.onload = () => this.draw();
+      this.differenceImg.onload = () => {
+        this.differenceLoaded = true;
+        notifyLoadProgress();
+      };
+      this.differenceImg.onerror = () => {
+        this.differenceLoaded = false;
+        notifyLoadProgress();
+      };
       this.differenceImg.src = differenceUrl;
+      if (this.differenceImg.complete && this.differenceImg.naturalWidth > 0) {
+        this.differenceLoaded = true;
+        pendingCount--;
+      }
     } else {
       this.differenceImg = null;
+      this.differenceLoaded = false;
+    }
+
+    if (pendingCount <= 0) {
+      this.isLoading = false;
     }
     this.draw();
+    this.updateDomElements();
   }
 
   setMode(mode) {
@@ -296,10 +395,35 @@ class ImageComparisonWorkspace {
       splitLine.style.left = `${this.splitPos * 100}%`;
     }
 
+    const hasRegistered = !!((this.registeredLoaded && this.registeredImg) || (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0));
+    const hasDifference = !!((this.differenceLoaded && this.differenceImg) || (this.differenceImg && this.differenceImg.complete && this.differenceImg.naturalWidth > 0));
+
+    const regTag = this.container.querySelector('[data-slot="registered"] .res-slot-tag');
+    if (regTag) {
+      if (hasRegistered) {
+        regTag.textContent = 'ACTIVE';
+        regTag.className = 'res-slot-tag active';
+      } else {
+        regTag.textContent = 'PENDING';
+        regTag.className = 'res-slot-tag';
+      }
+    }
+
+    const diffTag = this.container.querySelector('[data-slot="difference"] .res-slot-tag');
+    if (diffTag) {
+      if (hasDifference) {
+        diffTag.textContent = 'ACTIVE';
+        diffTag.className = 'res-slot-tag active';
+      } else {
+        diffTag.textContent = 'PENDING';
+        diffTag.className = 'res-slot-tag';
+      }
+    }
+
     const banner = this.container.querySelector('#res-pending-banner');
     if (banner) {
-      const isPendingSlot = (this.activeSlot === 'registered' || this.activeSlot === 'difference');
-      const isPendingMode = (this.mode === 'difference' && !this.differenceImg);
+      const isPendingSlot = (this.activeSlot === 'registered' && !hasRegistered) || (this.activeSlot === 'difference' && !hasDifference);
+      const isPendingMode = (this.mode === 'difference' && !hasDifference && !hasRegistered);
       banner.style.display = (isPendingSlot || isPendingMode) ? 'flex' : 'none';
     }
 
@@ -307,20 +431,22 @@ class ImageComparisonWorkspace {
     const hudRight = this.container.querySelector('#hud-tag-right');
     if (hudLeft && hudRight) {
       if (this.mode === 'side-by-side') {
-        hudLeft.textContent = 'SOURCE (LEFT)';
-        hudRight.textContent = 'REFERENCE (RIGHT)';
+        hudLeft.textContent = 'REFERENCE (LEFT)';
+        hudRight.textContent = hasRegistered ? 'REGISTERED (RIGHT)' : 'SOURCE (RIGHT)';
         hudRight.style.display = 'block';
       } else if (this.mode === 'overlay') {
-        hudLeft.textContent = `OVERLAY BLEND (${(this.opacity * 100).toFixed(0)}%)`;
+        hudLeft.textContent = hasRegistered
+          ? `ALIGNED OVERLAY (${(this.opacity * 100).toFixed(0)}% OPACITY)`
+          : `OVERLAY BLEND (${(this.opacity * 100).toFixed(0)}%)`;
         hudRight.style.display = 'none';
       } else if (this.mode === 'flicker') {
-        hudLeft.textContent = `FLICKER: ${this.flickerIndex === 0 ? 'SOURCE RASTER' : 'REFERENCE RASTER'}`;
+        hudLeft.textContent = `FLICKER: ${this.flickerIndex === 0 ? (hasRegistered ? 'REGISTERED RASTER' : 'SOURCE RASTER') : 'REFERENCE RASTER'}`;
         hudRight.style.display = 'none';
       } else if (this.mode === 'difference') {
         hudLeft.textContent = 'DIFFERENCE RESIDUAL';
         hudRight.style.display = 'none';
       } else {
-        hudLeft.textContent = this.activeSlot.toUpperCase();
+        hudLeft.textContent = (this.activeSlot === 'registered') ? 'REGISTERED ALIGNED RASTER' : this.activeSlot.toUpperCase();
         hudRight.style.display = 'none';
       }
     }
@@ -356,16 +482,27 @@ class ImageComparisonWorkspace {
     ctx.translate(w / 2 + this.panX, h / 2 + this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Determine render bounds
-    const imgW = 720;
-    const imgH = 480;
+    // Determine render bounds preserving natural aspect ratio
+    const activeRef = this.referenceLoaded ? this.referenceImg : ((this.registeredLoaded && this.registeredImg) ? this.registeredImg : this.sourceImg);
+    let imgW = 720;
+    let imgH = 480;
+    if (activeRef && activeRef.naturalWidth && activeRef.naturalHeight) {
+      const aspect = activeRef.naturalWidth / activeRef.naturalHeight;
+      if (aspect >= 1) {
+        imgW = 720;
+        imgH = Math.round(720 / aspect);
+      } else {
+        imgH = 480;
+        imgW = Math.round(480 * aspect);
+      }
+    }
     const dx = -imgW / 2;
     const dy = -imgH / 2;
 
     if (this.mode === 'overlay') {
       this.drawOverlayMode(ctx, dx, dy, imgW, imgH);
     } else if (this.mode === 'side-by-side') {
-      this.drawSideBySideMode(ctx, dx, dy, imgW, imgH, w);
+      this.drawSideBySideMode(ctx, dx, dy, imgW, imgH);
     } else if (this.mode === 'flicker') {
       this.drawFlickerMode(ctx, dx, dy, imgW, imgH);
     } else if (this.mode === 'difference') {
@@ -411,21 +548,58 @@ class ImageComparisonWorkspace {
     ctx.restore();
   }
 
+  drawLoadingPrompt(ctx) {
+    ctx.save();
+    ctx.fillStyle = '#dfc08a';
+    ctx.font = '12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('[PROCESSING • RENDERING ALIGNED RASTERS]', 0, -10);
+    ctx.fillStyle = '#8f929d';
+    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.fillText('Decoding sub-pixel projective warp and residual difference layer...', 0, 14);
+    ctx.restore();
+  }
+
+  drawErrorPrompt(ctx, msg) {
+    ctx.save();
+    ctx.fillStyle = '#e06c75';
+    ctx.font = '12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('[RASTER DECODING NOTICE]', 0, -10);
+    ctx.fillStyle = '#8f929d';
+    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.fillText(msg || 'Unable to decode raster image format.', 0, 14);
+    ctx.restore();
+  }
+
   drawOverlayMode(ctx, dx, dy, imgW, imgH) {
-    if (!this.referenceLoaded && !this.sourceLoaded && !this.registeredImg) {
+    if (this.isLoading) {
+      this.drawLoadingPrompt(ctx);
+      return;
+    }
+    if (this.loadError) {
+      this.drawErrorPrompt(ctx, this.loadError);
+      return;
+    }
+    const hasReg = (this.registeredLoaded && this.registeredImg) || (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0);
+    const hasRef = this.referenceLoaded || (this.referenceImg && this.referenceImg.complete && this.referenceImg.naturalWidth > 0);
+    const hasSrc = this.sourceLoaded || (this.sourceImg && this.sourceImg.complete && this.sourceImg.naturalWidth > 0);
+
+    if (!hasRef && !hasSrc && !hasReg) {
       this.drawStandbyPrompt(ctx);
       return;
     }
 
-    // 1. Draw base Reference raster
-    if (this.referenceLoaded) {
+    // 1. Draw base Reference raster (or Source if Reference not available)
+    if (hasRef) {
       ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
+    } else if (hasSrc) {
+      ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
     }
 
     // 2. Draw actual Registered (or Source) raster with opacity
-    const topImg = this.registeredImg || this.sourceImg;
-    const isTopLoaded = this.registeredImg ? true : this.sourceLoaded;
-    if (isTopLoaded && topImg) {
+    const topImg = hasReg ? this.registeredImg : (hasRef && hasSrc ? this.sourceImg : null);
+    if (topImg && topImg !== (hasRef ? this.referenceImg : this.sourceImg)) {
       ctx.save();
       ctx.globalAlpha = this.opacity;
       ctx.drawImage(topImg, dx, dy, imgW, imgH);
@@ -434,7 +608,19 @@ class ImageComparisonWorkspace {
   }
 
   drawSideBySideMode(ctx, dx, dy, imgW, imgH) {
-    if (!this.referenceLoaded && !this.sourceLoaded && !this.registeredImg) {
+    if (this.isLoading) {
+      this.drawLoadingPrompt(ctx);
+      return;
+    }
+    if (this.loadError) {
+      this.drawErrorPrompt(ctx, this.loadError);
+      return;
+    }
+    const hasReg = (this.registeredLoaded && this.registeredImg) || (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0);
+    const hasRef = this.referenceLoaded || (this.referenceImg && this.referenceImg.complete && this.referenceImg.naturalWidth > 0);
+    const hasSrc = this.sourceLoaded || (this.sourceImg && this.sourceImg.complete && this.sourceImg.naturalWidth > 0);
+
+    if (!hasRef && !hasSrc && !hasReg) {
       this.drawStandbyPrompt(ctx);
       return;
     }
@@ -442,26 +628,26 @@ class ImageComparisonWorkspace {
     const splitX = dx + (imgW * this.splitPos);
 
     // 1. Draw Reference (Left side)
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(dx, dy, imgW * this.splitPos, imgH);
-    ctx.clip();
-    if (this.referenceLoaded) {
-      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
+    const leftImg = hasRef ? this.referenceImg : this.sourceImg;
+    if (leftImg) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(dx, dy, imgW * this.splitPos, imgH);
+      ctx.clip();
+      ctx.drawImage(leftImg, dx, dy, imgW, imgH);
+      ctx.restore();
     }
-    ctx.restore();
 
     // 2. Draw Registered or Source (Right side)
-    const rightImg = this.registeredImg || this.sourceImg;
-    const isRightLoaded = this.registeredImg ? true : this.sourceLoaded;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(splitX, dy, imgW * (1 - this.splitPos), imgH);
-    ctx.clip();
-    if (isRightLoaded && rightImg) {
+    const rightImg = hasReg ? this.registeredImg : (hasSrc ? this.sourceImg : this.referenceImg);
+    if (rightImg) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(splitX, dy, imgW * (1 - this.splitPos), imgH);
+      ctx.clip();
       ctx.drawImage(rightImg, dx, dy, imgW, imgH);
+      ctx.restore();
     }
-    ctx.restore();
 
     // 3. Draw Split Line in transform coordinates
     ctx.save();
@@ -475,47 +661,94 @@ class ImageComparisonWorkspace {
   }
 
   drawFlickerMode(ctx, dx, dy, imgW, imgH) {
-    const tgt = this.registeredImg || this.sourceImg;
-    const isTgtLoaded = this.registeredImg ? true : this.sourceLoaded;
-    if (this.flickerIndex === 0 && isTgtLoaded && tgt) {
-      ctx.drawImage(tgt, dx, dy, imgW, imgH);
-    } else if (this.flickerIndex === 1 && this.referenceLoaded) {
-      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
-    } else {
+    if (this.isLoading) {
+      this.drawLoadingPrompt(ctx);
+      return;
+    }
+    if (this.loadError) {
+      this.drawErrorPrompt(ctx, this.loadError);
+      return;
+    }
+    const hasReg = (this.registeredLoaded && this.registeredImg) || (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0);
+    const hasRef = this.referenceLoaded || (this.referenceImg && this.referenceImg.complete && this.referenceImg.naturalWidth > 0);
+    const hasSrc = this.sourceLoaded || (this.sourceImg && this.sourceImg.complete && this.sourceImg.naturalWidth > 0);
+
+    const rightImg = hasReg ? this.registeredImg : (hasSrc ? this.sourceImg : null);
+    const leftImg = hasRef ? this.referenceImg : null;
+
+    if (!leftImg && !rightImg) {
       this.drawStandbyPrompt(ctx);
+      return;
+    }
+
+    if (this.flickerIndex === 0 && rightImg) {
+      ctx.drawImage(rightImg, dx, dy, imgW, imgH);
+    } else if (leftImg) {
+      ctx.drawImage(leftImg, dx, dy, imgW, imgH);
+    } else if (rightImg) {
+      ctx.drawImage(rightImg, dx, dy, imgW, imgH);
     }
   }
 
   drawDifferenceMode(ctx, dx, dy, imgW, imgH) {
-    if (this.differenceImg) {
+    if (this.isLoading) {
+      this.drawLoadingPrompt(ctx);
+      return;
+    }
+    if (this.loadError) {
+      this.drawErrorPrompt(ctx, this.loadError);
+      return;
+    }
+    const hasDiff = (this.differenceLoaded && this.differenceImg) || (this.differenceImg && this.differenceImg.complete && this.differenceImg.naturalWidth > 0);
+    const hasReg = (this.registeredLoaded && this.registeredImg) || (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0);
+    const hasRef = this.referenceLoaded || (this.referenceImg && this.referenceImg.complete && this.referenceImg.naturalWidth > 0);
+    const hasSrc = this.sourceLoaded || (this.sourceImg && this.sourceImg.complete && this.sourceImg.naturalWidth > 0);
+
+    if (hasDiff) {
       ctx.drawImage(this.differenceImg, dx, dy, imgW, imgH);
-    } else if (this.referenceLoaded && (this.registeredImg || this.sourceLoaded)) {
-      if (this.referenceLoaded) {
-        ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
-      }
+    } else if (hasRef && (hasReg || hasSrc)) {
+      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
       ctx.save();
-      ctx.fillStyle = 'rgba(223, 192, 138, 0.12)';
-      ctx.fillRect(dx, dy, imgW, imgH);
-      ctx.strokeStyle = 'rgba(223, 192, 138, 0.4)';
-      ctx.lineWidth = 1.5 / this.scale;
-      ctx.strokeRect(dx, dy, imgW, imgH);
+      ctx.globalCompositeOperation = 'difference';
+      ctx.drawImage(hasReg ? this.registeredImg : this.sourceImg, dx, dy, imgW, imgH);
       ctx.restore();
+    } else if (hasReg) {
+      ctx.drawImage(this.registeredImg, dx, dy, imgW, imgH);
     } else {
       this.drawStandbyPrompt(ctx);
     }
   }
 
   drawSingleSlot(ctx, dx, dy, imgW, imgH) {
-    if (this.activeSlot === 'source' && this.sourceLoaded) {
+    if (this.isLoading) {
+      this.drawLoadingPrompt(ctx);
+      return;
+    }
+    if (this.loadError) {
+      this.drawErrorPrompt(ctx, this.loadError);
+      return;
+    }
+    const hasReg = (this.registeredLoaded && this.registeredImg) || (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0);
+    const hasRef = this.referenceLoaded || (this.referenceImg && this.referenceImg.complete && this.referenceImg.naturalWidth > 0);
+    const hasSrc = this.sourceLoaded || (this.sourceImg && this.sourceImg.complete && this.sourceImg.naturalWidth > 0);
+    const hasDiff = (this.differenceLoaded && this.differenceImg) || (this.differenceImg && this.differenceImg.complete && this.differenceImg.naturalWidth > 0);
+
+    if (this.activeSlot === 'source' && hasSrc) {
       ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
-    } else if (this.activeSlot === 'reference' && this.referenceLoaded) {
+    } else if (this.activeSlot === 'reference' && hasRef) {
       ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
-    } else if (this.activeSlot === 'registered' && this.registeredImg) {
+    } else if (this.activeSlot === 'registered' && hasReg) {
       ctx.drawImage(this.registeredImg, dx, dy, imgW, imgH);
-    } else if (this.activeSlot === 'difference' && this.differenceImg) {
+    } else if (this.activeSlot === 'difference' && hasDiff) {
       ctx.drawImage(this.differenceImg, dx, dy, imgW, imgH);
     } else if (this.activeSlot === 'overlay') {
       this.drawOverlayMode(ctx, dx, dy, imgW, imgH);
+    } else if (hasReg) {
+      ctx.drawImage(this.registeredImg, dx, dy, imgW, imgH);
+    } else if (hasRef) {
+      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
+    } else if (hasSrc) {
+      ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
     } else {
       this.drawStandbyPrompt(ctx);
     }
@@ -585,9 +818,20 @@ class ImageComparisonWorkspace {
         btn.classList.add('active');
 
         // Automatically harmonize mode
-        if (slot === 'overlay') this.setMode('overlay');
-        else if (slot === 'difference') this.setMode('difference');
-        else this.draw();
+        if (slot === 'overlay') {
+          this.setMode('overlay');
+        } else if (slot === 'difference') {
+          this.setMode('difference');
+        } else {
+          this.mode = 'slot';
+          this.stopFlicker();
+          this.updateDomElements();
+          this.draw();
+        }
+
+        if (typeof this.onSlotChange === 'function') {
+          this.onSlotChange(slot);
+        }
       });
     });
   }

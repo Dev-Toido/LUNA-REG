@@ -28,6 +28,8 @@ class MetadataAccordion {
       'files': false,
       'footprint': false
     };
+    this.sourceFiles = [];
+    this.referenceFiles = [];
   }
 
   setData(pairData, sourceProduct, referenceProduct, sourceFiles = [], referenceFiles = []) {
@@ -71,9 +73,11 @@ class MetadataAccordion {
     const s = this.source || {};
     const r = this.reference || {};
 
+    const srcFiles = this.sourceFiles || [];
+    const refFiles = this.referenceFiles || [];
     const allFiles = [
-      ...this.sourceFiles.map(f => ({ ...f, origin: 'SOURCE' })),
-      ...this.referenceFiles.map(f => ({ ...f, origin: 'REFERENCE' }))
+      ...srcFiles.map(f => ({ ...f, origin: 'SOURCE' })),
+      ...refFiles.map(f => ({ ...f, origin: 'REFERENCE' }))
     ];
 
     // Footprint check
