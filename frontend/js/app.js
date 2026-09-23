@@ -475,18 +475,18 @@
       return { valid: false, error: 'File size exceeds 50 MB.' };
     }
 
-    // Supported formats: PNG, JPG, JPEG, TIFF
-    const validExtensions = ['.png', '.jpg', '.jpeg', '.tif', '.tiff'];
+    // Supported formats: PNG, JPG, JPEG, TIFF, IMG
+    const validExtensions = ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.img'];
     const lowerName = (file.name || '').toLowerCase();
     const hasValidExt = validExtensions.some(ext => lowerName.endsWith(ext));
 
     if (!hasValidExt) {
-      return { valid: false, error: 'Unsupported file format. Please upload PNG, JPG, JPEG or TIFF.' };
+      return { valid: false, error: 'Unsupported file format. Please upload PNG, JPG, JPEG, TIFF or IMG.' };
     }
 
-    // Reject non-image MIME types if MIME is provided
-    if (file.type && !file.type.startsWith('image/') && !lowerName.endsWith('.tif') && !lowerName.endsWith('.tiff')) {
-      return { valid: false, error: 'Unsupported file format. Please upload PNG, JPG, JPEG or TIFF.' };
+    // Reject non-image MIME types if MIME is provided (except TIFF and IMG which can be octet-stream)
+    if (file.type && !file.type.startsWith('image/') && !lowerName.endsWith('.tif') && !lowerName.endsWith('.tiff') && !lowerName.endsWith('.img')) {
+      return { valid: false, error: 'Unsupported file format. Please upload PNG, JPG, JPEG, TIFF or IMG.' };
     }
 
     return { valid: true, error: null };
@@ -668,6 +668,7 @@
     if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'GEOTIFF 16-BIT';
     if (lower.endsWith('.png')) return 'PNG 8-BIT';
     if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'JPEG 8-BIT';
+    if (lower.endsWith('.img')) return 'PDS RASTER (.IMG)';
     return 'RASTER';
   }
 

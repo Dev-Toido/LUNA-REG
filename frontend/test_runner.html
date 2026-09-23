@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUNA-REG — Input Module Automated Test Suite</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/mission_hud.css">
+  <link rel="stylesheet" href="css/input_module.css">
+  <style>
+    .test-runner-container {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 20px;
+      font-family: var(--font-mono, monospace);
+    }
+    .test-summary-card {
+      background-color: #121418;
+      border: 1px solid #272b35;
+      border-left: 4px solid #d4af37;
+      padding: 16px 20px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .test-title-group h1 {
+      font-size: 16px;
+      color: #eef0f5;
+      margin: 0;
+      letter-spacing: 0.8px;
+    }
+    .test-title-group p {
+      font-size: 11px;
+      color: #9ea3b1;
+      margin: 4px 0 0 0;
+    }
+    .test-results-table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #121418;
+      border: 1px solid #272b35;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 30px;
+    }
+    .test-results-table th {
+      background-color: #181b22;
+      border-bottom: 1px solid #272b35;
+      color: #686e7c;
+      font-size: 11px;
+      padding: 10px 14px;
+      text-align: left;
+      letter-spacing: 0.5px;
+    }
+    .test-results-table td {
+      border-bottom: 1px solid #1a1d24;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #c7cad2;
+      vertical-align: top;
+    }
+    .test-results-table tr:last-child td {
+      border-bottom: none;
+    }
+    .test-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 2px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+    }
+    .test-pill.pass {
+      background-color: rgba(76, 175, 80, 0.2);
+      border: 1px solid #4caf50;
+      color: #a5d6a7;
+    }
+    .test-pill.fail {
+      background-color: rgba(217, 83, 79, 0.2);
+      border: 1px solid #d9534f;
+      color: #ff9e9b;
+    }
+    .test-pill.pending {
+      background-color: rgba(212, 175, 55, 0.15);
+      border: 1px solid #d4af37;
+      color: #f5e298;
+    }
+    .btn-run-all {
+      background: linear-gradient(180deg, #d4af37 0%, #a67c38 100%);
+      border: 1px solid #f5e298;
+      color: #07080a;
+      padding: 8px 18px;
+      font-family: var(--font-mono, monospace);
+      font-weight: 700;
+      font-size: 11px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .btn-run-all:hover {
+      background: linear-gradient(180deg, #e6ca65 0%, #b88a40 100%);
+    }
+    #sandboxMount {
+      opacity: 0.95;
+      border: 1px dashed #383e4c;
+      padding: 16px;
+      border-radius: 4px;
+      margin-top: 20px;
+      background-color: #0b0c10;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    
+    <header class="mission-header">
+      <div class="brand-section">
+        <div class="mission-crest"><span class="crest-moon">☽</span></div>
+        <div class="brand-titles">
+          <div class="brand-title-row">
+            <span class="brand-name">LUNA-REG</span>
+            <span class="brand-sub">Verification Test Suite</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-telemetry-group">
+        <a href="/input" class="header-action-btn">
+          <span>INPUT MODULE</span>
+        </a>
+        <a href="/" class="header-action-btn">
+          <span>DEMO VIEW</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="test-runner-container">
+      <div class="test-summary-card">
+        <div class="test-title-group">
+          <h1>INPUT MODULE VERIFICATION SUITE</h1>
+          <p>Automated verification of the 10 required specification test cases.</p>
+        </div>
+        <div>
+          <button class="btn-run-all" id="btnRunTests">EXECUTE 10 TESTS</button>
+        </div>
+      </div>
+
+      <table class="test-results-table">
+        <thead>
+          <tr>
+            <th style="width: 50px;">CASE</th>
+            <th style="width: 320px;">REQUIREMENT / DESCRIPTION</th>
+            <th style="width: 90px;">STATUS</th>
+            <th>DIAGNOSTIC EVIDENCE</th>
+          </tr>
+        </thead>
+        <tbody id="testTableBody">
+          <!-- Populated by test runner -->
+        </tbody>
+      </table>
+
+      <!-- Live Test Sandbox Mount -->
+      <div style="margin-top: 24px;">
+        <span style="font-size: 11px; color: #d4af37; letter-spacing: 0.8px;">LIVE TEST SANDBOX INSTANCE:</span>
+        <div id="sandboxMount"></div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Components -->
+  <script src="js/components/FileValidationMessage.js"></script>
+  <script src="js/components/FileMetadata.js"></script>
+  <script src="js/components/FilePreview.js"></script>
+  <script src="js/components/FileUploadCard.js"></script>
+  <script src="js/components/InputModule.js"></script>
+
+  <script>
+    // 10 Specified Test Cases
+    const TEST_CASES = [
+      { id: 1, name: 'Select valid Reference Image', desc: 'Selects a valid PNG/JPG reference image and confirms metadata & preview update.' },
+      { id: 2, name: 'Select valid Moving/Source Image', desc: 'Selects a valid target moving image and confirms metadata & preview update.' },
+      { id: 3, name: 'Replace only Reference Image', desc: 'Replaces Reference file and confirms Moving image state is strictly unaffected.' },
+      { id: 4, name: 'Replace only Moving/Source Image', desc: 'Replaces Moving file and confirms Reference image state is strictly unaffected.' },
+      { id: 5, name: 'Remove one file', desc: 'Removes Reference file and confirms only that card resets while Proceed is disabled.' },
+      { id: 6, name: 'Try unsupported file type', desc: 'Supplies an invalid extension (.pdf, .exe) and confirms rejection with error alert.' },
+      { id: 7, name: 'Try file larger than 50 MB', desc: 'Supplies file > 50 MB and confirms rejection with size limit alert.' },
+      { id: 8, name: 'Continue remains disabled if either missing', desc: 'Verifies Proceed is disabled when 0 or only 1 valid file is staged.' },
+      { id: 9, name: 'Selecting files does NOT start processing', desc: 'Confirms no automated SIFT/RANSAC or pipeline trigger occurs on selection.' },
+      { id: 10, name: 'Both selected files passed to next module', desc: 'Confirms Proceed handoff delivers clean data object with both files to subscriber.' }
+    ];
+
+    function createMockFile(name, sizeBytes, type = 'image/png') {
+      const blob = new Blob([new Uint8Array(Math.min(sizeBytes, 1024))], { type });
+      const file = new File([blob], name, { type, lastModified: Date.now() });
+      Object.defineProperty(file, 'size', { value: sizeBytes });
+      return file;
+    }
+
+    function initTable() {
+      const tbody = document.getElementById('testTableBody');
+      tbody.innerHTML = '';
+      TEST_CASES.forEach(tc => {
+        const tr = document.createElement('tr');
+        tr.id = `test_row_${tc.id}`;
+        tr.innerHTML = `
+          <td><strong>#${tc.id}</strong></td>
+          <td>
+            <div style="font-weight: 700; color: #eef0f5;">${tc.name}</div>
+            <div style="font-size: 11px; color: #8d929f; margin-top: 2px;">${tc.desc}</div>
+          </td>
+          <td><span class="test-pill pending" id="pill_${tc.id}">QUEUED</span></td>
+          <td id="diag_${tc.id}" style="font-size: 11px; color: #9ea3b1;">Awaiting execution...</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateRow(id, passed, diag) {
+      const pill = document.getElementById(`pill_${id}`);
+      const diagEl = document.getElementById(`diag_${id}`);
+      if (pill) {
+        pill.className = `test-pill ${passed ? 'pass' : 'fail'}`;
+        pill.textContent = passed ? 'PASS' : 'FAIL';
+      }
+      if (diagEl) {
+        diagEl.textContent = diag;
+        diagEl.style.color = passed ? '#a5d6a7' : '#ff9e9b';
+      }
+    }
+
+    async function runAllTests() {
+      initTable();
+
+      // Mount fresh test module in sandbox
+      const mount = document.getElementById('sandboxMount');
+      mount.innerHTML = '';
+      let proceedFiredCount = 0;
+      let lastProceedPayload = null;
+
+      const module = new InputModule({
+        container: mount,
+        apiEndpoint: '/api/stage-inputs',
+        onProceed: (data) => {
+          proceedFiredCount++;
+          lastProceedPayload = data;
+        }
+      });
+      module.render();
+
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+      try {
+        // Test 1: Select a valid Reference Image
+        const ref1 = createMockFile('apollo_ref_78s.png', 4 * 1024 * 1024, 'image/png');
+        await module.referenceCard.processFile(ref1);
+        await sleep(100);
+        const t1_pass = module.referenceState.isValid && 
+                        module.referenceState.metadata.name === 'apollo_ref_78s.png' &&
+                        module.referenceCard.file === ref1;
+        updateRow(1, t1_pass, `Staged [${ref1.name}], size: 4.0 MB. Card state isValid: ${module.referenceState.isValid}`);
+
+        // Test 2: Select a valid Moving/Source Image
+        const mov1 = createMockFile('chandrayaan_mov_78s.jpg', 6 * 1024 * 1024, 'image/jpeg');
+        await module.movingCard.processFile(mov1);
+        await sleep(100);
+        const t2_pass = module.movingState.isValid && 
+                        module.movingState.metadata.name === 'chandrayaan_mov_78s.jpg' &&
+                        module.movingCard.file === mov1;
+        updateRow(2, t2_pass, `Staged [${mov1.name}], size: 6.0 MB. Card state isValid: ${module.movingState.isValid}`);
+
+        // Test 3: Replace only the Reference Image
+        const ref2 = createMockFile('apollo_ref_v2.tif', 8 * 1024 * 1024, 'image/tiff');
+        await module.referenceCard.processFile(ref2);
+        await sleep(100);
+        const t3_pass = module.referenceCard.file.name === 'apollo_ref_v2.tif' &&
+                        module.movingCard.file.name === 'chandrayaan_mov_78s.jpg';
+        updateRow(3, t3_pass, `Reference updated to [${ref2.name}]. Moving file remained intact as [${module.movingCard.file.name}]. Independent state verified.`);
+
+        // Test 4: Replace only the Moving/Source Image
+        const mov2 = createMockFile('chandrayaan_mov_v2.img', 12 * 1024 * 1024, 'application/octet-stream');
+        await module.movingCard.processFile(mov2);
+        await sleep(100);
+        const t4_pass = module.movingCard.file.name === 'chandrayaan_mov_v2.img' &&
+                        module.referenceCard.file.name === 'apollo_ref_v2.tif';
+        updateRow(4, t4_pass, `Moving updated to [${mov2.name}]. Reference file remained intact as [${module.referenceCard.file.name}]. Independent state verified.`);
+
+        // Test 5: Remove one file
+        module.referenceCard.removeFile();
+        await sleep(100);
+        const t5_pass = module.referenceState.file === null && 
+                        module.referenceState.isValid === false &&
+                        module.movingState.isValid === true &&
+                        module.proceedButton.disabled === true;
+        updateRow(5, t5_pass, `Reference cleared (file: null, valid: false). Moving remained active. Proceed button disabled: ${module.proceedButton.disabled}`);
+
+        // Test 6: Try an unsupported file type (.pdf)
+        const badFile = createMockFile('satellite_flight_manual.pdf', 1024 * 1024, 'application/pdf');
+        await module.referenceCard.processFile(badFile);
+        await sleep(100);
+        const t6_pass = module.referenceState.isValid === false &&
+                        module.referenceCard.error !== null &&
+                        module.referenceCard.error.type === 'format';
+        updateRow(6, t6_pass, `Rejected unsupported extension '.pdf'. Card error: ${module.referenceCard.error ? module.referenceCard.error.type : 'none'}. State isValid: false`);
+
+        // Test 7: Try a file larger than 50 MB
+        const hugeFile = createMockFile('huge_highres_mosaic.png', 54 * 1024 * 1024, 'image/png'); // 54 MB > 50 MB
+        await module.referenceCard.processFile(hugeFile);
+        await sleep(100);
+        const t7_pass = module.referenceState.isValid === false &&
+                        module.referenceCard.error !== null &&
+                        module.referenceCard.error.type === 'size';
+        updateRow(7, t7_pass, `Rejected 54.0 MB file (exceeds 50.0 MB limit). Error type: ${module.referenceCard.error ? module.referenceCard.error.type : 'none'}. State isValid: false`);
+
+        // Test 8: Confirm Continue remains disabled if either file is missing
+        const isButtonDisabledWhenOnlyMoving = module.proceedButton.disabled;
+        // Now set reference valid, but remove moving
+        const validRef = createMockFile('ref_final.png', 2 * 1024 * 1024, 'image/png');
+        await module.referenceCard.processFile(validRef);
+        module.movingCard.removeFile();
+        await sleep(100);
+        const isButtonDisabledWhenOnlyRef = module.proceedButton.disabled;
+        const t8_pass = isButtonDisabledWhenOnlyMoving && isButtonDisabledWhenOnlyRef;
+        updateRow(8, t8_pass, `Disabled when ref missing: ${isButtonDisabledWhenOnlyMoving}; Disabled when moving missing: ${isButtonDisabledWhenOnlyRef}`);
+
+        // Test 9: Confirm selecting files does NOT start processing
+        const prevFiredCount = proceedFiredCount;
+        const validMov = createMockFile('mov_final.png', 3 * 1024 * 1024, 'image/png');
+        await module.movingCard.processFile(validMov);
+        await sleep(100);
+        const t9_pass = (proceedFiredCount === prevFiredCount) && (module.proceedButton.disabled === false);
+        updateRow(9, t9_pass, `Both files valid & button enabled. Automated registration did NOT trigger (firedCount: ${proceedFiredCount}).`);
+
+        // Test 10: Confirm both selected files correctly passed to next module
+        module.proceedButton.click();
+        await sleep(100);
+        const t10_pass = (proceedFiredCount === prevFiredCount + 1) &&
+                         lastProceedPayload !== null &&
+                         lastProceedPayload.referenceImage.name === 'ref_final.png' &&
+                         lastProceedPayload.movingImage.name === 'mov_final.png' &&
+                         lastProceedPayload.status === 'READY_FOR_PROCESSING';
+        updateRow(10, t10_pass, `Clean handoff payload passed with ref: [${lastProceedPayload.referenceImage.name}], mov: [${lastProceedPayload.movingImage.name}], status: '${lastProceedPayload.status}'`);
+
+      } catch (err) {
+        console.error('Test execution error:', err);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initTable();
+      document.getElementById('btnRunTests').addEventListener('click', runAllTests);
+      // Automatically run on load
+      runAllTests();
+    });
+  </script>
+</body>
+</html>

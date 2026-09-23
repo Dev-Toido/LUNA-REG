@@ -831,14 +831,13 @@
                     <span class="format-badge" id="ref-format-badge">GEOTIFF 16-BIT</span>
                   </div>
                   <h3 class="reg-card-label">REFERENCE IMAGE</h3>
-                  <p class="reg-card-desc">Base image for alignment</p>
+                  <p class="reg-card-desc">Base coordinate image to which the Moving/Source Image will be aligned</p>
                 </div>
-                <button class="btn-sample-preset" id="btn-load-sample-ref" title="Load demo Chandrayaan-2 TMC-2 Nadir Pass">LOAD TMC-2 NADIR SAMPLE</button>
               </div>
 
               <!-- Drag & Drop Zone -->
               <div class="drop-zone" id="dropzone-ref" tabindex="0" role="button" aria-label="Reference Image Drop Zone. Drag and drop file or press Enter to browse files.">
-                <input type="file" id="file-input-ref" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
+                <input type="file" id="file-input-ref" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff,.img">
                 <div class="drop-zone-error" id="ref-drop-error" style="display: none;"></div>
                 <div class="drop-zone-idle" id="drop-ref-idle">
                   <div class="drop-zone-icon">
@@ -850,8 +849,8 @@
                   <div class="drop-prompt">
                     <span class="drop-text-primary">Drag &amp; drop your reference image here</span>
                     <span class="drop-text-secondary">or</span>
-                    <button type="button" class="btn-browse-files" id="btn-browse-ref">BROWSE FILES</button>
-                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
+                    <button type="button" class="btn-browse-files" id="btn-browse-ref">BROWSE FILE</button>
+                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF, IMG • Maximum file size: 50 MB</span>
                   </div>
                 </div>
 
@@ -935,15 +934,14 @@
                     <span class="reg-card-badge">UNALIGNED PASS</span>
                     <span class="format-badge" id="tgt-format-badge">PNG 8-BIT</span>
                   </div>
-                  <h3 class="reg-card-label">TARGET IMAGE</h3>
-                  <p class="reg-card-desc">Image to be aligned / registered</p>
+                  <h3 class="reg-card-label">MOVING / SOURCE IMAGE</h3>
+                  <p class="reg-card-desc">Target image to be aligned and registered to the Reference Image</p>
                 </div>
-                <button class="btn-sample-preset" id="btn-load-sample-tgt" title="Load demo Chandrayaan-2 TMC-2 Low-Sun Pass">LOAD TMC-2 LOW-SUN SAMPLE</button>
               </div>
 
               <!-- Drag & Drop Zone -->
               <div class="drop-zone" id="dropzone-tgt" tabindex="0" role="button" aria-label="Target Image Drop Zone. Drag and drop file or press Enter to browse files.">
-                <input type="file" id="file-input-tgt" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff">
+                <input type="file" id="file-input-tgt" class="file-input-hidden" accept=".png,.jpg,.jpeg,.tif,.tiff,.img">
                 <div class="drop-zone-error" id="tgt-drop-error" style="display: none;"></div>
                 <div class="drop-zone-idle" id="drop-tgt-idle">
                   <div class="drop-zone-icon">
@@ -953,10 +951,10 @@
                     </svg>
                   </div>
                   <div class="drop-prompt">
-                    <span class="drop-text-primary">Drag &amp; drop your target image here</span>
+                    <span class="drop-text-primary">Drag &amp; drop your moving/source image here</span>
                     <span class="drop-text-secondary">or</span>
-                    <button type="button" class="btn-browse-files" id="btn-browse-tgt">BROWSE FILES</button>
-                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF • Maximum file size: 50 MB</span>
+                    <button type="button" class="btn-browse-files" id="btn-browse-tgt">BROWSE FILE</button>
+                    <span class="drop-text-limits">Supported formats: PNG, JPG, JPEG, TIFF, IMG • Maximum file size: 50 MB</span>
                   </div>
                 </div>
 
