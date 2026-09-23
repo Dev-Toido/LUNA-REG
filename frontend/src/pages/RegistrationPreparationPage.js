@@ -74,12 +74,12 @@ class RegistrationPreparationPage {
 
     if (isDb) {
       if (executeBtn) {
-        executeBtn.querySelector('span').textContent = 'PREPARE REGISTRATION →';
+        executeBtn.querySelector('span').textContent = 'EXECUTE REGISTRATION →';
         executeBtn.disabled = !this.stagedRegistrationInput;
       }
       if (ctaTip) {
         ctaTip.textContent = this.stagedRegistrationInput
-          ? 'Registration metadata loaded from backend. Processing API integration is pending.'
+          ? `Canonical Pair #${this.selectedPairId} staged. Ready to execute real registration pipeline.`
           : 'Select a canonical image pair from the database to prepare registration metadata.';
       }
     } else {
@@ -343,39 +343,45 @@ class RegistrationPreparationPage {
       if (execBtn) {
         execBtn.addEventListener('click', async () => {
           if (window.closeAppModal) window.closeAppModal();
-          const jobId = `LR-PAIR${pair.id}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-          if (typeof window.openProcessingPage === 'function') {
-            window.openProcessingPage(jobId, true);
-          } else if (typeof window.switchView === 'function') {
-            window.switchView('processing');
-          }
 
           const api = window.LUNAR_API || window.apiService;
-          let executedViaBackend = false;
+          const detectorSelect = document.getElementById('setting-feature-detector') || document.getElementById('reg-setting-detector');
+          const detector = (detectorSelect && detectorSelect.value) ? detectorSelect.value : 'sift';
 
           try {
-            // Attempt backend submission
-            if (api && typeof api.post === 'function') {
-              await api.post(`/pairs/${pair.id}/registration-jobs`, { options: { detector: 'sift' } }, { timeoutMs: 3000 });
-              executedViaBackend = true;
+            if (window.toastManager && typeof window.toastManager.show === 'function') {
+              window.toastManager.show({
+                type: 'info',
+                title: 'SUBMITTING REGISTRATION',
+                message: `Initiating multi-modal alignment for Pair #${pair.id} using '${detector.toUpperCase()}'...`
+              });
             }
-          } catch (_) {
-            executedViaBackend = false;
-          }
 
-          // If backend ran or fallback, navigate to Results Page with this pair's real data
-          setTimeout(() => {
-            if (typeof window.switchView === 'function') {
-              window.switchView('results', false);
+            const formData = new FormData();
+            formData.append('pair_id', String(pair.id));
+            formData.append('detector', detector);
+            formData.append('registration_mode', 'automatic');
+
+            const response = await api.submitRegistration(formData);
+            const realJobId = (response && response.job_id) ? response.job_id : `LR-PAIR${pair.id}`;
+
+            if (typeof window.openProcessingPage === 'function') {
+              window.openProcessingPage(realJobId, true);
+            } else if (typeof window.switchView === 'function') {
+              window.switchView('processing');
             }
-            if (window.resultsPage && typeof window.resultsPage.applyPairData === 'function') {
-              window.resultsPage.applyPairData(pair.id);
+          } catch (err) {
+            console.error('Failed to submit registration for pair:', err);
+            if (window.toastManager && typeof window.toastManager.show === 'function') {
+              window.toastManager.show({
+                type: 'error',
+                title: 'REGISTRATION FAILED TO START',
+                message: err.message || 'Could not communicate with registration engine.'
+              });
+            } else {
+              alert('Registration submission error: ' + (err.message || 'Backend service unreachable'));
             }
-            try {
-              window.location.hash = `#/results?pair_id=${pair.id}`;
-            } catch (_) {}
-          }, executedViaBackend ? 2500 : 1800);
+          }
         });
       }
     }

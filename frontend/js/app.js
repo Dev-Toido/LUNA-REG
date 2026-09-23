@@ -1550,171 +1550,20 @@
       regWorkflowState.isSubmitting = false;
       openProcessingPage(jobId, true);
     } catch (err) {
-      console.warn('[LUNA-REG] Backend endpoint unavailable, running high-fidelity client-side registration engine:', err);
-      const fallbackJobId = `LR-${Math.floor(100000 + Math.random() * 900000)}`;
+      console.error('[LUNA-REG] Backend registration error:', err);
       regWorkflowState.isSubmitting = false;
-      openProcessingPage(fallbackJobId, true);
-      runClientSideRegistrationEngine(fallbackJobId, regWorkflowState.refFile, regWorkflowState.tgtFile, detector);
-    }
-  }
-
-  // --- CLIENT-SIDE HIGH-FIDELITY REGISTRATION ENGINE FALLBACK ---
-  async function runClientSideRegistrationEngine(jobId, refFile, tgtFile, detector = 'sift') {
-    addTelemetryLog(`[LOCAL ENGINE] Running client-side image registration for ${refFile.name} ↔ ${tgtFile.name}...`, 'info');
-
-    // Load actual image files into HTMLImageElements
-    const refUrl = URL.createObjectURL(refFile);
-    const tgtUrl = URL.createObjectURL(tgtFile);
-
-    const refImg = new Image();
-    const tgtImg = new Image();
-
-    await Promise.all([
-      new Promise(res => { refImg.onload = res; refImg.src = refUrl; }),
-      new Promise(res => { tgtImg.onload = res; tgtImg.src = tgtUrl; })
-    ]);
-
-    const refW = refImg.naturalWidth || 1024;
-    const refH = refImg.naturalHeight || 1024;
-    const tgtW = tgtImg.naturalWidth || 1024;
-    const tgtH = tgtImg.naturalHeight || 1024;
-
-    const stages = [
-      { id: 'validation', name: 'Image Validation', pct: 15, log: `Reference raster (${refW}x${refH}) & Target raster (${tgtW}x${tgtH}) validated.` },
-      { id: 'preprocessing', name: 'Preprocessing', pct: 30, log: 'Dynamic range histogram equalized (CLAHE) and dark-level calibrated.' },
-      { id: 'feature_extraction', name: 'Feature Extraction', pct: 45, log: `Log-polar Fourier-Mellin transform: Scale factor ${(refW / Math.max(tgtW, 1)).toFixed(3)}, rotation ~0.00°.` },
-      { id: 'feature_matching', name: 'Feature Matching', pct: 60, log: `${detector.toUpperCase()} feature detector extracted 1,280 lunar crater keypoints.` },
-      { id: 'geometric_verification', name: 'Geometric Verification', pct: 75, log: 'Rigid triangular correspondence consensus verified local crater topology.' },
-      { id: 'registration', name: 'Registration', pct: 88, log: 'RANSAC projective homography converged: Inliers 94.6% • Reprojection RMSE 0.384 px.' },
-      { id: 'result_generation', name: 'Result Generation', pct: 100, log: 'Perspective warped raster and photometric difference map synthesized.' }
-    ];
-
-    let current = 0;
-    const interval = setInterval(() => {
-      if (current >= stages.length) {
-        clearInterval(interval);
-        const badge = document.getElementById('proc-status-badge');
-        if (badge) {
-          badge.className = 'proc-status-badge completed';
-          badge.textContent = 'COMPLETED';
-        }
-        addTelemetryLog('[STATUS:COMPLETED] Convergence achieved: Reprojection RMSE: 0.384 px • 1,210 Inliers (94.6%).', 'success');
-
-        // Generate aligned warped canvas and difference map directly from user's images
-        const offscreenCanvas = document.createElement('canvas');
-        offscreenCanvas.width = refW;
-        offscreenCanvas.height = refH;
-        const offCtx = offscreenCanvas.getContext('2d');
-
-        // Draw warped target
-        offCtx.clearRect(0, 0, refW, refH);
-        offCtx.save();
-        offCtx.drawImage(tgtImg, 0, 0, refW, refH);
-        offCtx.restore();
-        const registeredDataUrl = offscreenCanvas.toDataURL('image/png');
-
-        // Difference map
-        const diffCanvas = document.createElement('canvas');
-        diffCanvas.width = refW;
-        diffCanvas.height = refH;
-        const diffCtx = diffCanvas.getContext('2d');
-
-        try {
-          offCtx.clearRect(0, 0, refW, refH);
-          offCtx.drawImage(refImg, 0, 0, refW, refH);
-          const refPix = offCtx.getImageData(0, 0, refW, refH);
-
-          offCtx.clearRect(0, 0, refW, refH);
-          offCtx.drawImage(tgtImg, 0, 0, refW, refH);
-          const tgtPix = offCtx.getImageData(0, 0, refW, refH);
-
-          const diffPix = diffCtx.createImageData(refW, refH);
-          for (let i = 0; i < refPix.data.length; i += 4) {
-            const d = Math.abs(refPix.data[i] - tgtPix.data[i]);
-            diffPix.data[i] = d * 1.6;
-            diffPix.data[i + 1] = d * 1.3;
-            diffPix.data[i + 2] = d;
-            diffPix.data[i + 3] = 255;
-          }
-          diffCtx.putImageData(diffPix, 0, 0);
-        } catch (_) {}
-        const diffDataUrl = diffCanvas.toDataURL('image/png');
-
-        // Compute real distributed tie points based on image dimensions
-        const matches = [];
-        const numGrid = 16;
-        for (let gx = 0; gx < numGrid; gx++) {
-          for (let gy = 0; gy < numGrid; gy++) {
-            const rx = (gx + 0.5 + (Math.random() - 0.5) * 0.4) / numGrid;
-            const ry = (gy + 0.5 + (Math.random() - 0.5) * 0.4) / numGrid;
-            const residual = 0.15 + Math.random() * 0.35;
-            matches.push({
-              refX: rx,
-              refY: ry,
-              tgtX: rx + (Math.random() - 0.5) * 0.008,
-              tgtY: ry + (Math.random() - 0.5) * 0.008,
-              residual: residual,
-              isInlier: Math.random() > 0.06
-            });
-          }
-        }
-
-        const localResult = {
-          job_id: jobId,
-          status: 'completed',
-          reference_image_url: refUrl,
-          target_image_url: tgtUrl,
-          registered_image_url: registeredDataUrl,
-          difference_image_url: diffDataUrl,
-          metrics: {
-            rmse: 0.384,
-            mae: 0.312,
-            max_error: 1.842,
-            inlier_ratio: 0.946,
-            inlier_matches: Math.round(matches.length * 0.946),
-            total_matches: matches.length,
-            confidence: 0.942,
-            scale_ratio: Number((refW / Math.max(tgtW, 1)).toFixed(4)),
-            rotation_deg: 0.00,
-            moving_coverage: 97.2,
-            reference_coverage: 92.5,
-            processing_time: '2.14 s',
-            transformation_type: 'Homography (8-DOF)'
-          },
-          matches: matches.map(m => ({
-            ref_x: m.refX * refW,
-            ref_y: m.refY * refH,
-            tgt_x: m.tgtX * tgtW,
-            tgt_y: m.tgtY * tgtH,
-            residual: m.residual
-          })),
-          metadata: {
-            reference_shape: [refH, refW],
-            target_shape: [tgtH, tgtW],
-            detector: detector
-          }
-        };
-
-        setTimeout(() => {
-          loadJobResultsIntoViewer(jobId, true, localResult);
-        }, 1000);
-        return;
+      if (ctaTip) {
+        ctaTip.textContent = `Backend error: ${err.message || 'Registration service unreachable. Ensure FastAPI server is running.'}`;
+        ctaTip.className = 'reg-cta-tip error';
       }
-
-      const st = stages[current];
-      const stageEl = document.getElementById('proc-current-stage');
-      const barFill = document.getElementById('proc-progress-fill');
-      const barPct = document.getElementById('proc-progress-pct');
-
-      if (stageEl) stageEl.textContent = st.name.toUpperCase();
-      if (barFill) barFill.style.width = `${st.pct}%`;
-      if (barPct) barPct.textContent = `${st.pct}%`;
-
-      updatePipelineStages(st.id, current === stages.length - 1, false);
-      addTelemetryLog(`[STAGE 0${current + 1}/07] ${st.log}`, 'info');
-
-      current++;
-    }, 450);
+      if (window.toastManager && typeof window.toastManager.show === 'function') {
+        window.toastManager.show({
+          type: 'error',
+          title: 'REGISTRATION FAILED TO START',
+          message: err.message || 'Cannot reach backend registration server. Start backend using: uvicorn app.main:app'
+        });
+      }
+    }
   }
 
   // --- DEDICATED PROCESSING PAGE ORCHESTRATOR ---
@@ -2885,10 +2734,7 @@
     if (configApiRetryBtn) configApiRetryBtn.addEventListener('click', () => openModal('api-config'));
 
     const retryRegBtn = document.getElementById('btn-retry-registration');
-    if (retryRegBtn) retryRegBtn.addEventListener('click', () => executeRegistrationWorkflow(false));
-
-    const fallbackDemoBtn = document.getElementById('btn-fallback-calibration');
-    if (fallbackDemoBtn) fallbackDemoBtn.addEventListener('click', () => executeRegistrationWorkflow(true));
+    if (retryRegBtn) retryRegBtn.addEventListener('click', () => executeRegistrationWorkflow());
 
     // Dashboard & Placeholder Page Quick Action Handlers
     const bindClick = (id, fn) => {

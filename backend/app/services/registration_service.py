@@ -27,6 +27,24 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
+import sys
+
+# Ensure repository root and backend directory are in sys.path
+backend_dir = Path(__file__).resolve().parent.parent.parent
+repo_root = backend_dir.parent
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
+try:
+    import processing as proc
+    import output as out
+except ImportError as imp_err:
+    logger.warning("Core processing/output module import failed: %s", imp_err)
+    proc = None
+    out = None
+
 logger = logging.getLogger("luna_reg.registration_service")
 
 # Output directory for static web access
@@ -101,73 +119,6 @@ class RegistrationJobStore:
 # Global in-memory job store instance
 job_store = RegistrationJobStore()
 
-
-def _seed_benchmark_job(store: RegistrationJobStore):
-    seed_id = "LR-101"
-    seed_record = JobRecord(
-        job_id=seed_id,
-        status="completed",
-        stage="result_generation",
-        progress=100,
-        message="Chandrayaan-2 TMC-2 / OHRC benchmark registration verified",
-        created_at="2026-09-22T08:00:00Z",
-        start_time=time.time() - 3600,
-        completed_time=time.time() - 3598,
-        elapsed_seconds=2.14,
-        logs=[
-            "[INIT] Seed benchmark registration job LR-101 initialized.",
-            "[STAGE 01/08] Image pair decoded and validated.",
-            "[STAGE 02/08] Fourier-Mellin transform estimated scale ratio 1.5021, rotation 0.00°.",
-            "[STAGE 03/08] Multi-resolution Gaussian pyramid aligned.",
-            "[STAGE 04/08] SIFT detector extracted 15,000 reference & 4,464 moving keypoints.",
-            "[STAGE 05/08] Rigid triangular correspondence consensus verified 1,200 correspondences.",
-            "[STAGE 06/08] RANSAC projective homography converged: 1,200 inliers (100.0%).",
-            "[STAGE 07/08] Residual error computed: Mean RMSE 0.394 px, Median 0.316 px.",
-            "[STAGE 08/08] [STATUS:COMPLETED] Output products synthesized successfully."
-        ],
-        result_data={
-            "job_id": seed_id,
-            "status": "completed",
-            "reference_image_name": "CH2_TMC2_REF_ORBIT4829.png",
-            "target_image_name": "CH2_OHRC_TGT_ORBIT4842.png",
-            "reference_image_url": f"/static/outputs/{seed_id}/reference.png",
-            "target_image_url": f"/static/outputs/{seed_id}/target.png",
-            "registered_image_url": f"/static/outputs/{seed_id}/registered.png",
-            "difference_image_url": f"/static/outputs/{seed_id}/difference.png",
-            "overlay_image_url": f"/static/outputs/{seed_id}/overlay.png",
-            "report_url": f"/static/outputs/{seed_id}/registration_report.txt",
-            "csv_url": f"/static/outputs/{seed_id}/inlier_coordinates.csv",
-            "homography_matrix": [
-                [0.660925174, 0.000115242984, 239.243399],
-                [-0.000055878696, 0.661260129, 118.138839],
-                [-0.000000163199916, 0.0000000817593844, 1.0]
-            ],
-            "metrics": {
-                "rmse": 0.394,
-                "mae": 0.316,
-                "max_error": 3.300,
-                "inlier_ratio": 1.00,
-                "inlier_matches": 1200,
-                "total_matches": 1200,
-                "confidence": 0.472,
-                "scale_ratio": 1.5021,
-                "rotation_deg": 0.00,
-                "moving_coverage": 100.0,
-                "reference_coverage": 55.6,
-                "processing_time": "2.14 s",
-                "transformation_type": "Homography (8-DOF)"
-            },
-            "matches": [],
-            "metadata": {
-                "reference_shape": [2048, 2048],
-                "target_shape": [2048, 2048],
-                "detector": "sift"
-            }
-        }
-    )
-    store._jobs[seed_id] = seed_record
-
-_seed_benchmark_job(job_store)
 
 
 # ============================================================
@@ -434,85 +385,150 @@ def _execute_registration_worker(job_id: str):
         cv2.imwrite(str(tgt_web_path), tgt_img)
 
         # 3. Fourier-Mellin & Scale Estimation
-        job_store.update_job(job_id, stage="feature_extraction", progress=40,
+        job_store.update_job(job_id, stage="feature_extraction", progress=35,
                              message="Estimating scale and rotation via Fourier-Mellin Transform")
         job_store.append_log(job_id, "[STAGE 03/08] Fourier-Mellin log-polar phase correlation in frequency domain...")
 
-        scale_ratio, rotation_deg, fmt_conf = estimate_scale_rotation_fmt(tgt_img, ref_img)
+        if proc is not None and hasattr(proc, "estimate_scale_rotation_fmt"):
+            scale_ratio, rotation_deg, fmt_conf = proc.estimate_scale_rotation_fmt(tgt_img, ref_img)
+        else:
+            scale_ratio, rotation_deg, fmt_conf = estimate_scale_rotation_fmt(tgt_img, ref_img)
+
         job_store.append_log(job_id, f"[FMT] Estimated Scale Ratio: {scale_ratio:.4f} • Rotation: {rotation_deg:.2f}° (Conf: {fmt_conf:.3f})")
 
-        # Multi-scale pyramid builder
-        builder = PyramidBuilder()
-        src_res = 1.0 / max(scale_ratio, 1e-6) if fmt_conf >= 0.05 else 1.0
-        n_levels = builder.compute_levels_for_scale_ratio(src_res, 1.0)
-        src_pyr = builder.build(tgt_img, n_levels=n_levels)
-        ref_pyr = builder.build(ref_img, n_levels=n_levels)
-        matched_pairs = builder.find_matching_levels(src_pyr, ref_pyr, src_res, 1.0)
+        # 4. Illumination & Preprocessing Analysis
+        job_store.update_job(job_id, stage="preprocessing", progress=48,
+                             message="Analyzing illumination dynamics, contrast ratios, and shadow boundaries")
+        job_store.append_log(job_id, "[STAGE 04/08] Evaluating radiometric contrast, dynamic range, and shadows...")
 
-        s_idx, r_idx = matched_pairs[0] if matched_pairs else (0, 0)
-        moving_level = src_pyr.levels[s_idx]
-        ref_level = ref_pyr.levels[r_idx]
-        s_rescale = 1.0 / src_pyr.scale_factors[s_idx]
-        r_rescale = 1.0 / ref_pyr.scale_factors[r_idx]
+        illum = {}
+        if proc is not None and hasattr(proc, "illumination_analysis"):
+            illum = proc.illumination_analysis(ref_img, tgt_img, None, None)
+            c_ratio = illum.get("contrast_ratio", 1.0)
+            dr_ratio = illum.get("dynamic_range_ratio", 1.0)
+            job_store.append_log(job_id, f"[ILLUMINATION] Contrast ratio: {c_ratio:.2f} • Dynamic range ratio: {dr_ratio:.2f}")
 
-        # 4. Feature Matching
-        job_store.update_job(job_id, stage="feature_matching", progress=55,
-                             message="Extracting multi-scale keypoints and matching descriptors")
-        job_store.append_log(job_id, f"[STAGE 04/08] Detecting SIFT keypoints at pyramid levels ({s_idx}, {r_idx})...")
+        # 5. Feature Extraction & Matching
+        detector_choice = (job.detector or "sift").lower()
+        feature_method = "AUTO"
+        if detector_choice == "sift":
+            feature_method = "SIFT"
+        elif detector_choice == "rootsift":
+            feature_method = "ROOTSIFT"
+        elif detector_choice == "rift2":
+            feature_method = "RIFT2"
 
-        kp_moving, kp_ref, good_matches, total_candidates = detect_and_match_sift(
-            moving_level, ref_level, s_rescale, r_rescale
-        )
-        job_store.append_log(job_id, f"[MATCHING] Reference points: {len(kp_ref)} • Target points: {len(kp_moving)} • Candidate matches: {len(good_matches)}")
+        job_store.update_job(job_id, stage="feature_matching", progress=60,
+                             message=f"Extracting multi-modal features with {feature_method} and topological RUCO/TAT verification")
+        job_store.append_log(job_id, f"[STAGE 05/08] Detecting keypoints and matching descriptors using method: {feature_method}...")
 
-        # 5. Triangular Correspondence Verification
-        job_store.update_job(job_id, stage="geometric_verification", progress=70,
-                             message="Verifying local triangular consistency across crater terrain")
-        job_store.append_log(job_id, "[STAGE 05/08] Rigid triangular geometric validation to reject crater aliasing...")
+        H = None
+        good_matches = []
+        inlier_matches = []
+        kp_moving = []
+        kp_ref = []
+        inliers_count = 0
+        inlier_ratio = 0.0
+        mae = 0.0
+        rmse = 0.0
+        max_err = 0.0
+        moving_cov = 0.0
+        ref_cov = 0.0
+        inlier_mask = []
+        errors = []
+        pts_m = np.zeros((0, 1, 2), dtype=np.float32)
+        pts_r = np.zeros((0, 1, 2), dtype=np.float32)
 
-        verified_matches = triangular_filter(good_matches, kp_moving, kp_ref)
-        job_store.append_log(job_id, f"[GEOMETRY] Pre-triangle matches: {len(good_matches)} • Triangle-verified: {len(verified_matches)}")
+        if proc is not None and hasattr(proc, "adaptive_registration"):
+            result, attempts = proc.adaptive_registration(ref_img, tgt_img, illum, feature_method)
+            H = result.get("H")
+            inlier_matches = result.get("inlier_matches", [])
+            good_matches = result.get("good_matches", inlier_matches)
+            kp_moving = result.get("kp_moving", [])
+            kp_ref = result.get("kp_reference", [])
+            inliers_count = int(result.get("inliers", len(inlier_matches)))
+            raw_ratio = float(result.get("inlier_ratio", 0.0))
+            inlier_ratio = raw_ratio / 100.0 if raw_ratio > 1.0 else raw_ratio
+            mae = float(result.get("mean_reprojection_error", 0.0))
+            rmse = float(result.get("final_rmse", result.get("rmse", 0.0)))
+            max_err = float(result.get("max_reprojection_error", 0.0))
+            moving_cov = float(result.get("spatial_coverage", 0.0))
+            ref_cov = float(result.get("spatial_coverage", 0.0))
 
-        if len(verified_matches) < 4:
-            raise RuntimeError(f"Insufficient geometrically consistent tie-points found ({len(verified_matches)}).")
+            if out is not None and hasattr(out, "save_attempt_diagnostics"):
+                out.save_attempt_diagnostics(job_output_dir, ref_img, tgt_img, attempts)
 
-        # 6. RANSAC & Homography Estimation
-        job_store.update_job(job_id, stage="registration", progress=82,
-                             message="Estimating projective homography matrix with RANSAC")
-        job_store.append_log(job_id, "[STAGE 06/08] RANSAC projective transformation estimation (threshold: 4.0 px)...")
+            if len(inlier_matches) > 0 and len(kp_moving) > 0 and len(kp_ref) > 0:
+                pts_m = np.float32([kp_moving[m.queryIdx].pt for m in inlier_matches]).reshape(-1, 1, 2)
+                pts_r = np.float32([kp_ref[m.trainIdx].pt for m in inlier_matches]).reshape(-1, 1, 2)
+                inlier_mask = np.ones(len(inlier_matches), dtype=bool)
+                if H is not None:
+                    projected = cv2.perspectiveTransform(pts_m, H)
+                    errors = np.linalg.norm(projected.reshape(-1, 2) - pts_r.reshape(-1, 2), axis=1)
 
-        pts_m = np.float32([kp_moving[m.queryIdx].pt for m in verified_matches]).reshape(-1, 1, 2)
-        pts_r = np.float32([kp_ref[m.trainIdx].pt for m in verified_matches]).reshape(-1, 1, 2)
+            job_store.append_log(job_id, f"[MATCHING] Branch selected: {result.get('branch', feature_method)} • Inliers: {inliers_count} ({inlier_ratio*100:.1f}%)")
+        else:
+            # Multi-scale pyramid builder fallback
+            builder = PyramidBuilder()
+            src_res = 1.0 / max(scale_ratio, 1e-6) if fmt_conf >= 0.05 else 1.0
+            n_levels = builder.compute_levels_for_scale_ratio(src_res, 1.0)
+            src_pyr = builder.build(tgt_img, n_levels=n_levels)
+            ref_pyr = builder.build(ref_img, n_levels=n_levels)
+            matched_pairs = builder.find_matching_levels(src_pyr, ref_pyr, src_res, 1.0)
 
-        H, mask = cv2.findHomography(pts_m, pts_r, cv2.RANSAC, 4.0, maxIters=20000, confidence=0.999)
-        if H is None or mask is None:
-            raise RuntimeError("RANSAC could not converge on a valid projective homography.")
+            s_idx, r_idx = matched_pairs[0] if matched_pairs else (0, 0)
+            moving_level = src_pyr.levels[s_idx]
+            ref_level = ref_pyr.levels[r_idx]
+            s_rescale = 1.0 / src_pyr.scale_factors[s_idx]
+            r_rescale = 1.0 / ref_pyr.scale_factors[r_idx]
 
-        inlier_mask = mask.ravel().astype(bool)
-        inliers_count = int(np.sum(inlier_mask))
-        inlier_ratio = float(inliers_count / max(len(verified_matches), 1))
+            kp_moving, kp_ref, good_matches, total_candidates = detect_and_match_sift(
+                moving_level, ref_level, s_rescale, r_rescale
+            )
+            job_store.append_log(job_id, f"[MATCHING] Reference: {len(kp_ref)} • Target: {len(kp_moving)} • Candidates: {len(good_matches)}")
 
-        # Reprojection error metrics
-        projected = cv2.perspectiveTransform(pts_m, H)
-        errors = np.linalg.norm(projected.reshape(-1, 2) - pts_r.reshape(-1, 2), axis=1)
-        inlier_errors = errors[inlier_mask]
-        mae = float(np.mean(inlier_errors)) if len(inlier_errors) > 0 else 0.0
-        rmse = float(np.sqrt(np.mean(inlier_errors ** 2))) if len(inlier_errors) > 0 else 0.0
-        max_err = float(np.max(inlier_errors)) if len(inlier_errors) > 0 else 0.0
+            verified_matches = triangular_filter(good_matches, kp_moving, kp_ref)
+            job_store.append_log(job_id, f"[GEOMETRY] Triangle-verified tie-points: {len(verified_matches)}")
 
-        # Spatial coverage
-        inlier_m_pts = pts_m[inlier_mask]
-        inlier_r_pts = pts_r[inlier_mask]
-        moving_cov = calculate_spatial_coverage(inlier_m_pts, tgt_img.shape)
-        ref_cov = calculate_spatial_coverage(inlier_r_pts, ref_img.shape)
+            if len(verified_matches) < 4:
+                raise RuntimeError(f"Insufficient geometrically consistent tie-points found ({len(verified_matches)}).")
 
+            pts_m = np.float32([kp_moving[m.queryIdx].pt for m in verified_matches]).reshape(-1, 1, 2)
+            pts_r = np.float32([kp_ref[m.trainIdx].pt for m in verified_matches]).reshape(-1, 1, 2)
+
+            H, mask = cv2.findHomography(pts_m, pts_r, cv2.RANSAC, 4.0, maxIters=20000, confidence=0.999)
+            if H is None or mask is None:
+                raise RuntimeError("RANSAC could not converge on a valid projective homography.")
+
+            inlier_mask = mask.ravel().astype(bool)
+            inliers_count = int(np.sum(inlier_mask))
+            inlier_ratio = float(inliers_count / max(len(verified_matches), 1))
+
+            projected = cv2.perspectiveTransform(pts_m, H)
+            errors = np.linalg.norm(projected.reshape(-1, 2) - pts_r.reshape(-1, 2), axis=1)
+            inlier_errors = errors[inlier_mask]
+            mae = float(np.mean(inlier_errors)) if len(inlier_errors) > 0 else 0.0
+            rmse = float(np.sqrt(np.mean(inlier_errors ** 2))) if len(inlier_errors) > 0 else 0.0
+            max_err = float(np.max(inlier_errors)) if len(inlier_errors) > 0 else 0.0
+
+            inlier_m_pts = pts_m[inlier_mask]
+            inlier_r_pts = pts_r[inlier_mask]
+            moving_cov = calculate_spatial_coverage(inlier_m_pts, tgt_img.shape)
+            ref_cov = calculate_spatial_coverage(inlier_r_pts, ref_img.shape)
+
+            if inliers_count >= 4:
+                refined_H, _ = cv2.findHomography(inlier_m_pts, inlier_r_pts, 0)
+                if refined_H is not None:
+                    H = refined_H
+
+        if H is None:
+            raise RuntimeError("Registration failed: homography matrix could not be estimated.")
+
+        # 6. RANSAC and Sub-Pixel Convergence
+        job_store.update_job(job_id, stage="geometric_verification", progress=78,
+                             message="Validating geometric convergence and sub-pixel residuals")
         job_store.append_log(job_id, f"[CONVERGENCE] RANSAC inliers: {inliers_count} ({inlier_ratio*100:.1f}%) • RMSE: {rmse:.3f} px • MAE: {mae:.3f} px")
 
-        # Refine with all inliers
-        if inliers_count >= 4:
-            refined_H, _ = cv2.findHomography(inlier_m_pts, inlier_r_pts, 0)
-            if refined_H is not None:
-                H = refined_H
 
         # 7. Warp, Overlay, and Difference Generation
         job_store.update_job(job_id, stage="result_generation", progress=92,
@@ -546,13 +562,19 @@ def _execute_registration_worker(job_id: str):
             writer = csv.writer(f)
             writer.writerow(["ref_x", "ref_y", "tgt_x", "tgt_y", "residual"])
             for idx, is_inlier in enumerate(inlier_mask):
-                if is_inlier:
+                if is_inlier and idx < len(pts_r) and idx < len(pts_m):
                     rx, ry = float(pts_r[idx][0][0]), float(pts_r[idx][0][1])
                     tx, ty = float(pts_m[idx][0][0]), float(pts_m[idx][0][1])
-                    res = float(errors[idx])
+                    res = float(errors[idx]) if (errors is not None and idx < len(errors)) else 0.0
                     writer.writerow([round(rx, 2), round(ry, 2), round(tx, 2), round(ty, 2), round(res, 3)])
                     if len(match_records) < 500:  # Cap payload size for web UI
                         match_records.append({"ref_x": rx, "ref_y": ry, "tgt_x": tx, "tgt_y": ty, "residual": res})
+
+        # Save standardized aliases and matrix text
+        cv2.imwrite(str(job_output_dir / "final_registered_target_to_reference.png"), registered_img)
+        cv2.imwrite(str(job_output_dir / "final_overlay.png"), overlay)
+        cv2.imwrite(str(job_output_dir / "final_difference.png"), diff)
+        np.savetxt(str(job_output_dir / "homography_matrix.txt"), H, fmt="%.12g")
 
         # Diagnostic report
         report_text = f"""===========================================
@@ -613,6 +635,14 @@ HOMOGRAPHY MATRIX (H):
                 "detector": job.detector
             }
         }
+
+        # Save metrics JSON artifact
+        try:
+            import json
+            with open(job_output_dir / "registration_metrics.json", "w", encoding="utf-8") as f_json:
+                json.dump(result_payload, f_json, indent=2)
+        except Exception as json_err:
+            logger.warning("Failed to save metrics JSON: %s", json_err)
 
         job_store.update_job(
             job_id,

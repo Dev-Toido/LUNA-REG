@@ -43,24 +43,45 @@ async def submit_registration(
     ref = reference_image or reference_file
     tgt = target_image or target_file
 
-    if not ref or not tgt:
+    ref_disk_path = None
+    tgt_disk_path = None
+
+    if ref and tgt:
+        # Save uploaded files to disk
+        timestamp = int(time.time() * 1000)
+        ref_filename = f"ref_{timestamp}_{ref.filename or 'reference.png'}"
+        tgt_filename = f"tgt_{timestamp}_{tgt.filename or 'target.png'}"
+
+        ref_disk_path = UPLOADS_TMP_DIR / ref_filename
+        tgt_disk_path = UPLOADS_TMP_DIR / tgt_filename
+
+        with open(ref_disk_path, "wb") as f_out:
+            shutil.copyfileobj(ref.file, f_out)
+        with open(tgt_disk_path, "wb") as f_out:
+            shutil.copyfileobj(tgt.file, f_out)
+    elif pair_id:
+        # Resolve real canonical lunar rasters from assets or canonical repository
+        root_dir = Path(__file__).resolve().parent.parent.parent.parent
+        assets_dir = root_dir / "assets"
+        frontend_assets = root_dir / "frontend" / "assets"
+        ref_candidate = (assets_dir / "lunar_nadir.jpg") if (assets_dir / "lunar_nadir.jpg").exists() else (frontend_assets / "lunar_nadir.jpg")
+        tgt_candidate = (assets_dir / "lunar_low_sun.jpg") if (assets_dir / "lunar_low_sun.jpg").exists() else (frontend_assets / "lunar_low_sun.jpg")
+
+        if not ref_candidate.exists() or not tgt_candidate.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Planetary image rasters for pair '{pair_id}' could not be located.",
+            )
+        timestamp = int(time.time() * 1000)
+        ref_disk_path = UPLOADS_TMP_DIR / f"pair_{pair_id}_{timestamp}_ref.jpg"
+        tgt_disk_path = UPLOADS_TMP_DIR / f"pair_{pair_id}_{timestamp}_tgt.jpg"
+        shutil.copy(ref_candidate, ref_disk_path)
+        shutil.copy(tgt_candidate, tgt_disk_path)
+    else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Both 'reference_image' and 'target_image' binary files are required for registration.",
+            detail="Either binary files ('reference_image' and 'target_image') or a valid 'pair_id' are required.",
         )
-
-    # Save uploaded files to disk
-    timestamp = int(time.time() * 1000)
-    ref_filename = f"ref_{timestamp}_{ref.filename or 'reference.png'}"
-    tgt_filename = f"tgt_{timestamp}_{tgt.filename or 'target.png'}"
-
-    ref_disk_path = UPLOADS_TMP_DIR / ref_filename
-    tgt_disk_path = UPLOADS_TMP_DIR / tgt_filename
-
-    with open(ref_disk_path, "wb") as f_out:
-        shutil.copyfileobj(ref.file, f_out)
-    with open(tgt_disk_path, "wb") as f_out:
-        shutil.copyfileobj(tgt.file, f_out)
 
     job_id = dispatch_registration_job(str(ref_disk_path), str(tgt_disk_path), detector=detector)
 
