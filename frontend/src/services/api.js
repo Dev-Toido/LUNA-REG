@@ -132,6 +132,9 @@ class ApiClient {
     if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
+    if (url.startsWith('assets/') || url.startsWith('./assets/') || url.startsWith('frontend/assets/')) {
+      return url;
+    }
     const cleanPath = url.startsWith('/') ? url : `/${url}`;
     return `${this.backendRoot}${cleanPath}`;
   }
@@ -360,7 +363,7 @@ class ApiClient {
       return assetPath;
     }
     // If it's a relative frontend asset path (e.g. assets/...) preserve it relative to the document
-    if (assetPath.startsWith('assets/') || assetPath.startsWith('./assets/')) {
+    if (assetPath.startsWith('assets/') || assetPath.startsWith('./assets/') || assetPath.startsWith('frontend/assets/')) {
       return assetPath;
     }
     const clean = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;

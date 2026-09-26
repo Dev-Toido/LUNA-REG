@@ -1,0 +1,80 @@
+{
+  "registration_folder": "pair_1",
+  "input_mode": "WITHOUT_METADATA",
+  "metadata_used": false,
+  "role_selection": {
+    "reference": 1,
+    "target": 2,
+    "selection_reason": "Image 1 has higher resolution"
+  },
+  "reference": "REFERENCE",
+  "target": "TARGET",
+  "direction": "TARGET -> REFERENCE",
+  "reference_metadata": null,
+  "moving_metadata": null,
+  "metadata_overlap": null,
+  "resolution_normalization": {
+    "metadata_used": false,
+    "metadata_roi_used": false,
+    "reference_safe_scale": 1.0,
+    "moving_safe_scale": 1.0,
+    "fmt": {
+      "estimated_scale_ratio": 0.9993396261723352,
+      "estimated_rotation_deg": -0.03352543626149895,
+      "confidence": 0.6259217583574355,
+      "fmt_scale_applied": false,
+      "fmt_scale_factor_used": 1.0,
+      "reason": "Scale difference small; no normalization needed"
+    }
+  },
+  "illumination_analysis": {
+    "analysis_mode": "IMAGE_ONLY",
+    "reference_mean_intensity": 99.7695057003997,
+    "moving_mean_intensity": 51.07454237827035,
+    "brightness_difference": 48.694963322129354,
+    "histogram_distance": 0.39691005546572167,
+    "reference_sun_elevation_deg": null,
+    "moving_sun_elevation_deg": null,
+    "sun_elevation_difference_deg": null,
+    "reference_sun_azimuth_deg": null,
+    "moving_sun_azimuth_deg": null,
+    "sun_azimuth_difference_deg": null,
+    "severity_score": 3,
+    "severity": "MODERATE"
+  },
+  "selected_branch": "CLAHE + SIFT",
+  "validation_summary": {
+    "accepted": true,
+    "geometric_consistency": "PASS",
+    "coverage_distribution": "GOOD",
+    "reasons": [
+      "All configured registration quality checks passed."
+    ]
+  },
+  "correspondence_outputs": {
+    "matched_points_csv": "matched_points.csv",
+    "inlier_points_csv": "inlier_points.csv",
+    "matched_point_count": 1201,
+    "ransac_inlier_point_count": 1197
+  },
+  "quality": {
+    "ransac_inliers": 1197,
+    "inlier_ratio_percent": 99.6669442131557,
+    "mean_reprojection_error_px": 0.6994314789772034,
+    "median_reprojection_error_px": 0.5357130765914917,
+    "max_reprojection_error_px": 3.6035704612731934,
+    "spatial_coverage_percent": 100.0,
+    "initial_rmse_pixels": 0.8954604864120483,
+    "final_rmse_pixels": 0.8954604864120483,
+    "subpixel_attempted": true,
+    "subpixel_candidate_rmse_pixels": 2.806405544281006,
+    "subpixel_refinement_accepted": false,
+    "subpixel_accuracy_threshold_pixels": 1.0,
+    "subpixel_accuracy_achieved": true,
+    "balanced_match_count": 1201,
+    "occupied_grid_cells": 36,
+    "total_grid_cells": 36,
+    "homography_valid": true,
+    "accepted": true
+  }
+}

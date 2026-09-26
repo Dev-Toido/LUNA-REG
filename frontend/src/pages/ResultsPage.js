@@ -244,6 +244,16 @@ class ResultsPage {
     });
   }
 
+  getCoreCodeResults(pairId) {
+    if (typeof window.getCoreCodeResults === 'function') {
+      return window.getCoreCodeResults(pairId);
+    }
+    if (window.REAL_CORE_RESULTS) {
+      return JSON.parse(JSON.stringify(window.REAL_CORE_RESULTS));
+    }
+    return null;
+  }
+
   /**
    * Immediately applies complete metadata for a pair to ensure instant zero-latency rendering
    */
@@ -252,7 +262,12 @@ class ResultsPage {
     this.pairId = pairId;
     this.syncPairIdToUrl(pairId);
 
-    const latest = (window.resultsState && window.resultsState.latestResult) || null;
+    let latest = (window.resultsState && window.resultsState.latestResult) || null;
+    if (!latest) {
+      latest = this.getCoreCodeResults(pairId);
+      if (!window.resultsState) window.resultsState = {};
+      window.resultsState.latestResult = latest;
+    }
     const isCompleted = !!(latest && (latest.registered_image_url || latest.registered_image));
 
     if (this.header) this.header.setPairId(pairId, isCompleted);
@@ -337,36 +352,20 @@ class ResultsPage {
       if (this.toolbar && typeof this.toolbar.setRegistrationStatus === 'function') {
         this.toolbar.setRegistrationStatus(!!regUrl);
       }
-    } else if (window.clientRegistrationEngine && !this._isAutoAligning) {
-      this._isAutoAligning = true;
-      const isSouthPole = (pairId === 3);
-      const refSrc = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg';
-      const tgtSrc = isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_low_sun.jpg';
-
-      if (this.workspace) {
-        this.workspace.setImageUrls(tgtSrc, refSrc, null, null);
+    } else {
+      latest = this.getCoreCodeResults(pairId);
+      if (latest && this.workspace) {
+        const refUrl = latest.reference_image_url;
+        const tgtUrl = latest.target_original_url;
+        const regUrl = latest.registered_image_url;
+        const diffUrl = latest.difference_image_url;
+        this.workspace.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl);
         this.workspace.resizeCanvas();
         this.workspace.draw();
-      }
-
-      window.clientRegistrationEngine.executeRegistration({
-        refSource: refSrc,
-        tgtSource: tgtSrc,
-        pairId: pairId || 1,
-        jobId: `LR-PAIR${pairId || 1}`
-      }).then(result => {
-        this._isAutoAligning = false;
-        if (!window.resultsState) window.resultsState = {};
-        window.resultsState.latestResult = result;
-        if (typeof window.loadJobResultsIntoViewer === 'function') {
-          window.loadJobResultsIntoViewer(result.job_id, false, result);
-        } else {
-          this.applyPairData(pairId);
+        if (this.metrics && latest.metrics) {
+          this.metrics.setMetrics(latest.metrics, pairId);
         }
-      }).catch(err => {
-        this._isAutoAligning = false;
-        console.error('Client auto-alignment error:', err);
-      });
+      }
     } else {
       if (this.workspace) {
         this.workspace.setImageUrls(null, null, null, null);

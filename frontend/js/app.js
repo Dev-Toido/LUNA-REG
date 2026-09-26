@@ -1864,6 +1864,9 @@
     if (!result && window.resultsState && window.resultsState.latestResult) {
       result = window.resultsState.latestResult;
     }
+    if (!result && typeof window.getCoreCodeResults === 'function') {
+      result = window.getCoreCodeResults(1);
+    }
 
     if (result) {
       resultsState.latestResult = result;
