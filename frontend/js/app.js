@@ -1551,16 +1551,57 @@
 
     regWorkflowState.isSubmitting = false;
 
-    // Dispatch directly to local pipeline with user's input files & chosen parameters (NO REST API)
-    runBrowserRegistrationPipeline({
+    // Dispatch to Core Registration Pipeline (input.py -> processing.py -> output.py)
+    dispatchToCorePipeline({
       refSource: regWorkflowState.refFile || regWorkflowState.refUrl || 'assets/lunar_nadir.jpg',
       tgtSource: regWorkflowState.tgtFile || regWorkflowState.tgtUrl || 'assets/lunar_low_sun.jpg',
+      refFile: regWorkflowState.refFile,
+      tgtFile: regWorkflowState.tgtFile,
       detector: detector,
       outlierRejection: outlierRejection,
       geometricModel: geometricModel,
       subpixel: subpixel,
-      clahe: clahe
+      clahe: clahe,
+      pairId: (regWorkflowState.currentPairId || 1)
     });
+  }
+
+  // --- CORE DISPATCH ORCHESTRATOR ---
+  async function dispatchToCorePipeline(options = {}) {
+    const api = window.LUNAR_API || window.apiService;
+
+    if (api && typeof api.submitRegistration === 'function') {
+      try {
+        const formData = new FormData();
+        if (options.refFile instanceof File || options.refFile instanceof Blob) {
+          formData.append('reference_image', options.refFile, options.refFile.name || 'reference.png');
+        }
+        if (options.tgtFile instanceof File || options.tgtFile instanceof Blob) {
+          formData.append('target_image', options.tgtFile, options.tgtFile.name || 'target.png');
+        }
+        if (!options.refFile && !options.tgtFile && options.pairId) {
+          formData.append('pair_id', String(options.pairId));
+        }
+        formData.append('detector', options.detector || 'sift');
+        formData.append('registration_mode', 'automatic');
+
+        // Verify if backend server is online
+        const isHealthy = await api.checkHealth().catch(() => false);
+        if (isHealthy) {
+          const resp = await api.submitRegistration(formData);
+          if (resp && resp.job_id) {
+            openProcessingPage(resp.job_id, true, false); // isClient = false -> polls core-code execution
+            addTelemetryLog(`[CORE-CODE] Job ${resp.job_id} dispatched to core-code pipeline (input.py -> processing.py -> output.py).`, 'success');
+            return;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('Backend core-code endpoint not reachable, engaging local compute:', apiErr);
+      }
+    }
+
+    // Fallback to in-browser engine if backend is offline
+    runBrowserRegistrationPipeline(options);
   }
 
   // --- DEDICATED CLIENT-SIDE REGISTRATION PIPELINE ---

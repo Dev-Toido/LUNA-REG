@@ -20,8 +20,12 @@ import re
 import xml.etree.ElementTree as ET
 import numpy as np
 from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+except ImportError:
+    tk = None
+    filedialog = None
 
 import processing as proc
 import output as out
@@ -44,15 +48,25 @@ IIRS_MAX_WORKING_DIM = 3000
 MOON_MEAN_RADIUS_M = 1737400.0
 
 def choose_file(title, patterns):
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes("-topmost", True)
-    path = filedialog.askopenfilename(
-        title=title,
-        filetypes=patterns
-    )
-    root.destroy()
-    return path
+    if tk is not None and filedialog is not None:
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            path = filedialog.askopenfilename(
+                title=title,
+                filetypes=patterns
+            )
+            root.destroy()
+            return path
+        except Exception:
+            pass
+    # Fallback for environments without GUI/Tkinter
+    try:
+        path = input(f"{title}: ").strip()
+        return path if path else None
+    except (EOFError, KeyboardInterrupt):
+        return None
 
 def choose_image(title):
     path = choose_file(
@@ -2048,6 +2062,239 @@ def main():
 
     print("\nAll files for this run are stored in:")
     print(run_dir)
+
+
+def run_core_registration(
+    image1_path,
+    image2_path,
+    xml1_path=None,
+    xml2_path=None,
+    feature_method="AUTO",
+    reference_choice="AUTO",
+    output_dir=None,
+    progress_callback=None,
+    log_callback=None,
+):
+    """
+    Programmatic entry point for LUNA-REG Core.
+    Coordinates:
+      1. input.py      -> Data decoding, metadata parsing, GSD/ROI/illumination analysis
+      2. processing.py -> Adaptive multi-modal feature matching & homography estimation
+      3. output.py     -> Permanent output directory, warped raster, difference map, and report
+    """
+    def _log(msg):
+        if log_callback:
+            try:
+                log_callback(str(msg))
+            except Exception:
+                pass
+        else:
+            print(msg)
+
+    def _progress(stage, pct, msg=""):
+        if progress_callback:
+            try:
+                progress_callback(stage, pct, msg)
+            except Exception:
+                pass
+
+    _progress("validation", 10, "Validating input rasters and formats")
+    _log("[STAGE 01/08: INPUT] Loading images from disk...")
+    _log(f"  Image 1: {image1_path}")
+    _log(f"  Image 2: {image2_path}")
+
+    # Determine output folder
+    if output_dir:
+        run_dir = Path(output_dir)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        registration_number = 1
+    else:
+        run_dir, registration_number = out.create_registration_folder()
+
+    use_metadata = bool(xml1_path and xml2_path and Path(xml1_path).exists() and Path(xml2_path).exists())
+
+    if use_metadata:
+        _log("[STAGE 01/08: INPUT] Mode: WITH_METADATA (PDS4 XML)")
+        meta1 = parse_pds4_metadata(xml1_path, "IMAGE_1")
+        meta2 = parse_pds4_metadata(xml2_path, "IMAGE_2")
+
+        image1, load1, image2, load2, overlap_poly, roi_used = load_registration_pair_with_roi(
+            image1_path, xml1_path, meta1,
+            image2_path, xml2_path, meta2
+        )
+
+        (
+            reference_original, reference_metadata, reference_load_info,
+            moving_original, moving_metadata, moving_load_info,
+            role_selection
+        ) = select_reference_and_target(image1, meta1, load1, image2, meta2, load2)
+
+        _progress("preprocessing", 25, "Normalizing spatial resolution and metadata GSD")
+        _log("[STAGE 02/08: INPUT] Normalizing resolution based on GSD...")
+        reference, moving, scale_info = proc.normalize_resolution(
+            reference_original, moving_original,
+            reference_metadata, moving_metadata
+        )
+        scale_info["metadata_roi_used"] = roi_used
+
+        _progress("preprocessing", 35, "Analyzing radiometric contrast and illumination")
+        _log("[STAGE 03/08: INPUT] Illumination and Sun-angle analysis...")
+        illum = proc.illumination_analysis(
+            reference, moving,
+            reference_metadata, moving_metadata
+        )
+        overlap_info = {
+            "overlap": True,
+            "projection": (overlap_poly or {}).get("projection"),
+            "intersection_area_m2": (overlap_poly or {}).get("intersection_area_m2"),
+        }
+        mode_name = "WITH_METADATA"
+
+    else:
+        _log("[STAGE 01/08: INPUT] Mode: WITHOUT_METADATA (Direct Planetary Imagery)")
+        image1 = load_image(image1_path)
+        image2 = load_image(image2_path)
+
+        if reference_choice == "2":
+            reference_original, moving_original = image2, image1
+            role_selection = {"reference": 2, "target": 1, "selection_reason": "Requested Image 2 as reference"}
+        elif reference_choice == "1":
+            reference_original, moving_original = image1, image2
+            role_selection = {"reference": 1, "target": 2, "selection_reason": "Requested Image 1 as reference"}
+        else:
+            # Auto: larger pixel count is reference
+            p1 = image1.shape[0] * image1.shape[1]
+            p2 = image2.shape[0] * image2.shape[1]
+            if p1 >= p2:
+                reference_original, moving_original = image1, image2
+                role_selection = {"reference": 1, "target": 2, "selection_reason": "Image 1 has higher resolution"}
+            else:
+                reference_original, moving_original = image2, image1
+                role_selection = {"reference": 2, "target": 1, "selection_reason": "Image 2 has higher resolution"}
+
+        reference_metadata = None
+        moving_metadata = None
+        overlap_info = None
+
+        _progress("preprocessing", 25, "Safe dimension scaling and radiometric analysis")
+        _log("[STAGE 02/08: INPUT] Safe dimension scaling...")
+        reference, ref_safe_scale = proc.resize_max_dimension(reference_original)
+        moving, mov_safe_scale = proc.resize_max_dimension(moving_original)
+
+        _progress("feature_extraction", 35, "Estimating scale & rotation via Fourier-Mellin Transform")
+        _log("[STAGE 03/08: INPUT] Fourier-Mellin Transform scale/rotation analysis...")
+        fmt_scale, fmt_rotation, fmt_confidence = proc.estimate_scale_rotation_fmt(moving, reference)
+        _log(f"  FMT scale ratio: {fmt_scale:.4f}, rotation: {fmt_rotation:.2f} deg, confidence: {fmt_confidence:.4f}")
+
+        moving, fmt_normalization = proc.apply_fmt_scale_normalization(reference, moving, fmt_scale, fmt_confidence)
+
+        scale_info = {
+            "metadata_used": False,
+            "metadata_roi_used": False,
+            "reference_safe_scale": ref_safe_scale,
+            "moving_safe_scale": mov_safe_scale,
+            "fmt": {
+                "estimated_scale_ratio": fmt_scale,
+                "estimated_rotation_deg": fmt_rotation,
+                "confidence": fmt_confidence,
+                **fmt_normalization,
+            }
+        }
+
+        illum = proc.illumination_analysis(reference, moving, None, None)
+        mode_name = "WITHOUT_METADATA"
+
+    # Save working images (input.py / output.py contract)
+    out.save_working_images(run_dir, reference, moving)
+
+    # Save reference and target working copies for web view
+    cv2.imwrite(str(run_dir / "reference.png"), reference)
+    cv2.imwrite(str(run_dir / "target.png"), moving)
+
+    # ------------------------------------------------------------
+    # PROCESSING PHASE (processing.py)
+    # ------------------------------------------------------------
+    _progress("feature_matching", 55, f"Extracting features with {feature_method} & topological filtering")
+    _log(f"[STAGE 05/08: PROCESSING] Running adaptive registration using {feature_method}...")
+
+    result, attempts = proc.adaptive_registration(
+        reference,
+        moving,
+        illum,
+        feature_method,
+    )
+
+    _progress("refinement", 80, "Sub-pixel geometric refinement & residual error assessment")
+    _log(f"[STAGE 06/08: PROCESSING] Verification complete. Inliers: {result.get('inliers', 0)}, RMSE: {result.get('final_rmse', result.get('rmse', 0.0)):.3f} px")
+
+    # ------------------------------------------------------------
+    # OUTPUT PHASE (output.py)
+    # ------------------------------------------------------------
+    _progress("result_generation", 90, "Exporting registered rasters, difference maps, and CSV metrics")
+    _log("[STAGE 07/08: OUTPUT] Generating diagnostics, error heatmaps, and warped rasters...")
+
+    out.save_attempt_diagnostics(run_dir, reference, moving, attempts)
+    validation_summary = out.print_validation_summary(result)
+
+    out.save_final_outputs(
+        run_dir=run_dir,
+        reference=reference,
+        moving=moving,
+        result=result,
+        illumination=illum,
+        scale_info=scale_info,
+        reference_metadata=reference_metadata,
+        moving_metadata=moving_metadata,
+        overlap_info=overlap_info,
+        input_mode=mode_name,
+        metadata_used=use_metadata,
+        role_selection=role_selection,
+        validation_summary=validation_summary,
+    )
+
+    # Alias standard filenames for web integration
+    registered_canonical = run_dir / "final_registered_target_to_reference.png"
+    if registered_canonical.exists():
+        cv2.imwrite(str(run_dir / "registered.png"), cv2.imread(str(registered_canonical)))
+    overlay_canonical = run_dir / "final_overlay.png"
+    if overlay_canonical.exists():
+        cv2.imwrite(str(run_dir / "overlay.png"), cv2.imread(str(overlay_canonical)))
+    diff_canonical = run_dir / "final_difference.png"
+    if diff_canonical.exists():
+        cv2.imwrite(str(run_dir / "difference.png"), cv2.imread(str(diff_canonical)))
+
+    _progress("result_generation", 100, "Registration completed successfully")
+    _log("[STAGE 08/08: OUTPUT] Registration complete. All artifacts generated in output directory.")
+
+    return {
+        "run_dir": str(run_dir),
+        "registration_number": registration_number,
+        "result": result,
+        "attempts": attempts,
+        "validation_summary": validation_summary,
+        "scale_info": scale_info,
+        "illumination": illum,
+        "homography_matrix": (result.get("H").tolist() if result.get("H") is not None else None),
+        "inliers": result.get("inliers", 0),
+        "inlier_ratio": result.get("inlier_ratio", 0.0),
+        "rmse": result.get("final_rmse", result.get("rmse", 0.0)),
+        "mean_error": result.get("mean_reprojection_error", 0.0),
+        "max_error": result.get("max_reprojection_error", 0.0),
+        "spatial_coverage": result.get("spatial_coverage", 0.0),
+        "selected_branch": result.get("branch", feature_method),
+        "accepted": proc.quality_pass(result),
+        "files": {
+            "registered_image": str(run_dir / "registered.png"),
+            "reference_image": str(run_dir / "reference.png"),
+            "target_image": str(run_dir / "target.png"),
+            "difference_image": str(run_dir / "difference.png"),
+            "overlay_image": str(run_dir / "overlay.png"),
+            "final_report": str(run_dir / "final_report.json"),
+            "inlier_points_csv": str(run_dir / "inlier_points.csv"),
+            "matched_points_csv": str(run_dir / "matched_points.csv"),
+            "homography_matrix": str(run_dir / "homography_matrix.txt"),
+        }
+    }
 
 
 if __name__ == "__main__":

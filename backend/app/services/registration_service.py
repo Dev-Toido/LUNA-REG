@@ -17,6 +17,7 @@ import csv
 import logging
 import os
 import shutil
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -32,6 +33,21 @@ logger = logging.getLogger("luna_reg.registration_service")
 # Output directory for static web access
 OUTPUTS_BASE_DIR = Path(__file__).resolve().parent.parent / "static" / "outputs"
 OUTPUTS_BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+# LUNA-REG Core Modules (core-code/ package)
+core_code_dir = Path(__file__).resolve().parent.parent.parent.parent / "core-code"
+if str(core_code_dir) not in sys.path:
+    sys.path.insert(0, str(core_code_dir))
+
+try:
+    import input as core_input
+    import processing as core_proc
+    import output as core_output
+except ImportError as err:
+    logger.warning("Could not import core-code modules: %s", err)
+    core_input = None
+    core_proc = None
+    core_output = None
 
 
 @dataclass
@@ -337,305 +353,113 @@ def _execute_registration_worker(job_id: str):
     job_output_dir = OUTPUTS_BASE_DIR / job_id
     job_output_dir.mkdir(parents=True, exist_ok=True)
 
+    def log_cb(msg):
+        job_store.append_log(job_id, str(msg))
+
+    def progress_cb(stage, pct, msg=""):
+        job_store.update_job(job_id, stage=stage, progress=pct, message=msg)
+
     try:
-        # 1. Validation Stage
-        job_store.update_job(job_id, status="processing", stage="validation", progress=10,
-                             message="Validating planetary raster formats and bit depth")
-        job_store.append_log(job_id, "[STAGE 01/08] Checking raster geometries, bit depth, and image boundaries...")
-
-        ref_img = cv2.imread(job.ref_path, cv2.IMREAD_COLOR)
-        tgt_img = cv2.imread(job.tgt_path, cv2.IMREAD_COLOR)
-
-        if ref_img is None:
-            raise FileNotFoundError(f"Reference lunar image could not be decoded: {job.ref_path}")
-        if tgt_img is None:
-            raise FileNotFoundError(f"Target lunar image could not be decoded: {job.tgt_path}")
-
-        ref_h, ref_w = ref_img.shape[:2]
-        tgt_h, tgt_w = tgt_img.shape[:2]
-        job_store.append_log(job_id, f"[VALIDATION] Reference dimensions: {ref_w}x{ref_h} • Target dimensions: {tgt_w}x{tgt_h}")
-
-        # 2. Preprocessing Stage
-        job_store.update_job(job_id, stage="preprocessing", progress=25,
-                             message="Performing CLAHE contrast normalization and radiometric calibration")
-        job_store.append_log(job_id, "[STAGE 02/08] CLAHE contrast normalization applied across dynamic range.")
-
-        # Save copies for web viewing
-        ref_web_path = job_output_dir / "reference.png"
-        tgt_web_path = job_output_dir / "target.png"
-        cv2.imwrite(str(ref_web_path), ref_img)
-        cv2.imwrite(str(tgt_web_path), tgt_img)
-
-        # 3. Fourier-Mellin & Scale Estimation
-        job_store.update_job(job_id, stage="feature_extraction", progress=35,
-                             message="Estimating scale and rotation via Fourier-Mellin Transform")
-        job_store.append_log(job_id, "[STAGE 03/08] Fourier-Mellin log-polar phase correlation in frequency domain...")
-
-        if proc is not None and hasattr(proc, "estimate_scale_rotation_fmt"):
-            scale_ratio, rotation_deg, fmt_conf = proc.estimate_scale_rotation_fmt(tgt_img, ref_img)
-        else:
-            scale_ratio, rotation_deg, fmt_conf = estimate_scale_rotation_fmt(tgt_img, ref_img)
-
-        job_store.append_log(job_id, f"[FMT] Estimated Scale Ratio: {scale_ratio:.4f} • Rotation: {rotation_deg:.2f}° (Conf: {fmt_conf:.3f})")
-
-        # 4. Illumination & Preprocessing Analysis
-        job_store.update_job(job_id, stage="preprocessing", progress=48,
-                             message="Analyzing illumination dynamics, contrast ratios, and shadow boundaries")
-        job_store.append_log(job_id, "[STAGE 04/08] Evaluating radiometric contrast, dynamic range, and shadows...")
-
-        illum = {}
-        if proc is not None and hasattr(proc, "illumination_analysis"):
-            illum = proc.illumination_analysis(ref_img, tgt_img, None, None)
-            c_ratio = illum.get("contrast_ratio", 1.0)
-            dr_ratio = illum.get("dynamic_range_ratio", 1.0)
-            job_store.append_log(job_id, f"[ILLUMINATION] Contrast ratio: {c_ratio:.2f} • Dynamic range ratio: {dr_ratio:.2f}")
-
-        # 5. Feature Extraction & Matching
+        import json
         detector_choice = (job.detector or "sift").lower()
-        feature_method = "AUTO"
         if detector_choice == "sift":
             feature_method = "SIFT"
         elif detector_choice == "rootsift":
             feature_method = "ROOTSIFT"
         elif detector_choice == "rift2":
             feature_method = "RIFT2"
-
-        job_store.update_job(job_id, stage="feature_matching", progress=60,
-                             message=f"Extracting multi-modal features with {feature_method} and topological RUCO/TAT verification")
-        job_store.append_log(job_id, f"[STAGE 05/08] Detecting keypoints and matching descriptors using method: {feature_method}...")
-
-        H = None
-        good_matches = []
-        inlier_matches = []
-        kp_moving = []
-        kp_ref = []
-        inliers_count = 0
-        inlier_ratio = 0.0
-        mae = 0.0
-        rmse = 0.0
-        max_err = 0.0
-        moving_cov = 0.0
-        ref_cov = 0.0
-        inlier_mask = []
-        errors = []
-        pts_m = np.zeros((0, 1, 2), dtype=np.float32)
-        pts_r = np.zeros((0, 1, 2), dtype=np.float32)
-
-        if proc is not None and hasattr(proc, "adaptive_registration"):
-            result, attempts = proc.adaptive_registration(ref_img, tgt_img, illum, feature_method)
-            H = result.get("H")
-            inlier_matches = result.get("inlier_matches", [])
-            good_matches = result.get("good_matches", inlier_matches)
-            kp_moving = result.get("kp_moving", [])
-            kp_ref = result.get("kp_reference", [])
-            inliers_count = int(result.get("inliers", len(inlier_matches)))
-            raw_ratio = float(result.get("inlier_ratio", 0.0))
-            inlier_ratio = raw_ratio / 100.0 if raw_ratio > 1.0 else raw_ratio
-            mae = float(result.get("mean_reprojection_error", 0.0))
-            rmse = float(result.get("final_rmse", result.get("rmse", 0.0)))
-            max_err = float(result.get("max_reprojection_error", 0.0))
-            moving_cov = float(result.get("spatial_coverage", 0.0))
-            ref_cov = float(result.get("spatial_coverage", 0.0))
-
-            if out is not None and hasattr(out, "save_attempt_diagnostics"):
-                out.save_attempt_diagnostics(job_output_dir, ref_img, tgt_img, attempts)
-
-            if len(inlier_matches) > 0 and len(kp_moving) > 0 and len(kp_ref) > 0:
-                pts_m = np.float32([kp_moving[m.queryIdx].pt for m in inlier_matches]).reshape(-1, 1, 2)
-                pts_r = np.float32([kp_ref[m.trainIdx].pt for m in inlier_matches]).reshape(-1, 1, 2)
-                inlier_mask = np.ones(len(inlier_matches), dtype=bool)
-                if H is not None:
-                    projected = cv2.perspectiveTransform(pts_m, H)
-                    errors = np.linalg.norm(projected.reshape(-1, 2) - pts_r.reshape(-1, 2), axis=1)
-
-            job_store.append_log(job_id, f"[MATCHING] Branch selected: {result.get('branch', feature_method)} • Inliers: {inliers_count} ({inlier_ratio*100:.1f}%)")
         else:
-            # Multi-scale pyramid builder fallback
-            builder = PyramidBuilder()
-            src_res = 1.0 / max(scale_ratio, 1e-6) if fmt_conf >= 0.05 else 1.0
-            n_levels = builder.compute_levels_for_scale_ratio(src_res, 1.0)
-            src_pyr = builder.build(tgt_img, n_levels=n_levels)
-            ref_pyr = builder.build(ref_img, n_levels=n_levels)
-            matched_pairs = builder.find_matching_levels(src_pyr, ref_pyr, src_res, 1.0)
+            feature_method = "AUTO"
 
-            s_idx, r_idx = matched_pairs[0] if matched_pairs else (0, 0)
-            moving_level = src_pyr.levels[s_idx]
-            ref_level = ref_pyr.levels[r_idx]
-            s_rescale = 1.0 / src_pyr.scale_factors[s_idx]
-            r_rescale = 1.0 / ref_pyr.scale_factors[r_idx]
-
-            kp_moving, kp_ref, good_matches, total_candidates = detect_and_match_sift(
-                moving_level, ref_level, s_rescale, r_rescale
+        if core_input is not None and hasattr(core_input, "run_core_registration"):
+            # Execute unified core-code pipeline: input.py -> processing.py -> output.py
+            core_res = core_input.run_core_registration(
+                image1_path=job.ref_path,
+                image2_path=job.tgt_path,
+                feature_method=feature_method,
+                output_dir=str(job_output_dir),
+                progress_callback=progress_cb,
+                log_callback=log_cb,
             )
-            job_store.append_log(job_id, f"[MATCHING] Reference: {len(kp_ref)} • Target: {len(kp_moving)} • Candidates: {len(good_matches)}")
 
-            verified_matches = triangular_filter(good_matches, kp_moving, kp_ref)
-            job_store.append_log(job_id, f"[GEOMETRY] Triangle-verified tie-points: {len(verified_matches)}")
+            result = core_res["result"]
+            H = np.array(core_res["homography_matrix"]) if core_res["homography_matrix"] is not None else None
+            inliers_count = int(core_res.get("inliers", 0))
+            inlier_ratio = float(core_res.get("inlier_ratio", 0.0))
+            rmse = float(core_res.get("rmse", 0.0))
+            mean_err = float(core_res.get("mean_error", 0.0))
+            max_err = float(core_res.get("max_error", 0.0))
+            cov = float(core_res.get("spatial_coverage", 0.0))
+            fmt_info = core_res.get("scale_info", {}).get("fmt", {})
 
-            if len(verified_matches) < 4:
-                raise RuntimeError(f"Insufficient geometrically consistent tie-points found ({len(verified_matches)}).")
+            # Match records from generated CSV for UI visualization
+            match_records = []
+            inlier_csv = job_output_dir / "inlier_points.csv"
+            if inlier_csv.exists():
+                with open(inlier_csv, "r", encoding="utf-8") as f_inlier:
+                    reader = csv.DictReader(f_inlier)
+                    for row in reader:
+                        if len(match_records) >= 500:
+                            break
+                        try:
+                            match_records.append({
+                                "ref_x": float(row.get("reference_x_px", 0)),
+                                "ref_y": float(row.get("reference_y_px", 0)),
+                                "tgt_x": float(row.get("moving_x_px", 0)),
+                                "tgt_y": float(row.get("moving_y_px", 0)),
+                                "residual": float(row.get("reprojection_error_px", 0) or 0),
+                            })
+                        except Exception:
+                            pass
 
-            pts_m = np.float32([kp_moving[m.queryIdx].pt for m in verified_matches]).reshape(-1, 1, 2)
-            pts_r = np.float32([kp_ref[m.trainIdx].pt for m in verified_matches]).reshape(-1, 1, 2)
-
-            H, mask = cv2.findHomography(pts_m, pts_r, cv2.RANSAC, 4.0, maxIters=20000, confidence=0.999)
-            if H is None or mask is None:
-                raise RuntimeError("RANSAC could not converge on a valid projective homography.")
-
-            inlier_mask = mask.ravel().astype(bool)
-            inliers_count = int(np.sum(inlier_mask))
-            inlier_ratio = float(inliers_count / max(len(verified_matches), 1))
-
-            projected = cv2.perspectiveTransform(pts_m, H)
-            errors = np.linalg.norm(projected.reshape(-1, 2) - pts_r.reshape(-1, 2), axis=1)
-            inlier_errors = errors[inlier_mask]
-            mae = float(np.mean(inlier_errors)) if len(inlier_errors) > 0 else 0.0
-            rmse = float(np.sqrt(np.mean(inlier_errors ** 2))) if len(inlier_errors) > 0 else 0.0
-            max_err = float(np.max(inlier_errors)) if len(inlier_errors) > 0 else 0.0
-
-            inlier_m_pts = pts_m[inlier_mask]
-            inlier_r_pts = pts_r[inlier_mask]
-            moving_cov = calculate_spatial_coverage(inlier_m_pts, tgt_img.shape)
-            ref_cov = calculate_spatial_coverage(inlier_r_pts, ref_img.shape)
-
-            if inliers_count >= 4:
-                refined_H, _ = cv2.findHomography(inlier_m_pts, inlier_r_pts, 0)
-                if refined_H is not None:
-                    H = refined_H
-
-        if H is None:
-            raise RuntimeError("Registration failed: homography matrix could not be estimated.")
-
-        # 6. RANSAC and Sub-Pixel Convergence
-        job_store.update_job(job_id, stage="geometric_verification", progress=78,
-                             message="Validating geometric convergence and sub-pixel residuals")
-        job_store.append_log(job_id, f"[CONVERGENCE] RANSAC inliers: {inliers_count} ({inlier_ratio*100:.1f}%) • RMSE: {rmse:.3f} px • MAE: {mae:.3f} px")
-
-
-        # 7. Warp, Overlay, and Difference Generation
-        job_store.update_job(job_id, stage="result_generation", progress=92,
-                             message="Warping target raster, generating difference map, and synthesizing report")
-        job_store.append_log(job_id, "[STAGE 07/08] Generating full-resolution perspective warp and photometric difference map...")
-
-        registered_img = cv2.warpPerspective(tgt_img, H, (ref_w, ref_h))
-        reg_web_path = job_output_dir / "registered.png"
-        cv2.imwrite(str(reg_web_path), registered_img)
-
-        # Alpha blended overlay (50/50)
-        moving_mask = np.full((tgt_h, tgt_w), 255, dtype=np.uint8)
-        warped_mask = cv2.warpPerspective(moving_mask, H, (ref_w, ref_h))
-        overlay = ref_img.copy()
-        blended = cv2.addWeighted(ref_img, 0.5, registered_img, 0.5, 0)
-        valid = warped_mask > 0
-        overlay[valid] = blended[valid]
-        overlay_web_path = job_output_dir / "overlay.png"
-        cv2.imwrite(str(overlay_web_path), overlay)
-
-        # Difference map
-        diff = cv2.absdiff(ref_img, registered_img)
-        diff[warped_mask == 0] = 0
-        diff_web_path = job_output_dir / "difference.png"
-        cv2.imwrite(str(diff_web_path), diff)
-
-        # Export CSV coordinates
-        csv_path = job_output_dir / "inlier_coordinates.csv"
-        match_records = []
-        with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["ref_x", "ref_y", "tgt_x", "tgt_y", "residual"])
-            for idx, is_inlier in enumerate(inlier_mask):
-                if is_inlier and idx < len(pts_r) and idx < len(pts_m):
-                    rx, ry = float(pts_r[idx][0][0]), float(pts_r[idx][0][1])
-                    tx, ty = float(pts_m[idx][0][0]), float(pts_m[idx][0][1])
-                    res = float(errors[idx]) if (errors is not None and idx < len(errors)) else 0.0
-                    writer.writerow([round(rx, 2), round(ry, 2), round(tx, 2), round(ty, 2), round(res, 3)])
-                    if len(match_records) < 500:  # Cap payload size for web UI
-                        match_records.append({"ref_x": rx, "ref_y": ry, "tgt_x": tx, "tgt_y": ty, "residual": res})
-
-        # Save standardized aliases and matrix text
-        cv2.imwrite(str(job_output_dir / "final_registered_target_to_reference.png"), registered_img)
-        cv2.imwrite(str(job_output_dir / "final_overlay.png"), overlay)
-        cv2.imwrite(str(job_output_dir / "final_difference.png"), diff)
-        np.savetxt(str(job_output_dir / "homography_matrix.txt"), H, fmt="%.12g")
-
-        # Diagnostic report
-        report_text = f"""===========================================
-  LUNA-REG SCIENTIFIC REGISTRATION REPORT
-===========================================
-JOB ID: {job_id}
-DATE:   {datetime.utcnow().isoformat()}Z
-
-METRICS:
-- Sub-Pixel RMSE:           {rmse:.3f} px
-- Mean Absolute Error (MAE): {mae:.3f} px
-- Max Residual Error:       {max_err:.3f} px
-- Total Inliers:            {inliers_count}
-- Inlier Ratio:             {inlier_ratio*100:.2f}%
-- Moving Image Coverage:    {moving_cov:.1f}%
-- Reference Image Coverage: {ref_cov:.1f}%
-- Estimated Scale Ratio:    {scale_ratio:.4f}
-- Estimated Rotation:       {rotation_deg:.2f}°
-
-HOMOGRAPHY MATRIX (H):
-{H}
-"""
-        report_path = job_output_dir / "registration_report.txt"
-        with open(report_path, "w", encoding="utf-8") as f:
-            f.write(report_text)
-
-        # Complete Job Record
-        result_payload = {
-            "job_id": job_id,
-            "status": "completed",
-            "registered_image_url": f"/static/outputs/{job_id}/registered.png",
-            "reference_image_url": f"/static/outputs/{job_id}/reference.png",
-            "target_image_url": f"/static/outputs/{job_id}/target.png",
-            "difference_image_url": f"/static/outputs/{job_id}/difference.png",
-            "overlay_image_url": f"/static/outputs/{job_id}/overlay.png",
-            "report_url": f"/static/outputs/{job_id}/registration_report.txt",
-            "csv_url": f"/static/outputs/{job_id}/inlier_coordinates.csv",
-            "homography_matrix": H.tolist(),
-            "metrics": {
-                "rmse": round(rmse, 3),
-                "mae": round(mae, 3),
-                "max_error": round(max_err, 3),
-                "inlier_ratio": round(inlier_ratio, 4),
-                "inlier_matches": inliers_count,
-                "total_matches": len(good_matches),
-                "confidence": round(float(fmt_conf), 3),
-                "scale_ratio": round(scale_ratio, 4),
-                "rotation_deg": round(rotation_deg, 2),
-                "moving_coverage": round(moving_cov, 1),
-                "reference_coverage": round(ref_cov, 1),
-                "processing_time": f"{round(time.time() - job.start_time, 2)} s",
-                "transformation_type": "Homography (8-DOF)"
-            },
-            "matches": match_records,
-            "metadata": {
-                "reference_shape": [ref_h, ref_w],
-                "target_shape": [tgt_h, tgt_w],
-                "detector": job.detector
+            result_payload = {
+                "job_id": job_id,
+                "status": "completed",
+                "registered_image_url": f"/static/outputs/{job_id}/registered.png",
+                "reference_image_url": f"/static/outputs/{job_id}/reference.png",
+                "target_image_url": f"/static/outputs/{job_id}/target.png",
+                "difference_image_url": f"/static/outputs/{job_id}/difference.png",
+                "overlay_image_url": f"/static/outputs/{job_id}/overlay.png",
+                "report_url": f"/static/outputs/{job_id}/final_report.json",
+                "csv_url": f"/static/outputs/{job_id}/inlier_points.csv",
+                "homography_matrix": core_res["homography_matrix"],
+                "metrics": {
+                    "rmse": round(rmse, 3),
+                    "mae": round(mean_err, 3),
+                    "max_error": round(max_err, 3),
+                    "inlier_ratio": round(inlier_ratio / 100.0 if inlier_ratio > 1.0 else inlier_ratio, 4),
+                    "inlier_matches": inliers_count,
+                    "confidence": round(float(fmt_info.get("confidence", 1.0)), 3),
+                    "scale_ratio": round(float(fmt_info.get("estimated_scale_ratio", 1.0)), 4),
+                    "rotation_deg": round(float(fmt_info.get("estimated_rotation_deg", 0.0)), 2),
+                    "moving_coverage": round(cov, 1),
+                    "reference_coverage": round(cov, 1),
+                    "processing_time": f"{round(time.time() - job.start_time, 2)} s",
+                    "transformation_type": "Homography (8-DOF)",
+                    "quality_pass": core_res["accepted"],
+                },
+                "matches": match_records,
+                "metadata": {
+                    "selected_branch": core_res.get("selected_branch", feature_method),
+                    "detector": job.detector
+                }
             }
-        }
 
-        # Save metrics JSON artifact
-        try:
-            import json
             with open(job_output_dir / "registration_metrics.json", "w", encoding="utf-8") as f_json:
                 json.dump(result_payload, f_json, indent=2)
-        except Exception as json_err:
-            logger.warning("Failed to save metrics JSON: %s", json_err)
 
-        job_store.update_job(
-            job_id,
-            status="completed",
-            stage="result_generation",
-            progress=100,
-            message="Scientific registration convergence achieved",
-            completed_time=time.time(),
-            result_data=result_payload
-        )
-        job_store.append_log(job_id, f"[STAGE 08/08] [STATUS:COMPLETED] Convergence achieved in {round(time.time() - job.start_time, 2)}s.")
+            job_store.update_job(
+                job_id,
+                status="completed",
+                stage="result_generation",
+                progress=100,
+                message="Scientific registration convergence achieved via core-code",
+                completed_time=time.time(),
+                result_data=result_payload
+            )
+            job_store.append_log(job_id, f"[STATUS:COMPLETED] Convergence achieved via core-code in {round(time.time() - job.start_time, 2)}s.")
+        else:
+            raise RuntimeError("core-code package could not be initialized.")
 
     except Exception as exc:
         logger.exception("Registration failed for job %s: %s", job_id, exc)
