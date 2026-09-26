@@ -74,7 +74,22 @@
           }
         }
 
-        // 6. Invoke app.js lifecycle hook if available
+        // 6. Invoke page controllers directly so views always initialize
+        if (viewKey === 'results') {
+          if (window.resultsPage && typeof window.resultsPage.init === 'function') {
+            window.resultsPage.init();
+          }
+        } else if (viewKey === 'analysis') {
+          if (window.analysisToolsPage && typeof window.analysisToolsPage.init === 'function') {
+            window.analysisToolsPage.init();
+          }
+        } else if (viewKey === 'new-reg') {
+          if (window.registrationPreparationPage && typeof window.registrationPreparationPage.init === 'function') {
+            window.registrationPreparationPage.init();
+          }
+        }
+
+        // 7. Invoke app.js lifecycle hook if available
         if (window.__appOnViewSwitch && typeof window.__appOnViewSwitch === 'function') {
           try { window.__appOnViewSwitch(viewKey); } catch(e) { console.warn(e); }
         }

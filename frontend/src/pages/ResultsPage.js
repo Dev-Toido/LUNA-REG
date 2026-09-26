@@ -365,18 +365,12 @@ class ResultsPage {
         if (this.metrics && latest.metrics) {
           this.metrics.setMetrics(latest.metrics, pairId);
         }
-      }
-    } else {
-      if (this.workspace) {
-        this.workspace.setImageUrls(null, null, null, null);
-        this.workspace.resizeCanvas();
-        this.workspace.draw();
-      }
-      if (this.metrics) {
-        this.metrics.setMetrics(null, pairId);
-      }
-      if (this.exportPanel) {
-        this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, null, false, false);
+        if (this.exportPanel) {
+          this.exportPanel.setData(this.activePair, this.sourceProduct, this.referenceProduct, latest.metrics, !!regUrl, !!diffUrl);
+        }
+        if (this.toolbar && typeof this.toolbar.setRegistrationStatus === 'function') {
+          this.toolbar.setRegistrationStatus(!!regUrl);
+        }
       }
     }
   }
