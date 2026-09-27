@@ -1493,6 +1493,8 @@
   }
 
   function showProcessingFailure(jobId, errorMessage) {
+    regWorkflowState.isProcessing = false;
+    regWorkflowState.isSubmitting = false;
     const failCard = document.getElementById('proc-failure-card');
     const failMsg = document.getElementById('proc-failure-msg');
     if (failCard) failCard.style.display = 'block';
@@ -1512,6 +1514,7 @@
   // --- DIRECT CLIENT-SIDE REGISTRATION ORCHESTRATOR (ZERO REST API) ---
   async function executeRegistrationWorkflow() {
     if (regWorkflowState.isSubmitting || regWorkflowState.isProcessing) return;
+    regWorkflowState.isProcessing = true;
 
     // 1. Check files. If not loaded, automatically stage TMC-2 sample rasters
     let isRefValid = !!regWorkflowState.refFile && !regWorkflowState.refError;
@@ -1659,6 +1662,8 @@
         addTelemetryLog(msg, level);
       }
     }).then(result => {
+      regWorkflowState.isProcessing = false;
+      regWorkflowState.isSubmitting = false;
       stopProcessingStatusPolling();
       addTelemetryLog('[STATUS:COMPLETED] Scientific registration convergence achieved.', 'success');
       if (typeof resultsState !== 'undefined') resultsState.latestResult = result;
@@ -1668,6 +1673,8 @@
         loadJobResultsIntoViewer(jobId, true, result);
       }, 500);
     }).catch(err => {
+      regWorkflowState.isProcessing = false;
+      regWorkflowState.isSubmitting = false;
       stopProcessingStatusPolling();
       showProcessingFailure(jobId, `Planetary registration failed: ${err.message}`);
     });
@@ -1850,6 +1857,8 @@
 
   // --- RESULTS WORKSPACE LOADER ---
   async function loadJobResultsIntoViewer(jobId, updateHash = true, directResultData = null) {
+    regWorkflowState.isProcessing = false;
+    regWorkflowState.isSubmitting = false;
     if (!jobId) return;
 
     const api = window.LUNAR_API || window.apiService;

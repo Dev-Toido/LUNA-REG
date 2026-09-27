@@ -450,12 +450,15 @@ class ComparisonViewer {
       }
     });
 
-    // Mouse Up
-    window.addEventListener('mouseup', () => {
-      this.isDraggingSplit = false;
-      this.isPanning = false;
-      if (wrap) wrap.style.cursor = '';
-    });
+    // Mouse Up (single bound instance to prevent leak)
+    if (!this._mouseUpHandler) {
+      this._mouseUpHandler = () => {
+        this.isDraggingSplit = false;
+        this.isPanning = false;
+        if (wrap) wrap.style.cursor = '';
+      };
+      window.addEventListener('mouseup', this._mouseUpHandler);
+    }
 
     // Double click (Close polygon area measurement)
     wrap.addEventListener('dblclick', () => {
@@ -472,11 +475,14 @@ class ComparisonViewer {
       this.draw();
     }, { passive: false });
 
-    // Window resize
-    window.addEventListener('resize', () => {
-      this.resizeCanvas();
-      this.draw();
-    });
+    // Window resize (single bound instance to prevent leak)
+    if (!this._resizeHandler) {
+      this._resizeHandler = () => {
+        this.resizeCanvas();
+        this.draw();
+      };
+      window.addEventListener('resize', this._resizeHandler);
+    }
   }
 
   handleMeasurementClick(imgX, imgY, lat, lon) {
@@ -847,6 +853,22 @@ class ComparisonViewer {
       ctx.setLineDash([]);
     }
     ctx.restore();
+  }
+
+  destroy() {
+    this.stopFlicker();
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler);
+      this._resizeHandler = null;
+    }
+    if (this._mouseUpHandler) {
+      window.removeEventListener('mouseup', this._mouseUpHandler);
+      this._mouseUpHandler = null;
+    }
+    this.sourceImg = null;
+    this.referenceImg = null;
+    this.differenceImg = null;
+    this.overlayImg = null;
   }
 }
 

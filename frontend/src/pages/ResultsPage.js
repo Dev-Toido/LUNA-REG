@@ -60,6 +60,14 @@ class ResultsPage {
 
     this.readPairIdFromUrl();
 
+    // If already initialized and elements exist, simply update the active pair to prevent memory leaks
+    if (this.isInitialized && this.workspace && this.container.querySelector('#res-mount-header')) {
+      const targetId = this.pairId || 1;
+      this.applyPairData(targetId);
+      this.syncBackend(targetId);
+      return;
+    }
+
     // Only inject skeleton if not already present in DOM
     if (!this.container.querySelector('#res-mount-header')) {
       this.buildSkeleton();
@@ -75,6 +83,13 @@ class ResultsPage {
     this.syncBackend(targetId);
 
     this.isInitialized = true;
+  }
+
+  destroy() {
+    if (this.workspace && typeof this.workspace.destroy === 'function') {
+      this.workspace.destroy();
+    }
+    this.isInitialized = false;
   }
 
   readPairIdFromUrl() {

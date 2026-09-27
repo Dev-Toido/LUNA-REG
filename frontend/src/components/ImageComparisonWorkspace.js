@@ -807,11 +807,14 @@ class ImageComparisonWorkspace {
     const wrap = this.container.querySelector('#res-canvas-viewport-wrap');
     if (!canvas || !wrap) return;
 
-    // Window resize observer
-    window.addEventListener('resize', () => {
-      this.resizeCanvas();
-      this.draw();
-    });
+    // Window resize observer (single bound instance to prevent leak)
+    if (!this._resizeHandler) {
+      this._resizeHandler = () => {
+        this.resizeCanvas();
+        this.draw();
+      };
+      window.addEventListener('resize', this._resizeHandler);
+    }
 
     // Mouse drag to pan
     wrap.addEventListener('mousedown', (e) => {
@@ -881,6 +884,24 @@ class ImageComparisonWorkspace {
         }
       });
     });
+  }
+
+  destroy() {
+    this.stopFlicker();
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler);
+      this._resizeHandler = null;
+    }
+    this.sourceImg = null;
+    this.referenceImg = null;
+    this.registeredImg = null;
+    this.differenceImg = null;
+    this.overlayImg = null;
+    this.sourceLoaded = false;
+    this.referenceLoaded = false;
+    this.registeredLoaded = false;
+    this.differenceLoaded = false;
+    this.overlayLoaded = false;
   }
 }
 

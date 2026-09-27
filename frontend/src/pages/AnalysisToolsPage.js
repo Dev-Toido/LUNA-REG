@@ -57,6 +57,14 @@ class AnalysisToolsPage {
 
     this.readPairIdFromUrl();
 
+    // If already initialized and elements exist, simply update the active pair to prevent memory leaks
+    if (this.isInitialized && this.viewer && this.container.querySelector('#analysis-mount-header')) {
+      const targetId = this.pairId || 1;
+      this.applyPairData(targetId);
+      this.syncBackend(targetId);
+      return;
+    }
+
     // Check if skeleton already exists, else inject
     if (!this.container.querySelector('#analysis-mount-header')) {
       this.buildSkeleton();
@@ -72,6 +80,13 @@ class AnalysisToolsPage {
     this.syncBackend(targetId);
 
     this.isInitialized = true;
+  }
+
+  destroy() {
+    if (this.viewer && typeof this.viewer.destroy === 'function') {
+      this.viewer.destroy();
+    }
+    this.isInitialized = false;
   }
 
   readPairIdFromUrl() {

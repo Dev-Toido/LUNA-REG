@@ -1446,11 +1446,22 @@
       ovCtx.globalAlpha = 0.5;
       ovCtx.drawImage(regCanvas, 0, 0);
 
+      const registeredDataUrl = regCanvas.toDataURL('image/png');
+      const differenceDataUrl = diffCanvas.toDataURL('image/png');
+      const overlayDataUrl = ovCanvas.toDataURL('image/png');
+      const refDataUrl = refCanvas.toDataURL('image/png');
+
+      // Free canvas backing stores immediately to prevent memory leak
+      refCanvas.width = 0; refCanvas.height = 0;
+      regCanvas.width = 0; regCanvas.height = 0;
+      diffCanvas.width = 0; diffCanvas.height = 0;
+      ovCanvas.width = 0; ovCanvas.height = 0;
+
       return {
-        registeredDataUrl: regCanvas.toDataURL('image/png'),
-        differenceDataUrl: diffCanvas.toDataURL('image/png'),
-        overlayDataUrl: ovCanvas.toDataURL('image/png'),
-        refDataUrl: refCanvas.toDataURL('image/png')
+        registeredDataUrl,
+        differenceDataUrl,
+        overlayDataUrl,
+        refDataUrl
       };
     }
   }
@@ -1507,36 +1518,42 @@
      *   8. result_generation (quality telemetry)
      */
     async executeRegistration(options = {}) {
-      const {
-        refSource = 'assets/lunar_global_reference.png',
-        tgtSource = 'assets/orientale_target.png',
-        detector = 'sift', // 'sift', 'orb', 'phase_corr', 'deep_feature'
-        outlierRejection = 'ransac', // 'ransac', 'magsac'
-        geometricModel = 'homography', // 'homography', 'affine'
-        subpixel = true,
-        clahe = true,
-        jobId = `LR-${Math.floor(100000 + Math.random() * 900000)}`,
-        pairId = options.pairId || 1,
-        startTime = Date.now(),
-        onStageUpdate = null,
-        onLog = null
-      } = options;
+      if (this.isProcessing) {
+        throw new Error('Planetary registration pipeline is already running. Please wait for current job to complete.');
+      }
+      this.isProcessing = true;
 
-      const log = (msg, level = 'info') => {
-        if (typeof onLog === 'function') onLog(msg, level);
-      };
+      try {
+        const {
+          refSource = 'assets/lunar_global_reference.png',
+          tgtSource = 'assets/orientale_target.png',
+          detector = 'sift', // 'sift', 'orb', 'phase_corr', 'deep_feature'
+          outlierRejection = 'ransac', // 'ransac', 'magsac'
+          geometricModel = 'homography', // 'homography', 'affine'
+          subpixel = true,
+          clahe = true,
+          jobId = `LR-${Math.floor(100000 + Math.random() * 900000)}`,
+          pairId = options.pairId || 1,
+          startTime = Date.now(),
+          onStageUpdate = null,
+          onLog = null
+        } = options;
 
-      const updateStage = async (stageName, pct, isCompleted = false) => {
-        if (typeof onStageUpdate === 'function') onStageUpdate(stageName, pct, isCompleted);
-        await new Promise(r => setTimeout(r, 60)); // Yield to main thread for smooth DOM rendering
-      };
+        const log = (msg, level = 'info') => {
+          if (typeof onLog === 'function') onLog(msg, level);
+        };
 
-      log(`[INIT] Client-Side Planetary Registration Engine initialized for Job ${jobId}.`, 'info');
-      log(`[CONFIG] Algorithm: ${detector.toUpperCase()} | Outlier Rejection: ${outlierRejection.toUpperCase()} | Model: ${geometricModel.toUpperCase()} | CLAHE: ${clahe ? 'ON' : 'OFF'} | Sub-pixel: ${subpixel ? 'ON' : 'OFF'}`, 'info');
+        const updateStage = async (stageName, pct, isCompleted = false) => {
+          if (typeof onStageUpdate === 'function') onStageUpdate(stageName, pct, isCompleted);
+          await new Promise(r => setTimeout(r, 40)); // Yield to main thread for smooth DOM rendering
+        };
 
-      // STAGE 1: VALIDATION
-      await updateStage('validation', 12);
-      log(`[STAGE 1/8: VALIDATION] Ingesting multi-band planetary raster headers...`, 'info');
+        log(`[INIT] Client-Side Planetary Registration Engine initialized for Job ${jobId}.`, 'info');
+        log(`[CONFIG] Algorithm: ${detector.toUpperCase()} | Outlier Rejection: ${outlierRejection.toUpperCase()} | Model: ${geometricModel.toUpperCase()} | CLAHE: ${clahe ? 'ON' : 'OFF'} | Sub-pixel: ${subpixel ? 'ON' : 'OFF'}`, 'info');
+
+        // STAGE 1: VALIDATION
+        await updateStage('validation', 12);
+        log(`[STAGE 1/8: VALIDATION] Ingesting multi-band planetary raster headers...`, 'info');
 
       const [refImg, tgtImg] = await Promise.all([
         this.loadImage(refSource),
@@ -1609,10 +1626,12 @@
         const detName = useORB ? 'ORB (FAST + Rotated BRIEF)' : 'Multi-Scale SIFT (DoG Extrema + 128-D)';
         log(`[STAGE 3/8: FEATURE EXTRACTION] Applying ${detName}...`, 'info');
 
+        await new Promise(r => setTimeout(r, 20)); // Yield before reference feature extraction
         const featRef = useORB
           ? PlanetaryFeatureDetector.extractORB(refGray, procDim, procDim)
           : PlanetaryFeatureDetector.extractSIFT(refGray, procDim, procDim);
 
+        await new Promise(r => setTimeout(r, 20)); // Yield before target feature extraction
         const featTgt = useORB
           ? PlanetaryFeatureDetector.extractORB(tgtGray, procDim, procDim)
           : PlanetaryFeatureDetector.extractSIFT(tgtGray, procDim, procDim);
@@ -1621,6 +1640,7 @@
 
         // STAGE 4: MATCHING
         await updateStage('matching', 52);
+        await new Promise(r => setTimeout(r, 20)); // Yield before descriptor matching
         log(`[STAGE 4/8: MATCHING] Evaluating Lowe's ratio test (d1/d2 < 0.75) and mutual cross-check...`, 'info');
 
         const rawMatches = CorrespondenceMatcher.matchDescriptors(featRef, featTgt, 0.75);
@@ -1628,6 +1648,7 @@
 
         // STAGE 5: OUTLIER REJECTION
         await updateStage('outlier_rejection', 66);
+        await new Promise(r => setTimeout(r, 20)); // Yield before RANSAC/MAGSAC
         const estMethod = (outlierRejection === 'magsac') ? 'magsac' : 'ransac';
         const modelM = (geometricModel === 'affine') ? 'affine' : 'homography';
         log(`[STAGE 5/8: OUTLIER REJECTION] Running ${estMethod.toUpperCase()} with ${modelM.toUpperCase()} (Threshold: 2.5 px)...`, 'info');
@@ -1793,6 +1814,9 @@
       };
 
       return resultPayload;
+      } finally {
+        this.isProcessing = false;
+      }
     }
   }
 
