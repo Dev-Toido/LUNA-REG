@@ -179,9 +179,9 @@ class PairService {
         },
         files: [
           {
-            file_name: isSouthPole ? 'lunar_south_pole.jpg' : 'lunar_low_sun.jpg',
-            file_path: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_low_sun.jpg',
-            file_type: 'JPEG Raster',
+            file_name: isSouthPole ? 'lunar_south_pole.jpg' : 'orientale_target.png',
+            file_path: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/orientale_target.png',
+            file_type: 'PNG Raster',
             size_bytes: 5142980
           }
         ]
@@ -199,9 +199,9 @@ class PairService {
         },
         files: [
           {
-            file_name: isSouthPole ? 'lunar_south_pole.jpg' : 'lunar_nadir.jpg',
-            file_path: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_nadir.jpg',
-            file_type: 'JPEG Raster',
+            file_name: isSouthPole ? 'lunar_south_pole.jpg' : 'lunar_global_reference.png',
+            file_path: isSouthPole ? 'assets/lunar_south_pole.jpg' : 'assets/lunar_global_reference.png',
+            file_type: 'PNG Raster',
             size_bytes: 4820140
           }
         ]

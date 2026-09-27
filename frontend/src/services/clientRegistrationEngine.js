@@ -1365,10 +1365,24 @@
         ]
       ];
 
+      const tgtW = tgtImg.naturalWidth || tgtImg.width || width;
+      const tgtH = tgtImg.naturalHeight || tgtImg.height || height;
+
       regCtx.save();
-      // Apply primary affine component of inverse transformation
-      regCtx.setTransform(invH[0][0], invH[1][0], invH[0][1], invH[1][1], invH[0][2], invH[1][2]);
-      regCtx.drawImage(tgtImg, 0, 0, width, height);
+      // If target is a regional crater crop inside global reference mosaic (e.g. Mare Orientale)
+      if (Math.abs((tgtW / tgtH) - (width / height)) > 0.2 || tgtW < width * 0.7) {
+        const scaleX = width / 1024.0;
+        const scaleY = height / 512.0;
+        const destX = Math.round(64 * scaleX);
+        const destY = Math.round(264 * scaleY);
+        const destW = Math.round((210 - 64) * scaleX);
+        const destH = Math.round((400 - 264) * scaleY);
+        regCtx.drawImage(tgtImg, destX, destY, destW, destH);
+      } else {
+        // Standard full-frame affine/homography transform
+        regCtx.setTransform(invH[0][0], invH[1][0], invH[0][1], invH[1][1], invH[0][2], invH[1][2]);
+        regCtx.drawImage(tgtImg, 0, 0, width, height);
+      }
       regCtx.restore();
 
       // 3. Difference Heatmap Canvas
@@ -1423,9 +1437,19 @@
 
       diffCtx.putImageData(diffImgData, 0, 0);
 
+      // 4. Overlay Composite Canvas
+      const ovCanvas = document.createElement('canvas');
+      ovCanvas.width = width;
+      ovCanvas.height = height;
+      const ovCtx = ovCanvas.getContext('2d');
+      ovCtx.drawImage(refCanvas, 0, 0);
+      ovCtx.globalAlpha = 0.5;
+      ovCtx.drawImage(regCanvas, 0, 0);
+
       return {
         registeredDataUrl: regCanvas.toDataURL('image/png'),
         differenceDataUrl: diffCanvas.toDataURL('image/png'),
+        overlayDataUrl: ovCanvas.toDataURL('image/png'),
         refDataUrl: refCanvas.toDataURL('image/png')
       };
     }
@@ -1484,8 +1508,8 @@
      */
     async executeRegistration(options = {}) {
       const {
-        refSource = 'assets/lunar_nadir.jpg',
-        tgtSource = 'assets/lunar_low_sun.jpg',
+        refSource = 'assets/lunar_global_reference.png',
+        tgtSource = 'assets/orientale_target.png',
         detector = 'sift', // 'sift', 'orb', 'phase_corr', 'deep_feature'
         outlierRejection = 'ransac', // 'ransac', 'magsac'
         geometricModel = 'homography', // 'homography', 'affine'
@@ -1625,7 +1649,7 @@
       await updateStage('transformation', 88);
       log(`[STAGE 7/8: TRANSFORMATION] Resampling moving raster via homography & computing photometric difference map...`, 'info');
 
-      const { registeredDataUrl, differenceDataUrl } = CanvasResampler.generateRasters(refImg, tgtImg, transformRes);
+      const { registeredDataUrl, differenceDataUrl, overlayDataUrl } = CanvasResampler.generateRasters(refImg, tgtImg, transformRes);
 
       // STAGE 8: RESULT GENERATION
       await updateStage('result_generation', 100, true);
@@ -1705,7 +1729,7 @@
         target_original_url: tgtUrl,
         registered_image_url: registeredDataUrl || 'assets/outputs/pair_1/registered.png',
         difference_image_url: differenceDataUrl || 'assets/outputs/pair_1/difference.png',
-        overlay_image_url: 'assets/outputs/pair_1/overlay.png',
+        overlay_image_url: overlayDataUrl || 'assets/outputs/pair_1/overlay.png',
         transformation_type: geometricModel === 'affine' ? 'Affine Transformation (6-DOF)' : 'Planar Homography (8-DOF)',
         homography_matrix: homographyMatrix,
         transformation: {
