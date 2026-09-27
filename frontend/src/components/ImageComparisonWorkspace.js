@@ -48,17 +48,20 @@ class ImageComparisonWorkspace {
     this.referenceImg = new Image();
     this.registeredImg = null;
     this.differenceImg = null;
+    this.overlayImg = null;
 
     this.sourceLoaded = false;
     this.referenceLoaded = false;
     this.registeredLoaded = false;
     this.differenceLoaded = false;
+    this.overlayLoaded = false;
     this.isLoading = false;
     this.loadError = null;
 
     // Default assets (Strict Zero-Demo Policy: null until provided by registration output)
     this.sourceImgUrl = null;
     this.referenceImgUrl = null;
+    this.overlayImgUrl = null;
 
     this.initImageLoaders();
   }
@@ -90,16 +93,19 @@ class ImageComparisonWorkspace {
     if (this.referenceImgUrl) this.referenceImg.src = this.referenceImgUrl;
   }
 
-  setImageUrls(sourceUrl, referenceUrl, registeredUrl = null, differenceUrl = null) {
-    if (!sourceUrl && !referenceUrl && !registeredUrl && !differenceUrl) {
+  setImageUrls(sourceUrl, referenceUrl, registeredUrl = null, differenceUrl = null, overlayUrl = null) {
+    if (!sourceUrl && !referenceUrl && !registeredUrl && !differenceUrl && !overlayUrl) {
       this.sourceImgUrl = null;
       this.referenceImgUrl = null;
+      this.overlayImgUrl = null;
       this.sourceLoaded = false;
       this.referenceLoaded = false;
       this.registeredLoaded = false;
       this.differenceLoaded = false;
+      this.overlayLoaded = false;
       this.registeredImg = null;
       this.differenceImg = null;
+      this.overlayImg = null;
       this.isLoading = false;
       this.loadError = null;
       this.draw();
@@ -200,6 +206,29 @@ class ImageComparisonWorkspace {
     } else {
       this.differenceImg = null;
       this.differenceLoaded = false;
+    }
+
+    if (overlayUrl) {
+      this.overlayImgUrl = overlayUrl;
+      this.overlayLoaded = false;
+      pendingCount++;
+      this.overlayImg = new Image();
+      this.overlayImg.onload = () => {
+        this.overlayLoaded = true;
+        notifyLoadProgress();
+      };
+      this.overlayImg.onerror = () => {
+        this.overlayLoaded = false;
+        notifyLoadProgress();
+      };
+      this.overlayImg.src = overlayUrl;
+      if (this.overlayImg.complete && this.overlayImg.naturalWidth > 0) {
+        this.overlayLoaded = true;
+        pendingCount--;
+      }
+    } else {
+      this.overlayImg = null;
+      this.overlayLoaded = false;
     }
 
     if (pendingCount <= 0) {
@@ -583,26 +612,37 @@ class ImageComparisonWorkspace {
     }
     const hasReg = (this.registeredLoaded && this.registeredImg) || (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0);
     const hasRef = this.referenceLoaded || (this.referenceImg && this.referenceImg.complete && this.referenceImg.naturalWidth > 0);
-    const hasSrc = this.sourceLoaded || (this.sourceImg && this.sourceImg.complete && this.sourceImg.naturalWidth > 0);
+    const hasOv = (this.overlayLoaded && this.overlayImg) || (this.overlayImg && this.overlayImg.complete && this.overlayImg.naturalWidth > 0);
 
-    if (!hasRef && !hasSrc && !hasReg) {
+    if (!hasRef && !hasReg && !hasOv) {
       this.drawStandbyPrompt(ctx);
       return;
     }
 
-    // 1. Draw base Reference raster (or Source if Reference not available)
-    if (hasRef) {
-      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
-    } else if (hasSrc) {
-      ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
+    // 1. If pre-computed core overlay composite is available (scientific result from core-code)
+    if (hasOv) {
+      if (hasRef && this.opacity < 0.98) {
+        ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.drawImage(this.overlayImg, dx, dy, imgW, imgH);
+        ctx.restore();
+      } else {
+        ctx.drawImage(this.overlayImg, dx, dy, imgW, imgH);
+      }
+      return;
     }
 
-    // 2. Draw actual Registered (or Source) raster with opacity
-    const topImg = hasReg ? this.registeredImg : (hasRef && hasSrc ? this.sourceImg : null);
-    if (topImg && topImg !== (hasRef ? this.referenceImg : this.sourceImg)) {
+    // 2. Base Reference raster
+    if (hasRef) {
+      ctx.drawImage(this.referenceImg, dx, dy, imgW, imgH);
+    }
+
+    // 3. Registered warped raster on top (NEVER stretch raw unwarped sourceImg over reference)
+    if (hasReg) {
       ctx.save();
       ctx.globalAlpha = this.opacity;
-      ctx.drawImage(topImg, dx, dy, imgW, imgH);
+      ctx.drawImage(this.registeredImg, dx, dy, imgW, imgH);
       ctx.restore();
     }
   }
@@ -732,6 +772,7 @@ class ImageComparisonWorkspace {
     const hasRef = this.referenceLoaded || (this.referenceImg && this.referenceImg.complete && this.referenceImg.naturalWidth > 0);
     const hasSrc = this.sourceLoaded || (this.sourceImg && this.sourceImg.complete && this.sourceImg.naturalWidth > 0);
     const hasDiff = (this.differenceLoaded && this.differenceImg) || (this.differenceImg && this.differenceImg.complete && this.differenceImg.naturalWidth > 0);
+    const hasOv = (this.overlayLoaded && this.overlayImg) || (this.overlayImg && this.overlayImg.complete && this.overlayImg.naturalWidth > 0);
 
     if (this.activeSlot === 'source' && hasSrc) {
       ctx.drawImage(this.sourceImg, dx, dy, imgW, imgH);
@@ -742,7 +783,13 @@ class ImageComparisonWorkspace {
     } else if (this.activeSlot === 'difference' && hasDiff) {
       ctx.drawImage(this.differenceImg, dx, dy, imgW, imgH);
     } else if (this.activeSlot === 'overlay') {
-      this.drawOverlayMode(ctx, dx, dy, imgW, imgH);
+      if (hasOv) {
+        ctx.drawImage(this.overlayImg, dx, dy, imgW, imgH);
+      } else {
+        this.drawOverlayMode(ctx, dx, dy, imgW, imgH);
+      }
+    } else if (hasOv) {
+      ctx.drawImage(this.overlayImg, dx, dy, imgW, imgH);
     } else if (hasReg) {
       ctx.drawImage(this.registeredImg, dx, dy, imgW, imgH);
     } else if (hasRef) {

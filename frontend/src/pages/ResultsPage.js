@@ -338,8 +338,9 @@ class ResultsPage {
       const tgtUrl = resolveUrl(latest.target_original_url || latest.target_image_url || latest.target_image);
       const regUrl = resolveUrl(latest.registered_image_url || latest.registered_image);
       const diffUrl = resolveUrl(latest.difference_image_url || latest.difference_image);
+      const ovUrl = resolveUrl(latest.overlay_image_url || latest.overlay_image || 'assets/outputs/pair_1/overlay.png');
 
-      this.workspace.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl);
+      this.workspace.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl, ovUrl);
       this.workspace.resizeCanvas();
       this.workspace.draw();
 
@@ -359,7 +360,8 @@ class ResultsPage {
         const tgtUrl = latest.target_original_url;
         const regUrl = latest.registered_image_url;
         const diffUrl = latest.difference_image_url;
-        this.workspace.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl);
+        const ovUrl = latest.overlay_image_url || 'assets/outputs/pair_1/overlay.png';
+        this.workspace.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl, ovUrl);
         this.workspace.resizeCanvas();
         this.workspace.draw();
         if (this.metrics && latest.metrics) {

@@ -42,6 +42,7 @@ class ComparisonViewer {
     this.referenceImg = new Image();
     this.registeredImg = null;
     this.differenceImg = null;
+    this.overlayImg = null;
 
     this.sourceLoaded = false;
     this.referenceLoaded = false;
@@ -51,6 +52,7 @@ class ComparisonViewer {
     this.referenceUrl = null;
     this.registeredUrl = null;
     this.differenceUrl = null;
+    this.overlayUrl = null;
 
     // External recorded measurements to render as overlays
     this.recordedMeasurements = [];
@@ -81,7 +83,7 @@ class ComparisonViewer {
     if (this.referenceUrl) this.referenceImg.src = this.referenceUrl;
   }
 
-  setImageUrls(sourceUrl, referenceUrl, registeredUrl = null, differenceUrl = null) {
+  setImageUrls(sourceUrl, referenceUrl, registeredUrl = null, differenceUrl = null, overlayUrl = null) {
     if (sourceUrl) {
       this.sourceUrl = sourceUrl;
       this.sourceLoaded = false;
@@ -125,6 +127,18 @@ class ComparisonViewer {
     } else {
       this.differenceUrl = null;
       this.differenceImg = null;
+    }
+    if (overlayUrl) {
+      this.overlayUrl = overlayUrl;
+      this.overlayImg = new Image();
+      this.overlayImg.onload = () => this.draw();
+      this.overlayImg.src = overlayUrl;
+      if (this.overlayImg.complete && this.overlayImg.naturalWidth > 0) {
+        this.draw();
+      }
+    } else {
+      this.overlayUrl = null;
+      this.overlayImg = null;
     }
     this.draw();
   }
@@ -676,16 +690,28 @@ class ComparisonViewer {
       }
 
     } else if (this.mode === 'overlay') {
-      // Draw Base Reference
-      if (this.referenceLoaded && this.referenceImg.complete) {
-        ctx.drawImage(this.referenceImg, destX, destY, imgW, imgH);
-      }
-      // Draw Registered / Source Target on top with opacity
-      if (isTgtLoaded && tgtRaster) {
-        ctx.save();
-        ctx.globalAlpha = this.opacity;
-        ctx.drawImage(tgtRaster, destX, destY, imgW, imgH);
-        ctx.restore();
+      if (this.overlayImg && this.overlayImg.complete && this.overlayImg.naturalWidth > 0) {
+        if (this.referenceLoaded && this.referenceImg.complete && this.opacity < 0.98) {
+          ctx.drawImage(this.referenceImg, destX, destY, imgW, imgH);
+          ctx.save();
+          ctx.globalAlpha = this.opacity;
+          ctx.drawImage(this.overlayImg, destX, destY, imgW, imgH);
+          ctx.restore();
+        } else {
+          ctx.drawImage(this.overlayImg, destX, destY, imgW, imgH);
+        }
+      } else {
+        // Draw Base Reference
+        if (this.referenceLoaded && this.referenceImg.complete) {
+          ctx.drawImage(this.referenceImg, destX, destY, imgW, imgH);
+        }
+        // Draw Registered Target on top with opacity (never stretch unwarped sourceImg)
+        if (this.registeredImg && this.registeredImg.complete && this.registeredImg.naturalWidth > 0) {
+          ctx.save();
+          ctx.globalAlpha = this.opacity;
+          ctx.drawImage(this.registeredImg, destX, destY, imgW, imgH);
+          ctx.restore();
+        }
       }
 
     } else if (this.mode === 'flicker') {

@@ -1705,6 +1705,7 @@
         target_original_url: tgtUrl,
         registered_image_url: registeredDataUrl || 'assets/outputs/pair_1/registered.png',
         difference_image_url: differenceDataUrl || 'assets/outputs/pair_1/difference.png',
+        overlay_image_url: 'assets/outputs/pair_1/overlay.png',
         transformation_type: geometricModel === 'affine' ? 'Affine Transformation (6-DOF)' : 'Planar Homography (8-DOF)',
         homography_matrix: homographyMatrix,
         transformation: {

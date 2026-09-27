@@ -430,9 +430,10 @@ class AnalysisToolsPage {
       const tgtUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.target_original_url || latest.target_image_url || latest.target_image) : (latest.target_original_url || latest.target_image_url || latest.target_image);
       const regUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.registered_image_url || latest.registered_image) : (latest.registered_image_url || latest.registered_image);
       const diffUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.difference_image_url || latest.difference_image) : (latest.difference_image_url || latest.difference_image);
+      const ovUrl = (api && api.resolveAssetUrl) ? api.resolveAssetUrl(latest.overlay_image_url || latest.overlay_image || 'assets/outputs/pair_1/overlay.png') : (latest.overlay_image_url || latest.overlay_image || 'assets/outputs/pair_1/overlay.png');
 
       if (this.viewer) {
-        this.viewer.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl);
+        this.viewer.setImageUrls(tgtUrl, refUrl, regUrl, diffUrl, ovUrl);
         this.viewer.resizeCanvas();
         this.viewer.draw();
       }

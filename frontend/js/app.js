@@ -1984,12 +1984,14 @@
         if (typeof window.resultsPage.applyPairData === 'function') {
           window.resultsPage.applyPairData(pairId);
         }
+        const ovUrl = result.overlay_image_url || result.overlay_image || 'assets/outputs/pair_1/overlay.png';
         if (window.resultsPage.workspace && typeof window.resultsPage.workspace.setImageUrls === 'function') {
           window.resultsPage.workspace.setImageUrls(
             resolveUrl(origTgtUrl || regTgtUrl),
             resolveUrl(refUrl),
             resolveUrl(regTgtUrl),
-            resolveUrl(diffUrl)
+            resolveUrl(diffUrl),
+            resolveUrl(ovUrl)
           );
           window.resultsPage.workspace.resizeCanvas();
           window.resultsPage.workspace.draw();
@@ -2019,12 +2021,14 @@
         if (typeof window.analysisToolsPage.applyPairData === 'function') {
           window.analysisToolsPage.applyPairData(pairId);
         }
+        const ovUrl = result.overlay_image_url || result.overlay_image || 'assets/outputs/pair_1/overlay.png';
         if (window.analysisToolsPage.viewer && typeof window.analysisToolsPage.viewer.setImageUrls === 'function') {
           window.analysisToolsPage.viewer.setImageUrls(
             resolveUrl(origTgtUrl || regTgtUrl),
             resolveUrl(refUrl),
             resolveUrl(regTgtUrl),
-            resolveUrl(diffUrl)
+            resolveUrl(diffUrl),
+            resolveUrl(ovUrl)
           );
           window.analysisToolsPage.viewer.resizeCanvas();
           window.analysisToolsPage.viewer.draw();
